@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Code">
+<meta name="theme-color" content="#F6F1EE">
+<link rel="icon" href="/icon.svg">
+<title>✨ Code · Claudia</title>
+<style>
+:root {
+  --bg: #F6F1EE;
+  --surface: #FDFAF6;
+  --surface2: #EFE8E0;
+  --border: #DBC9B5;
+  --pink: #F4B6C2;
+  --pink-edge: #D89AA8;
+  --teal: #A8DADC;
+  --teal-edge: #84B8BA;
+  --lavender: #CDB4DB;
+  --text: #4A3F4F;
+  --muted: #9B8FA0;
+  --ok: #7BB97F;
+  --radius: 12px;
+  --header-h: 48px;
+  --chat-h: 220px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--text); background: var(--bg); }
+button { font-family: inherit; cursor: pointer; }
+input, textarea { font-family: inherit; }
+
+/* ── Layout ── */
+.app { display: grid; grid-template-rows: var(--header-h) 1fr auto; height: 100dvh; }
+
+header.bar {
+  display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  background: var(--surface); border-bottom: 1.5px solid var(--border);
+  box-shadow: 0 2px 6px rgba(74,63,79,0.05);
+}
+header .title { font-weight: 700; color: var(--pink-edge); font-size: 14px; }
+header .path { flex: 1; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: "SF Mono", Consolas, monospace; }
+header .btn {
+  background: var(--pink); color: var(--text); border: 1.5px solid var(--pink-edge);
+  border-radius: 999px; padding: 5px 14px; font-size: 12px; font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 4px rgba(216,154,168,0.3);
+  transition: transform 150ms;
+}
+header .btn:active { transform: translateY(1px) scale(0.97); }
+header .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+header .btn.ghost { background: var(--surface); border-color: var(--border); color: var(--text); }
+header .toggle-tree { display: none; background: var(--surface); border: 1.5px solid var(--border); border-radius: 999px; padding: 5px 12px; font-size: 12px; }
+
+main {
+  display: grid; grid-template-columns: 240px 1fr; min-height: 0; position: relative;
+}
+
+/* ── File tree ── */
+aside.tree {
+  background: var(--surface); border-right: 1.5px solid var(--border);
+  overflow-y: auto; padding: 8px 6px; font-size: 13px;
+}
+.tree-item { display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 6px; cursor: pointer; user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tree-item:hover { background: var(--surface2); }
+.tree-item.active { background: var(--pink); color: var(--text); font-weight: 600; }
+.tree-item .icon { width: 14px; flex-shrink: 0; opacity: 0.7; font-size: 11px; }
+.tree-item.dir > .icon::before { content: "▸"; }
+.tree-item.dir.open > .icon::before { content: "▾"; }
+.tree-item.file > .icon::before { content: "·"; }
+.tree-children { padding-left: 14px; }
+.tree-empty { color: var(--muted); padding: 10px; font-style: italic; font-size: 12px; }
+.tree-up { color: var(--pink-edge); font-weight: 600; padding: 6px 8px; cursor: pointer; border-radius: 6px; }
+.tree-up:hover { background: var(--surface2); }
+
+/* ── Editor area ── */
+section.editor-wrap { position: relative; min-width: 0; min-height: 0; }
+#editor { width: 100%; height: 100%; }
+.editor-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-style: italic; padding: 30px; text-align: center; line-height: 1.6; }
+
+/* ── Chat panel ── */
+.chat-panel {
+  background: var(--surface); border-top: 2px solid var(--border);
+  height: var(--chat-h); display: flex; flex-direction: column;
+  box-shadow: 0 -2px 8px rgba(74,63,79,0.06);
+  transition: height 200ms;
+}
+.chat-panel.collapsed { height: 42px; }
+.chat-header {
+  display: flex; align-items: center; gap: 8px; padding: 8px 14px;
+  border-bottom: 1.5px solid var(--border); cursor: pointer; user-select: none;
+}
+.chat-header .label { flex: 1; font-size: 12px; font-weight: 700; color: var(--teal-edge); }
+.chat-header .toggle { font-size: 12px; color: var(--muted); }
+.chat-messages { flex: 1; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.chat-msg { padding: 8px 12px; border-radius: 14px; max-width: 90%; font-size: 13px; line-height: 1.5; }
+.chat-msg.user { align-self: flex-end; background: var(--teal); border: 1.5px solid var(--teal-edge); color: var(--text); }
+.chat-msg.assistant { align-self: flex-start; background: var(--pink); border: 1.5px solid var(--pink-edge); color: var(--text); white-space: pre-wrap; }
+.chat-msg.assistant code { background: rgba(255,255,255,0.5); padding: 1px 4px; border-radius: 3px; font-size: 12px; font-family: "SF Mono", Consolas, monospace; }
+.chat-input-row { display: flex; gap: 8px; padding: 8px 12px; border-top: 1.5px solid var(--border); background: var(--surface); }
+.chat-input-row textarea {
+  flex: 1; resize: none; height: 36px; padding: 8px 12px; font-size: 13px;
+  background: var(--surface2); border: 1.5px solid var(--border); border-radius: 18px;
+  outline: none; color: var(--text); box-shadow: inset 0 2px 3px rgba(74,63,79,0.05);
+}
+.chat-input-row textarea:focus { border-color: var(--pink-edge); }
+.chat-input-row .send-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--pink-edge);
+  background: var(--pink); color: var(--text); font-size: 16px; font-weight: 700; flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 2px 4px rgba(216,154,168,0.3);
+}
+.chat-input-row .send-btn:active { transform: translateY(1px) scale(0.96); }
+.chat-input-row .send-btn:disabled { opacity: 0.4; }
+.chat-empty { color: var(--muted); padding: 14px; font-size: 12px; text-align: center; font-style: italic; }
+
+/* ── Toast ── */
+#toast {
+  position: fixed; bottom: calc(var(--chat-h) + 14px); left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 999px;
+  padding: 8px 18px; font-size: 12px; font-weight: 600; opacity: 0;
+  transition: all 200ms; pointer-events: none; z-index: 200;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 4px 12px rgba(74,63,79,0.15);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.ok { color: var(--ok); }
+#toast.err { color: #B85050; }
+
+/* ── Mobile ── */
+@media (max-width: 720px) {
+  main { grid-template-columns: 1fr; }
+  aside.tree { position: absolute; inset: 0; z-index: 10; transform: translateX(-100%); transition: transform 200ms; box-shadow: 4px 0 14px rgba(74,63,79,0.18); }
+  aside.tree.open { transform: translateX(0); }
+  header .toggle-tree { display: inline-block; }
+  .chat-panel { height: 180px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="bar">
+    <button class="toggle-tree" onclick="toggleTree()">📁</button>
+    <span class="title">✨ Code</span>
+    <span class="path" id="current-path">no file open</span>
+    <button class="btn" id="save-btn" disabled onclick="saveFile()">Save</button>
+  </header>
+
+  <main>
+    <aside class="tree" id="tree">
+      <div class="tree-empty">Loading…</div>
+    </aside>
+    <section class="editor-wrap">
+      <div class="editor-empty" id="editor-empty">
+        🌸 select a file from the tree to start editing<br>
+        <span style="font-size: 12px; opacity: 0.7;">tip: ctrl+s to save · esc to focus tree</span>
+      </div>
+      <div id="editor" style="display:none;"></div>
+    </section>
+  </main>
+
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header" onclick="toggleChat()">
+      <span class="label">💬 ask claudia about this file</span>
+      <span class="toggle" id="chat-toggle">▾</span>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-empty">open a file, then ask anything about it ✨</div>
+    </div>
+    <div class="chat-input-row">
+      <textarea id="chat-input" placeholder="ask claudia..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+      <button class="send-btn" id="send-btn" onclick="sendChat()">→</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.min.js"></script>
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+let currentPath = "D:\\Rebirth";       // tree root we're navigating from
+let currentFile = null;                  // currently-open file path
+let editor = null;
+let chatHistory = [];
+let streaming = false;
+
+// ── Toast ───────────────────────────────────────────────────────────────────
+function toast(msg, kind="") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "show " + kind;
+  setTimeout(() => el.className = kind, 2000);
+}
+
+// ── Monaco init ─────────────────────────────────────────────────────────────
+require.config({ paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs" } });
+require(["vs/editor/editor.main"], () => {
+  editor = monaco.editor.create(document.getElementById("editor"), {
+    value: "",
+    language: "plaintext",
+    theme: "vs",
+    automaticLayout: true,
+    fontSize: 13,
+    minimap: { enabled: false },
+    wordWrap: "on",
+    scrollBeyondLastLine: false,
+  });
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveFile);
+  loadTree(currentPath);
+});
+
+function langFromExt(name) {
+  const ext = name.split(".").pop().toLowerCase();
+  return ({
+    py: "python", js: "javascript", ts: "typescript", jsx: "javascript", tsx: "typescript",
+    html: "html", css: "css", json: "json", yaml: "yaml", yml: "yaml", toml: "ini",
+    md: "markdown", txt: "plaintext", sh: "shell", bat: "bat", go: "go",
+    rs: "rust", c: "c", cpp: "cpp", java: "java", xml: "xml", svg: "xml",
+  })[ext] || "plaintext";
+}
+
+// ── File tree ───────────────────────────────────────────────────────────────
+async function loadTree(path) {
+  currentPath = path;
+  const tree = document.getElementById("tree");
+  tree.innerHTML = '<div class="tree-empty">loading…</div>';
+  try {
+    const entries = await fetch(`/api/files?path=${encodeURIComponent(path)}`).then(r => r.json());
+    tree.innerHTML = "";
+
+    // Up button (unless we're at a drive root)
+    if (path && !/^[A-Z]:\\?$/i.test(path)) {
+      const up = document.createElement("div");
+      up.className = "tree-up";
+      up.textContent = "⬆ up";
+      up.onclick = () => {
+        const parent = path.replace(/\\[^\\]+\\?$/, "") || "D:\\";
+        loadTree(parent);
+      };
+      tree.appendChild(up);
+    }
+
+    if (!Array.isArray(entries) || entries.length === 0) {
+      tree.appendChild(Object.assign(document.createElement("div"), { className: "tree-empty", textContent: "empty folder" }));
+      return;
+    }
+
+    entries.forEach(e => {
+      const item = document.createElement("div");
+      item.className = "tree-item " + (e.is_dir ? "dir" : "file");
+      item.innerHTML = `<span class="icon"></span><span>${e.name}</span>`;
+      if (e.is_dir) {
+        item.onclick = () => loadTree(e.path);
+      } else if (e.readable) {
+        item.onclick = () => openFile(e.path, item);
+      } else {
+        item.style.opacity = 0.4;
+        item.style.cursor = "default";
+      }
+      tree.appendChild(item);
+    });
+  } catch (err) {
+    tree.innerHTML = `<div class="tree-empty">⚠ ${err.message}</div>`;
+  }
+}
+
+// ── Open file ───────────────────────────────────────────────────────────────
+async function openFile(path, itemEl) {
+  try {
+    document.querySelectorAll(".tree-item.active").forEach(el => el.classList.remove("active"));
+    if (itemEl) itemEl.classList.add("active");
+
+    const data = await fetch(`/api/files/read?path=${encodeURIComponent(path)}`).then(r => r.json());
+    if (!editor) return;
+
+    document.getElementById("editor-empty").style.display = "none";
+    document.getElementById("editor").style.display = "block";
+
+    const lang = langFromExt(path);
+    const newModel = monaco.editor.createModel(data.content, lang);
+    const oldModel = editor.getModel();
+    editor.setModel(newModel);
+    if (oldModel) oldModel.dispose();
+
+    currentFile = path;
+    document.getElementById("current-path").textContent = path;
+    document.getElementById("save-btn").disabled = false;
+
+    // close tree on mobile
+    if (window.matchMedia("(max-width: 720px)").matches) {
+      document.getElementById("tree").classList.remove("open");
+    }
+  } catch (err) {
+    toast("✗ couldn't open: " + err.message, "err");
+  }
+}
+
+// ── Save file ───────────────────────────────────────────────────────────────
+async function saveFile() {
+  if (!currentFile || !editor) return;
+  try {
+    const r = await fetch("/api/files/write", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: currentFile, content: editor.getValue() }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      toast("✗ save failed: " + (err.detail || r.status), "err");
+      return;
+    }
+    const data = await r.json();
+    toast(`✓ saved · ${data.bytes} bytes`, "ok");
+  } catch (err) {
+    toast("✗ " + err.message, "err");
+  }
+}
+
+// ── Chat ────────────────────────────────────────────────────────────────────
+function toggleChat() {
+  document.getElementById("chat-panel").classList.toggle("collapsed");
+  const t = document.getElementById("chat-toggle");
+  t.textContent = t.textContent === "▾" ? "▸" : "▾";
+}
+
+function toggleTree() {
+  document.getElementById("tree").classList.toggle("open");
+}
+
+function appendChat(role, text) {
+  const wrap = document.getElementById("chat-messages");
+  // Clear "empty" placeholder
+  if (wrap.querySelector(".chat-empty")) wrap.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "chat-msg " + role;
+  div.textContent = text;
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+  return div;
+}
+
+async function sendChat() {
+  const input = document.getElementById("chat-input");
+  const send = document.getElementById("send-btn");
+  const q = input.value.trim();
+  if (!q || streaming) return;
+  input.value = "";
+  streaming = true;
+  send.disabled = true;
+
+  // Build context: include current file content if open
+  let userContent = q;
+  if (currentFile && editor) {
+    const fileContent = editor.getValue();
+    const trimmed = fileContent.length > 6000 ? fileContent.slice(0, 6000) + "\n\n... [truncated]" : fileContent;
+    userContent = `Currently looking at \`${currentFile}\`:\n\n\`\`\`\n${trimmed}\n\`\`\`\n\n${q}`;
+  }
+
+  appendChat("user", q);
+  const replyDiv = appendChat("assistant", "…");
+
+  // Detect gateway availability for RAG
+  let provider = "gemini", model = null;
+  try {
+    const gs = await fetch("/api/gateway/status").then(r => r.json());
+    if (gs.online) {
+      provider = "gateway";
+      model = gs.virtual_model || "Claudia-0.2.0";
+    }
+  } catch {}
+
+  chatHistory.push({ role: "user", content: userContent });
+
+  const systemPrompt = "You are Claudia — Audrey's warm, supportive coding bestie. She's a vibe-coder (doesn't write code herself). When she asks about a file, explain in plain language what it does, what's broken, or what would change. Use small markdown for emphasis. Keep responses short and friendly.";
+
+  let fullText = "";
+  try {
+    const resp = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: [{ role: "system", content: systemPrompt }, ...chatHistory],
+        provider, model,
+      }),
+    });
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    replyDiv.textContent = "";
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.type === "content") {
+            fullText += data.text;
+            replyDiv.textContent = fullText;
+            const msgs = document.getElementById("chat-messages");
+            msgs.scrollTop = msgs.scrollHeight;
+          } else if (data.type === "error") {
+            replyDiv.textContent = "⚠ " + data.text;
+          }
+        } catch {}
+      }
+    }
+    if (fullText) chatHistory.push({ role: "assistant", content: fullText });
+  } catch (err) {
+    replyDiv.textContent = "⚠ couldn't reach claudia: " + err.message;
+  } finally {
+    streaming = false;
+    send.disabled = false;
+  }
+}
+
+// Esc to focus tree (escape from editor on mobile)
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && window.matchMedia("(max-width: 720px)").matches) {
+    document.getElementById("tree").classList.toggle("open");
+  }
+});
+</script>
+</body>
+</html>

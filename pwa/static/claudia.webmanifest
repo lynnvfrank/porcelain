@@ -1,0 +1,19 @@
+{
+  "name": "Claudia",
+  "short_name": "Claudia",
+  "description": "Claudia mobile chat (original UI)",
+  "start_url": "/web",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0a0614",
+  "background_color": "#0a0614",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

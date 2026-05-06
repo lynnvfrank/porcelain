@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  .continueignore — files Continue.dev's chat/codebase indexer should skip.
+#
+#  Why this exists: by default, Continue includes all "code-like" files in
+#  its retrieval results sent to the LLM. Some files in this repo bloat the
+#  prompt with non-useful tokens (e.g. icon.svg has a base64-encoded PNG of
+#  ~211 KB, JS bundles are minified concatenations, audio data is huge).
+#
+#  Pattern syntax matches .gitignore.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Bundled / generated files (regenerated from sources) ─────────────────────
+pwa/static/web_app.js
+pwa/static/legacy_tabbed_app.html
+pwa/static/claudia_web.html
+
+# ── SVGs with embedded base64 images ─────────────────────────────────────────
+# These look like text but contain entire PNG payloads inline → tons of useless tokens
+pwa/static/icon.svg
+pwa/static/icon-capture.svg
+pwa/static/claudia-avatar.png
+pwa/static/claudia-avatar-sm.png
+
+# ── The whole asset library — hundreds of icons, photos, etc. ────────────────
+assets/
+
+# ── Audio data + transcripts already indexed via Qdrant (don't double-feed) ──
+Moto X/claudia_motoxaudio_data/
+
+# ── Nested git repos / vendored deps ─────────────────────────────────────────
+claudia-gateway/
+Previously Claudia Core/
+**/node_modules/
+**/.deps/
+**/.next/
+**/__pycache__/
+.venv/
+.venv-transcribe/
+
+# ── Logs / state / databases ─────────────────────────────────────────────────
+*.log
+*.db
+*.sqlite
+*.sqlite-journal
+ingest_state.json
+
+# ── Lock / build files (rarely useful in chat context) ───────────────────────
+package-lock.json
+yarn.lock
+*.tsbuildinfo
+
+# ── Manifests / icons (low-info-density) ─────────────────────────────────────
+*.webmanifest
+manifest.json
+sw.js
+
+# ── Backups / archives ───────────────────────────────────────────────────────
+*.bak
+*.tmp
+*.swp

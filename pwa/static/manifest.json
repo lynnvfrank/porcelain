@@ -1,0 +1,19 @@
+{
+  "name": "Claudia",
+  "short_name": "Claudia",
+  "description": "Chat, journal, notes — Claudia PWA",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F6F1EE",
+  "theme_color": "#F6F1EE",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

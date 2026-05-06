@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Claudia">
+<meta name="theme-color" content="#F6F1EE">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="icon" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+<title>Claudia ✨</title>
+<style>
+:root {
+  /* Surfaces & paper */
+  --bg: #F6F1EE;
+  --surface: #FDFAF6;
+  --surface2: #F1EBE2;
+  --surface-pressed: #ECE4D8;
+  --border: #DBC9B5;
+  --border-soft: #E8DDD0;
+
+  /* Pastels — fill + edge (slightly darker for paper-thickness rim) */
+  --pink: #F4B6C2;
+  --pink-edge: #D89AA8;
+  --teal: #A8DADC;
+  --teal-edge: #84B8BA;
+  --lavender: #CDB4DB;
+  --lavender-edge: #A892B8;
+  --beige: #EAD7C5;
+  --sage: #C5D6BC;
+  --sage-edge: #9DB593;
+
+  --purple: #CDB4DB; /* alias */
+  --sky: #A8DADC;    /* alias */
+  --grad: linear-gradient(135deg, #F4B6C2, #CDB4DB);
+
+  /* Text — soft charcoal, not pure black */
+  --text: #4A3F4F;
+  --text-soft: #6B5E72;
+  --muted: #9B8FA0;
+
+  --radius: 20px;
+  --radius-pill: 999px;
+  --tab-h: 76px;
+  --header-h: 58px;
+
+  /* Shadow system — light source top-left, shadows fall bottom-right */
+  --hl-top: inset 0 2px 0 rgba(255,255,255,0.55);
+  --hl-top-soft: inset 0 1px 0 rgba(255,255,255,0.6);
+  --shadow-card: 0 5px 14px rgba(74,63,79,0.10), 0 1px 3px rgba(74,63,79,0.05);
+  --shadow-lift: 0 7px 18px rgba(74,63,79,0.13);
+  --shadow-press: inset 0 3px 6px rgba(74,63,79,0.10);
+  --t: 220ms cubic-bezier(.3,.7,.4,1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background-color: #F6F1EE;
+  background-image:
+    /* paper grain noise */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.45 0 0 0 0 0.38 0 0 0 0.16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    /* gentle warm gradient — like uneven paper tone */
+    radial-gradient(ellipse at 20% 0%, #FBF6F1 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 100%, #F0E6D8 0%, transparent 70%);
+  color: var(--text);
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  position: relative;
+}
+/* Cottage grid paper peeking through grain */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image:
+    linear-gradient(90deg, rgba(168, 218, 220, 0.14) 1px, transparent 1px),
+    linear-gradient(rgba(205, 180, 219, 0.11) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+header, main, nav { position: relative; z-index: 1; }
+
+/* Header */
+header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 2px solid var(--border-soft);
+  flex-shrink: 0;
+  padding-top: env(safe-area-inset-top);
+  box-shadow: 0 4px 14px rgba(74,63,79,0.08);
+  position: relative;
+  z-index: 5;
+}
+.header-title {
+  font-size: 18px;
+  font-weight: 700;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+#model-select {
+  background: var(--surface);
+  color: var(--text);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 160px;
+  outline: none;
+  box-shadow: var(--hl-top-soft), 0 2px 5px rgba(74,63,79,0.08);
+  cursor: pointer;
+}
+
+/* Main scrollable area */
+main {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Tab panels */
+.tab-panel {
+  display: none;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tab-panel.active { display: flex; }
+
+/* Bottom tab bar */
+nav {
+  height: var(--tab-h);
+  display: flex;
+  background: var(--surface);
+  border-top: 2px solid var(--border-soft);
+  padding: 6px 8px env(safe-area-inset-bottom);
+  flex-shrink: 0;
+  box-shadow: 0 -4px 14px rgba(74,63,79,0.08);
+  gap: 4px;
+  position: relative;
+  z-index: 5;
+}
+.tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: transparent;
+  border: 2px solid transparent;
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--t);
+  padding: 6px 4px;
+  border-radius: 16px;
+}
+.tab-btn .icon { width: 24px; height: 24px; flex-shrink: 0; transition: transform var(--t); }
+.tab-btn:active .icon { transform: scale(0.92); }
+.tab-btn.active {
+  color: var(--pink-edge);
+  background: var(--pink);
+  border-color: var(--pink-edge);
+  box-shadow: var(--hl-top), 0 3px 8px rgba(216,154,168,0.35);
+}
+.tab-btn.active .icon { filter: none; }
+
+/* ── CHAT ── */
+#tab-chat { display: flex; flex-direction: column; }
+#messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* Soft cardstock bubbles — rounded, slight tilt; no clip-path (avoids “sawtooth” edges) */
+.msg-wrap {
+  max-width: 82%;
+  position: relative;
+  transition: transform var(--t);
+}
+.msg-wrap.user {
+  align-self: flex-end;
+  transform: rotate(0.35deg);
+}
+.msg-wrap.assistant {
+  align-self: flex-start;
+  transform: rotate(-0.35deg);
+}
+.msg-wrap:active { transform: rotate(0deg) scale(0.995); }
+.msg {
+  padding: 14px 18px 16px;
+  line-height: 1.55;
+  font-size: 15px;
+  word-break: break-word;
+  position: relative;
+  font-weight: 600;
+}
+/* Asymmetric radii = chat bubble, not a harsh rectangle */
+.msg.user {
+  border-radius: 22px 22px 10px 22px;
+  background:
+    linear-gradient(165deg, rgba(255,255,255,0.42) 0%, transparent 45%),
+    var(--teal);
+  color: var(--text);
+  border: 2.5px solid var(--teal-edge);
+  box-shadow:
+    var(--hl-top),
+    inset 0 -2px 0 rgba(100, 150, 152, 0.35),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.45),
+    3px 5px 0 rgba(132, 184, 186, 0.18),
+    6px 14px 24px rgba(74, 63, 79, 0.11);
+}
+.msg.assistant {
+  border-radius: 22px 22px 22px 10px;
+  background:
+    linear-gradient(165deg, rgba(255,255,255,0.38) 0%, transparent 42%),
+    var(--pink);
+  color: var(--text);
+  border: 2.5px solid var(--pink-edge);
+  box-shadow:
+    var(--hl-top),
+    inset 0 -2px 0 rgba(200, 130, 150, 0.32),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.42),
+    3px 5px 0 rgba(216, 154, 168, 0.15),
+    6px 14px 24px rgba(74, 63, 79, 0.11);
+}
+/* API / connection errors — always readable on pink */
+.msg .bubble-error {
+  display: block;
+  margin: 0;
+  padding: 12px 14px;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #2E2533;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1.5px solid rgba(216, 154, 168, 0.65);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  word-break: break-word;
+}
+.msg .bubble-error strong { color: #8B2942; font-weight: 800; }
+.msg.assistant p { margin-bottom: 8px; }
+.msg.assistant p:last-child { margin-bottom: 0; }
+.msg.assistant code {
+  background: rgba(255,255,255,0.55);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: "SF Mono", monospace;
+  color: var(--pink-edge);
+  border: 1px solid rgba(216,154,168,0.35);
+}
+.msg.assistant pre {
+  background: rgba(255,255,255,0.82);
+  border: 1.5px solid rgba(216,154,168,0.45);
+  padding: 12px 14px;
+  border-radius: 14px;
+  overflow-x: auto;
+  margin: 8px 0;
+  box-shadow: inset 0 1px 2px rgba(74,63,79,0.05);
+  color: #2E2533;
+  font-size: 12px;
+}
+.msg.assistant pre code { background: none; padding: 0; color: #2E2533; border: none; }
+.msg.assistant strong { color: var(--pink-edge); }
+.msg.assistant h1,.msg.assistant h2,.msg.assistant h3 {
+  margin: 8px 0 4px;
+  font-size: 15px;
+}
+.msg.assistant ul,.msg.assistant ol { padding-left: 20px; margin: 4px 0; }
+.msg.assistant strong { color: var(--pink); }
+.typing-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  background: var(--pink);
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+  margin: 0 2px;
+  opacity: 0.6;
+}
+@keyframes pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+.chat-input-wrap {
+  padding: 12px 14px;
+  background: var(--surface);
+  border-top: 2px solid var(--border-soft);
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+#chat-input {
+  flex: 1;
+  background: var(--surface-pressed);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  font-size: 15px;
+  padding: 11px 18px;
+  resize: none;
+  outline: none;
+  max-height: 120px;
+  min-height: 44px;
+  font-family: inherit;
+  line-height: 1.4;
+  transition: border-color var(--t), box-shadow var(--t);
+  box-shadow: var(--shadow-press);
+}
+#chat-input:focus { border-color: var(--pink-edge); }
+#chat-input::placeholder { color: var(--muted); }
+#send-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--pink-edge);
+  background: var(--pink);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--hl-top), 0 4px 10px rgba(216,154,168,0.4);
+  transition: transform var(--t), box-shadow var(--t);
+}
+#send-btn:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: inset 0 2px 4px rgba(216,154,168,0.3), 0 2px 5px rgba(74,63,79,0.1);
+}
+#send-btn:disabled { opacity: 0.4; box-shadow: none; transform: none; }
+
+/* ── JOURNAL / TRANSCRIPTS ── */
+#tab-journal { overflow: hidden; flex-direction: column; }
+
+/* Ask bar */
+.journal-ask-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 12px 0;
+  flex-shrink: 0;
+}
+.journal-ask-bar input {
+  flex: 1;
+  background: var(--surface-pressed);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 10px 18px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--t);
+  box-shadow: var(--shadow-press);
+}
+.journal-ask-bar input::placeholder { color: var(--muted); }
+.journal-ask-bar input:focus { border-color: var(--pink-edge); }
+.journal-ask-btn {
+  background: var(--pink);
+  color: var(--text);
+  border: 2px solid var(--pink-edge);
+  border-radius: var(--radius-pill);
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: transform var(--t), box-shadow var(--t);
+  box-shadow: var(--hl-top), 0 4px 10px rgba(216,154,168,0.3);
+}
+.journal-ask-btn:active {
+  transform: translateY(1px) scale(0.97);
+  box-shadow: inset 0 2px 4px rgba(216,154,168,0.3);
+}
+.journal-ask-btn:disabled { opacity: 0.5; transform: none; }
+
+/* Answer panel */
+.journal-ask-result {
+  margin: 10px 12px 0;
+  background: var(--surface);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+  flex-shrink: 0;
+  max-height: 220px;
+  display: flex;
+  flex-direction: column;
+  animation: slideDown .2s ease;
+  box-shadow: var(--hl-top-soft), var(--shadow-card);
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ask-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ask-result-label {
+  font-size: 12px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: .04em;
+}
+.ask-close-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.ask-close-btn:hover { color: var(--text); }
+.ask-result-body {
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-y: auto;
+  flex: 1;
+  color: var(--text);
+}
+.ask-result-body .cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--pink);
+  margin-left: 2px;
+  animation: blink .7s steps(1) infinite;
+  vertical-align: text-bottom;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+.list-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.list-item {
+  background: var(--surface);
+  border: 2px solid var(--border-soft);
+  border-radius: 22px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+  box-shadow: var(--hl-top-soft), var(--shadow-card);
+  transform: rotate(-0.35deg);
+}
+.list-item:nth-child(even) { transform: rotate(0.2deg); }
+.list-item:nth-child(3n) { transform: rotate(-0.15deg); }
+.list-item:hover { border-color: var(--pink-edge); }
+.list-item:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow: var(--hl-top-soft), 0 2px 6px rgba(74,63,79,0.07);
+}
+.list-item-title { font-weight: 700; font-size: 15px; color: var(--text); }
+.list-item-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+/* Detail view (shared) */
+.detail-view {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+.detail-view.open { transform: translateX(0); }
+.detail-header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  box-shadow: 0 1px 8px rgba(45,42,58,0.06);
+}
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--pink);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+}
+.detail-title {
+  font-size: 15px;
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.detail-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  line-height: 1.7;
+  font-size: 15px;
+}
+/* Lined “notebook” paper */
+.paper-ruled {
+  background-color: var(--surface);
+  background-image: repeating-linear-gradient(
+    transparent 0 27px,
+    rgba(168, 218, 220, 0.28) 27px 28px
+  );
+  background-attachment: local;
+  box-shadow: inset 0 0 0 1px rgba(212, 196, 180, 0.5);
+  border-radius: 4px 4px 12px 4px;
+  position: relative;
+}
+.paper-ruled::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 18px; height: 18px;
+  background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.04) 50%);
+  border-radius: 0 2px 0 8px;
+  pointer-events: none;
+}
+/* Markdown styles inside detail */
+.detail-content h1 { font-size: 20px; margin: 0 0 12px; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.detail-content h2 { font-size: 17px; margin: 16px 0 8px; color: var(--pink); }
+.detail-content h3 { font-size: 15px; margin: 12px 0 6px; color: var(--purple); }
+.detail-content p { margin-bottom: 10px; }
+.detail-content strong { color: var(--pink); }
+.detail-content em { color: var(--purple); }
+.detail-content code { background: var(--surface2); border: 1px solid var(--border); padding: 2px 6px; border-radius: 5px; font-size: 13px; font-family: "SF Mono", monospace; color: var(--pink); }
+.detail-content pre { background: var(--surface2); border: 1.5px solid var(--border); padding: 14px; border-radius: 12px; overflow-x: auto; margin: 10px 0; }
+.detail-content pre code { background: none; padding: 0; border: none; color: var(--text); }
+.detail-content ul, .detail-content ol { padding-left: 22px; margin-bottom: 10px; }
+.detail-content li { margin-bottom: 4px; }
+.detail-content blockquote { border-left: 3px solid var(--pink); padding-left: 14px; color: var(--muted); margin: 10px 0; }
+.detail-content hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+/* ── FILES ── */
+.file-breadcrumb {
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.file-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+  background: var(--surface);
+}
+.file-entry:hover, .file-entry:active { background: var(--surface2); }
+.file-icon { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+.file-name { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-meta { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.file-up {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--pink);
+  font-size: 14px;
+}
+
+/* ── NOTES ── */
+.notes-toolbar {
+  padding: 10px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notes-ask-btn {
+  margin-left: auto;
+  background: var(--surface);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform var(--t), border-color var(--t);
+  line-height: 1;
+  color: var(--text);
+  box-shadow: var(--hl-top-soft), 0 2px 6px rgba(74,63,79,0.08);
+}
+.notes-ask-btn:hover { border-color: var(--lavender-edge); }
+.notes-ask-btn:active { transform: translateY(1px) scale(0.96); }
+.btn-primary {
+  background: var(--pink);
+  color: var(--text);
+  border: 2px solid var(--pink-edge);
+  border-radius: var(--radius-pill);
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: var(--hl-top), 0 4px 10px rgba(216,154,168,0.3);
+  transition: transform var(--t), box-shadow var(--t);
+}
+.btn-primary:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: inset 0 2px 4px rgba(216,154,168,0.3);
+}
+.note-editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 10px;
+}
+#note-textarea {
+  flex: 1;
+  background-color: var(--surface);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 15px;
+  padding: 18px 16px 18px 28px;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  line-height: 28px;
+  transition: border-color var(--t);
+  box-shadow: var(--shadow-press);
+  min-height: 220px;
+}
+#note-textarea:focus { border-color: var(--pink-edge); }
+#note-textarea::placeholder { color: var(--muted); }
+
+/* Empty state */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  padding: 40px;
+  text-align: center;
+}
+.empty-state .emoji { font-size: 48px; }
+
+/* Loading */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--muted);
+}
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: calc(var(--tab-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--surface);
+  border: 2px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0;
+  transition: all 0.2s;
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  box-shadow: var(--hl-top), 0 6px 18px rgba(74,63,79,0.18);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="header-title">✨ Claudia</span>
+  <select id="model-select"><option value="">Loading models…</option></select>
+</header>
+
+<main>
+
+  <!-- ── CHAT ── -->
+  <div id="tab-chat" class="tab-panel active">
+    <div id="messages"></div>
+    <div class="chat-input-wrap">
+      <textarea id="chat-input" placeholder="Message Claudia…" rows="1"></textarea>
+      <button id="send-btn">↑</button>
+    </div>
+  </div>
+
+  <!-- ── JOURNAL ── -->
+  <div id="tab-journal" class="tab-panel">
+
+    <!-- Ask-about-journal search bar -->
+    <div class="journal-ask-bar">
+      <input
+        id="journal-ask-input"
+        type="text"
+        placeholder="Ask Claudia about your journal… 🔍"
+        autocomplete="off"
+        onkeydown="if(event.key==='Enter')journalAsk()"
+      >
+      <button class="journal-ask-btn" onclick="journalAsk()">Ask</button>
+    </div>
+
+    <!-- Streaming answer panel (hidden until there's an answer) -->
+    <div id="journal-ask-result" class="journal-ask-result" style="display:none">
+      <div class="ask-result-header">
+        <span class="ask-result-label">✦ Claudia</span>
+        <button class="ask-close-btn" onclick="closeJournalAsk()">✕</button>
+      </div>
+      <div id="journal-ask-text" class="ask-result-body"></div>
+    </div>
+
+    <div id="journal-list" class="list-panel"></div>
+    <div id="journal-detail" class="detail-view">
+      <div class="detail-header">
+        <button class="back-btn" onclick="closeDetail('journal')">← Back</button>
+        <span class="detail-title" id="journal-detail-title"></span>
+      </div>
+      <div class="detail-content paper-ruled" id="journal-detail-content"></div>
+    </div>
+  </div>
+
+  <!-- ── FILES ── -->
+  <div id="tab-files" class="tab-panel">
+    <div class="file-breadcrumb" id="file-breadcrumb">D:\</div>
+    <div id="file-list" style="flex:1;overflow-y:auto;"></div>
+    <div id="file-detail" class="detail-view">
+      <div class="detail-header">
+        <button class="back-btn" onclick="closeDetail('file')">← Back</button>
+        <span class="detail-title" id="file-detail-title"></span>
+      </div>
+      <div class="detail-content" id="file-detail-content"></div>
+    </div>
+  </div>
+
+  <!-- ── NOTES ── -->
+  <div id="tab-notes" class="tab-panel">
+    <div class="notes-toolbar">
+      <button class="btn-primary" onclick="openNewNote()">+ New Note</button>
+      <button class="notes-ask-btn" onclick="toggleNotesAsk()" title="Ask Claudia about your notes">🔍</button>
+    </div>
+
+    <!-- Ask about notes (collapsible) -->
+    <div id="notes-ask-bar" class="journal-ask-bar" style="display:none;padding-top:0">
+      <input
+        id="notes-ask-input"
+        type="text"
+        placeholder="Ask about your notes…"
+        autocomplete="off"
+        onkeydown="if(event.key==='Enter')notesAsk()"
+      >
+      <button class="journal-ask-btn" onclick="notesAsk()">Ask</button>
+    </div>
+    <div id="notes-ask-result" class="journal-ask-result" style="display:none;margin-top:8px">
+      <div class="ask-result-header">
+        <span class="ask-result-label">✦ Claudia</span>
+        <button class="ask-close-btn" onclick="closeNotesAsk()">✕</button>
+      </div>
+      <div id="notes-ask-text" class="ask-result-body"></div>
+    </div>
+
+    <div id="notes-list" class="list-panel"></div>
+    <div id="note-detail" class="detail-view">
+      <div class="detail-header">
+        <button class="back-btn" onclick="closeDetail('note')">← Back</button>
+        <span class="detail-title" id="note-detail-title"></span>
+        <button class="back-btn" id="note-save-btn" onclick="saveNote()" style="color:var(--purple)">Save</button>
+      </div>
+      <div class="note-editor-area">
+        <textarea id="note-textarea" class="paper-ruled" placeholder="Write your note…"></textarea>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<nav>
+  <button class="tab-btn active" data-tab="chat">
+    <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M4 3h16a2 2 0 012 2v9a2 2 0 01-2 2H8.5L4 20V5a2 2 0 012-2z" rx="2"/></svg>
+    <span>Chat</span>
+  </button>
+  <button class="tab-btn" data-tab="journal">
+    <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/><path d="M12 18v3M9 21h6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>
+    <span>Journal</span>
+  </button>
+  <button class="tab-btn" data-tab="files">
+    <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 8a2 2 0 012-2h3.6l2 2H19a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/></svg>
+    <span>Files</span>
+  </button>
+  <button class="tab-btn" data-tab="notes">
+    <svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h9l5 5v15a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z"/><path d="M13 2v6h6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 13h8M8 17h5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.7" fill="none"/></svg>
+    <span>Notes</span>
+  </button>
+</nav>
+
+<div id="toast"></div>
+
+<script>
+// ── State ───────────────────────────────────────────────────────────────────
+let chatHistory = [];
+let streaming = false;
+let currentProvider = 'gemini';
+let currentModel = '';
+let currentNoteName = null;
+let currentFilePath = 'D:\\';
+let pathStack = ['D:\\'];
+
+// ── Simple markdown renderer ────────────────────────────────────────────────
+function esc(t) {
+  if (t == null) return '';
+  return String(t)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderMd(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/```([\s\S]*?)```/g, (_,c) => `<pre><code>${c.trim()}</code></pre>`)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^---$/gm, '<hr>')
+    .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>)/g, '<ul>$1</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[h|u|p|b|h|c|l|d])/gm, '')
+    .replace(/\n/g, '<br>')
+    .replace(/^(.+)$/gm, m => /^</.test(m) ? m : `<p>${m}</p>`);
+}
+
+// ── Toast ───────────────────────────────────────────────────────────────────
+function toast(msg, dur=2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// ── Models ───────────────────────────────────────────────────────────────────
+async function loadModels() {
+  const sel = document.getElementById('model-select');
+  try {
+    const models = await fetch('/api/models').then(r => r.json());
+    sel.innerHTML = '';
+    let picked = false;
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = JSON.stringify({provider: m.provider, model: m.id});
+      opt.textContent = m.label;
+      if (!picked && m.provider === 'gateway') {
+        opt.selected = true;
+        picked = true;
+      }
+      sel.appendChild(opt);
+    });
+    if (!picked) {
+      const gem = [...sel.options].find(o => {
+        try { return JSON.parse(o.value).provider === 'gemini'; } catch { return false; }
+      });
+      if (gem) gem.selected = true;
+    }
+    applyModelSelection();
+  } catch {
+    sel.innerHTML = '<option>Groq (default)</option>';
+  }
+}
+
+function applyModelSelection() {
+  const sel = document.getElementById('model-select');
+  try {
+    const v = JSON.parse(sel.value);
+    currentProvider = v.provider;
+    currentModel = v.model;
+  } catch {}
+}
+
+document.getElementById('model-select').addEventListener('change', applyModelSelection);
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+
+    if (tab === 'journal') loadJournal();
+    if (tab === 'files') loadFiles(currentFilePath);
+    if (tab === 'notes') loadNotes();
+  });
+});
+
+// ── Detail view helpers ───────────────────────────────────────────────────────
+function openDetail(type) {
+  document.getElementById(type + '-detail').classList.add('open');
+}
+function closeDetail(type) {
+  document.getElementById(type + '-detail').classList.remove('open');
+  if (type === 'note') currentNoteName = null;
+}
+
+// ── CHAT ────────────────────────────────────────────────────────────────────
+const input = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+const messages = document.getElementById('messages');
+
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+});
+sendBtn.addEventListener('click', sendMessage);
+
+function addMessage(role, text) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap ' + role;
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  if (role === 'assistant') {
+    div.innerHTML = renderMd(text);
+  } else {
+    div.textContent = text;
+  }
+  wrap.appendChild(div);
+  messages.appendChild(wrap);
+  messages.scrollTop = messages.scrollHeight;
+  return div;
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text || streaming) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  streaming = true;
+  sendBtn.disabled = true;
+
+  chatHistory.push({role: 'user', content: text});
+  addMessage('user', text);
+
+  const typingWrap = document.createElement('div');
+  typingWrap.className = 'msg-wrap assistant';
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'msg assistant';
+  typingDiv.innerHTML = '<span class="typing-dot"></span><span class="typing-dot" style="animation-delay:.2s"></span><span class="typing-dot" style="animation-delay:.4s"></span>';
+  typingWrap.appendChild(typingDiv);
+  messages.appendChild(typingWrap);
+  messages.scrollTop = messages.scrollHeight;
+
+  let fullText = '';
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        messages: chatHistory,
+        provider: currentProvider,
+        model: currentModel,
+      }),
+    });
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    typingDiv.innerHTML = '';
+
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.type === 'content') {
+            fullText += data.text;
+            typingDiv.innerHTML = renderMd(fullText);
+            messages.scrollTop = messages.scrollHeight;
+          } else if (data.type === 'error') {
+            typingDiv.innerHTML = `<div class="bubble-error"><strong>Error</strong> ${esc(data.text)}</div>`;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    typingDiv.innerHTML =
+      '<div class="bubble-error"><strong>Connection error</strong> Could not reach the server.</div>';
+  }
+
+  if (fullText) {
+    chatHistory.push({role: 'assistant', content: fullText});
+  }
+  streaming = false;
+  sendBtn.disabled = false;
+}
+
+// ── JOURNAL ──────────────────────────────────────────────────────────────────
+
+let _journalAskController = null;
+
+async function journalAsk() {
+  const input  = document.getElementById('journal-ask-input');
+  const result = document.getElementById('journal-ask-result');
+  const textEl = document.getElementById('journal-ask-text');
+  const btn    = document.querySelector('.journal-ask-btn');
+
+  const q = input.value.trim();
+  if (!q) return;
+
+  /* Gateway virtual model = RAG path; a raw upstream id skips retrieval */
+  let provider = 'groq';
+  let model    = null;
+  let project  = null;
+  try {
+    const gs = await fetch('/api/gateway/status').then(r => r.json());
+    if (gs.online && gs.virtual_model) {
+      provider = 'gateway';
+      model    = gs.virtual_model;
+      project  = 'transcripts';
+    }
+  } catch {}
+
+  // Abort any in-progress ask
+  if (_journalAskController) _journalAskController.abort();
+  _journalAskController = new AbortController();
+
+  result.style.display = 'flex';
+  btn.disabled = true;
+  textEl.innerHTML = '<span class="cursor"></span>';
+
+  const messages = [
+    {
+      role: 'user',
+      content: provider === 'gateway'
+        ? q   // gateway does RAG automatically from the project
+        : `You are Claudia. Ruby is asking about her personal journal/transcripts. Answer as helpfully as possible, but note you don't have direct access to her transcripts right now (the gateway is offline). Question: ${q}`
+    }
+  ];
+
+  const body = { messages, provider };
+  if (model)   body.model   = model;
+  if (project) body.project = project;
+
+  let raw = '';
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: _journalAskController.signal,
+    });
+
+    const reader = resp.body.getReader();
+    const dec    = new TextDecoder();
+    textEl.innerHTML = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const lines = dec.decode(value).split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6);
+        if (payload === '{"type":"done"}') break;
+        try {
+          const chunk = JSON.parse(payload);
+          if (chunk.type === 'content') {
+            raw += chunk.text;
+            textEl.innerHTML = renderMd(raw);
+            textEl.scrollTop = textEl.scrollHeight;
+          } else if (chunk.type === 'error') {
+            textEl.innerHTML += `<em style="color:var(--muted)">${chunk.text}</em>`;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      textEl.innerHTML = '<em style="color:var(--muted)">Could not reach Claudia.</em>';
+    }
+  } finally {
+    btn.disabled = false;
+    _journalAskController = null;
+  }
+}
+
+function closeJournalAsk() {
+  if (_journalAskController) _journalAskController.abort();
+  document.getElementById('journal-ask-result').style.display = 'none';
+  document.getElementById('journal-ask-text').innerHTML = '';
+  document.getElementById('journal-ask-input').value = '';
+}
+
+async function loadJournal() {
+  const list = document.getElementById('journal-list');
+  list.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const convos = await fetch('/api/transcripts').then(r => r.json());
+    if (!convos.length) {
+      list.innerHTML = '<div class="empty-state"><div class="emoji">🎙️</div><div>No conversations yet.<br>Start recording on your Moto X!</div></div>';
+      return;
+    }
+    list.innerHTML = '';
+    convos.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = `<div class="list-item-title">${c.label}</div><div class="list-item-meta">${new Date(c.modified * 1000).toLocaleDateString()}</div>`;
+      div.onclick = () => openTranscript(c.id, c.label);
+      list.appendChild(div);
+    });
+  } catch {
+    list.innerHTML = '<div class="empty-state"><div class="emoji">😔</div><div>Could not load journal.</div></div>';
+  }
+}
+
+async function openTranscript(id, label) {
+  document.getElementById('journal-detail-title').textContent = label;
+  document.getElementById('journal-detail-content').innerHTML = '<div class="loading">Loading…</div>';
+  openDetail('journal');
+  try {
+    const data = await fetch(`/api/transcripts/${encodeURIComponent(id)}`).then(r => r.json());
+    document.getElementById('journal-detail-content').innerHTML = renderMd(data.content);
+  } catch {
+    document.getElementById('journal-detail-content').innerHTML = '<em>Could not load transcript.</em>';
+  }
+}
+
+// ── FILES ─────────────────────────────────────────────────────────────────────
+function fileIcon(entry) {
+  if (entry.is_dir) return '📁';
+  const e = entry.ext;
+  if (['.md','.txt'].includes(e)) return '📄';
+  if (['.py','.js','.ts','.jsx','.tsx'].includes(e)) return '💻';
+  if (['.json','.yaml','.yml','.toml'].includes(e)) return '⚙️';
+  if (['.png','.jpg','.jpeg','.gif','.webp'].includes(e)) return '🖼️';
+  if (['.mp3','.aac','.wav','.flac'].includes(e)) return '🎵';
+  if (['.mp4','.mov','.mkv'].includes(e)) return '🎬';
+  return '📎';
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+async function loadFiles(path) {
+  currentFilePath = path;
+  const list = document.getElementById('file-list');
+  const crumb = document.getElementById('file-breadcrumb');
+  crumb.textContent = path;
+  list.innerHTML = '<div class="loading">Loading…</div>';
+
+  try {
+    const entries = await fetch(`/api/files?path=${encodeURIComponent(path)}`).then(r => r.json());
+    list.innerHTML = '';
+
+    // Up button (unless at root)
+    if (pathStack.length > 1) {
+      const up = document.createElement('div');
+      up.className = 'file-up';
+      up.innerHTML = '⬆️ Up';
+      up.onclick = () => {
+        pathStack.pop();
+        loadFiles(pathStack[pathStack.length - 1]);
+      };
+      list.appendChild(up);
+    }
+
+    if (!entries.length) {
+      list.innerHTML += '<div class="empty-state"><div class="emoji">📭</div><div>Empty folder</div></div>';
+      return;
+    }
+
+    entries.forEach(entry => {
+      const div = document.createElement('div');
+      div.className = 'file-entry';
+      div.innerHTML = `
+        <span class="file-icon">${fileIcon(entry)}</span>
+        <span class="file-name">${entry.name}</span>
+        <span class="file-meta">${entry.is_dir ? '' : formatSize(entry.size)}</span>
+      `;
+      if (entry.is_dir) {
+        div.onclick = () => {
+          pathStack.push(entry.path);
+          loadFiles(entry.path);
+        };
+      } else if (entry.readable) {
+        div.onclick = () => openFile(entry.path, entry.name);
+      } else {
+        div.style.opacity = '0.5';
+        div.style.cursor = 'default';
+      }
+      list.appendChild(div);
+    });
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state"><div class="emoji">🚫</div><div>${e.message || 'Could not load folder'}</div></div>`;
+  }
+}
+
+async function openFile(path, name) {
+  document.getElementById('file-detail-title').textContent = name;
+  document.getElementById('file-detail-content').innerHTML = '<div class="loading">Loading…</div>';
+  openDetail('file');
+  try {
+    const data = await fetch(`/api/files/read?path=${encodeURIComponent(path)}`).then(r => r.json());
+    const ext = name.split('.').pop().toLowerCase();
+    if (ext === 'md') {
+      document.getElementById('file-detail-content').innerHTML = renderMd(data.content);
+    } else {
+      document.getElementById('file-detail-content').innerHTML = `<pre><code>${data.content.replace(/</g,'&lt;')}</code></pre>`;
+    }
+  } catch (e) {
+    document.getElementById('file-detail-content').innerHTML = `<em>Could not read file: ${e.message}</em>`;
+  }
+}
+
+// ── NOTES ─────────────────────────────────────────────────────────────────────
+
+let _notesAskController = null;
+
+function toggleNotesAsk() {
+  const bar = document.getElementById('notes-ask-bar');
+  const isHidden = bar.style.display === 'none';
+  bar.style.display = isHidden ? 'flex' : 'none';
+  if (isHidden) document.getElementById('notes-ask-input').focus();
+  else closeNotesAsk();
+}
+
+async function notesAsk() {
+  const input  = document.getElementById('notes-ask-input');
+  const result = document.getElementById('notes-ask-result');
+  const textEl = document.getElementById('notes-ask-text');
+  const btn    = document.querySelector('#notes-ask-bar .journal-ask-btn');
+
+  const q = input.value.trim();
+  if (!q) return;
+
+  let provider = 'groq', model = null, project = null;
+  try {
+    const gs = await fetch('/api/gateway/status').then(r => r.json());
+    if (gs.online && gs.virtual_model) {
+      provider = 'gateway';
+      model = gs.virtual_model;
+      project = 'notes';
+    }
+  } catch {}
+
+  if (_notesAskController) _notesAskController.abort();
+  _notesAskController = new AbortController();
+
+  result.style.display = 'flex';
+  btn.disabled = true;
+  textEl.innerHTML = '<span class="cursor"></span>';
+
+  const messages = [{ role: 'user', content: q }];
+  const body = { messages, provider };
+  if (model)   body.model   = model;
+  if (project) body.project = project;
+
+  let raw = '';
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: _notesAskController.signal,
+    });
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    textEl.innerHTML = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of dec.decode(value).split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6);
+        if (payload === '{"type":"done"}') break;
+        try {
+          const chunk = JSON.parse(payload);
+          if (chunk.type === 'content') { raw += chunk.text; textEl.innerHTML = renderMd(raw); textEl.scrollTop = textEl.scrollHeight; }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') textEl.innerHTML = '<em style="color:var(--muted)">Could not reach Claudia.</em>';
+  } finally {
+    btn.disabled = false;
+    _notesAskController = null;
+  }
+}
+
+function closeNotesAsk() {
+  if (_notesAskController) _notesAskController.abort();
+  document.getElementById('notes-ask-result').style.display = 'none';
+  document.getElementById('notes-ask-text').innerHTML = '';
+}
+
+async function loadNotes() {
+  const list = document.getElementById('notes-list');
+  list.innerHTML = '<div class="loading">Loading…</div>';
+  try {
+    const notes = await fetch('/api/notes').then(r => r.json());
+    if (!notes.length) {
+      list.innerHTML = '<div class="empty-state"><div class="emoji">📝</div><div>No notes yet.<br>Tap + New Note to start!</div></div>';
+      return;
+    }
+    list.innerHTML = '';
+    notes.forEach(n => {
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      const name = n.filename.replace('.md','').replace(/-/g,' ');
+      div.innerHTML = `<div class="list-item-title">${name}</div><div class="list-item-meta">${new Date(n.modified*1000).toLocaleDateString()} · ${formatSize(n.size)}</div>`;
+      div.onclick = () => openNote(n.filename);
+      list.appendChild(div);
+    });
+  } catch {
+    list.innerHTML = '<div class="empty-state"><div class="emoji">😔</div><div>Could not load notes.</div></div>';
+  }
+}
+
+function openNewNote() {
+  currentNoteName = null;
+  document.getElementById('note-detail-title').textContent = 'New Note';
+  document.getElementById('note-textarea').value = '';
+  document.getElementById('note-save-btn').textContent = 'Save';
+  openDetail('note');
+  setTimeout(() => document.getElementById('note-textarea').focus(), 300);
+}
+
+async function openNote(filename) {
+  currentNoteName = filename;
+  document.getElementById('note-detail-title').textContent = filename.replace('.md','').replace(/-/g,' ');
+  document.getElementById('note-textarea').value = 'Loading…';
+  openDetail('note');
+  try {
+    const data = await fetch(`/api/notes/${encodeURIComponent(filename)}`).then(r => r.json());
+    document.getElementById('note-textarea').value = data.content;
+  } catch {
+    document.getElementById('note-textarea').value = '';
+  }
+}
+
+async function saveNote() {
+  const content = document.getElementById('note-textarea').value.trim();
+  if (!content) { toast('Nothing to save!'); return; }
+
+  const btn = document.getElementById('note-save-btn');
+  btn.textContent = 'Saving…';
+
+  try {
+    if (currentNoteName) {
+      await fetch(`/api/notes/${encodeURIComponent(currentNoteName)}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({content}),
+      });
+      toast('✅ Saved!');
+    } else {
+      btn.textContent = 'Naming…';
+      const data = await fetch('/api/notes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({content}),
+      }).then(r => r.json());
+      currentNoteName = data.filename;
+      document.getElementById('note-detail-title').textContent = data.filename.replace('.md','').replace(/-/g,' ');
+      toast(`✅ Saved as "${data.filename.replace('.md','')}"!`);
+    }
+  } catch (e) {
+    toast('❌ Save failed');
+  }
+  btn.textContent = 'Save';
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+loadModels();
+// Welcome message
+addMessage('assistant', `Hi Ruby! 🌸 I'm Claudia — your notes, journal, and files are all here.\n\nWhat's on your mind?`);
+</script>
+</body>
+</html>

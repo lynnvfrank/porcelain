@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d1f2e"/>
+      <stop offset="100%" stop-color="#0a1a1a"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Soft glow -->
+  <ellipse cx="256" cy="256" rx="150" ry="130" fill="#2dd4bf" opacity="0.10" filter="url(#glow)"/>
+
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#teal)" stroke-width="3" opacity="0.45"/>
+
+  <!-- Note / page shape -->
+  <rect x="168" y="140" width="176" height="220" rx="16" fill="none" stroke="url(#teal)" stroke-width="6" opacity="0.9"/>
+
+  <!-- Folded corner -->
+  <path d="M296 140 L344 188 L296 188 Z" fill="#2dd4bf" opacity="0.25"/>
+  <path d="M296 140 L344 188" stroke="url(#teal)" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Lines on the note -->
+  <line x1="196" y1="224" x2="316" y2="224" stroke="#2dd4bf" stroke-width="5" stroke-linecap="round" opacity="0.8"/>
+  <line x1="196" y1="258" x2="316" y2="258" stroke="#2dd4bf" stroke-width="5" stroke-linecap="round" opacity="0.55"/>
+  <line x1="196" y1="292" x2="280" y2="292" stroke="#2dd4bf" stroke-width="5" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- Pencil -->
+  <g transform="translate(292, 306) rotate(-40)">
+    <rect x="-10" y="-52" width="20" height="70" rx="4" fill="url(#teal)" opacity="0.95"/>
+    <polygon points="-10,18 10,18 0,40" fill="#2dd4bf" opacity="0.85"/>
+    <rect x="-10" y="-62" width="20" height="12" rx="3" fill="#a78bfa" opacity="0.9"/>
+  </g>
+
+  <!-- Corner sparkles -->
+  <circle cx="150" cy="150" r="4" fill="#2dd4bf" opacity="0.6"/>
+  <circle cx="362" cy="150" r="3" fill="#06b6d4" opacity="0.5"/>
+  <circle cx="362" cy="362" r="4" fill="#2dd4bf" opacity="0.6"/>
+  <circle cx="150" cy="362" r="3" fill="#06b6d4" opacity="0.5"/>
+</svg>

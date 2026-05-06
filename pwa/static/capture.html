@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Capture ✦">
+  <meta name="theme-color" content="#0d0d0d">
+  <link rel="apple-touch-icon" href="/icon-capture.svg">
+  <link rel="icon" href="/icon-capture.svg">
+  <title>Claudia · Capture</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0d0d;
+      --surface:  #1a1a1a;
+      --border:   #2a2a2a;
+      --pink:     #f472b6;
+      --purple:   #a78bfa;
+      --text:     #f1f5f9;
+      --muted:    #94a3b8;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-text-size-adjust: 100%;
+      overscroll-behavior: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      padding-top: var(--safe-top);
+      padding-bottom: var(--safe-bot);
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .home-link {
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      transition: color .15s, border-color .15s;
+    }
+    .home-link:hover { color: var(--pink); border-color: var(--pink); }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 20px;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    /* ── Textarea ── */
+    .capture-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .capture-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    textarea {
+      flex: 1;
+      min-height: 180px;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.6;
+      resize: none;
+      font-family: inherit;
+      -webkit-appearance: none;
+    }
+
+    textarea::placeholder { color: var(--muted); }
+
+    /* ── AI Toggle ── */
+    .options-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .toggle input { opacity: 0; width: 0; height: 0; }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 20px;
+      transition: background .2s;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+    }
+
+    .toggle input:checked ~ .toggle-track { background: var(--pink); }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(16px); }
+
+    .char-count {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Buttons ── */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      padding: 14px 20px;
+      transition: opacity .15s, transform .1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .btn-save {
+      flex: 1;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      color: #fff;
+    }
+
+    .btn-clear {
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 14px 16px;
+    }
+
+    /* ── Status / toast ── */
+    #status {
+      font-size: 14px;
+      text-align: center;
+      min-height: 20px;
+      color: var(--muted);
+      transition: color .2s;
+    }
+
+    #status.ok    { color: #34d399; }
+    #status.err   { color: #f87171; }
+    #status.busy  { color: var(--pink); }
+
+    /* ── Saved note preview ── */
+    #saved-note {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      animation: slideUp .25s ease;
+    }
+
+    #saved-note.show { display: block; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .saved-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--pink);
+      margin-bottom: 6px;
+    }
+
+    .saved-filename {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: "SF Mono", "Fira Code", monospace;
+    }
+
+    /* ── Quick phrases (optional fast-tap) ── */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 20px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .chip:active { color: var(--pink); border-color: var(--pink); }
+
+    .chips-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">✦ Claudia</span>
+  <a class="home-link" href="/">Open app →</a>
+</header>
+
+<main>
+
+  <!-- Quick chips -->
+  <div>
+    <div class="chips-label">quick start</div>
+    <div class="chips" id="chips">
+      <span class="chip" data-text="Idea: ">💡 Idea</span>
+      <span class="chip" data-text="Todo: ">✅ Todo</span>
+      <span class="chip" data-text="Remember: ">🧠 Remember</span>
+      <span class="chip" data-text="Feeling: ">💜 Feeling</span>
+      <span class="chip" data-text="Dream: ">🌙 Dream</span>
+      <span class="chip" data-text="Question: ">❓ Question</span>
+    </div>
+  </div>
+
+  <!-- Text box -->
+  <div class="capture-box">
+    <div class="capture-label">capture</div>
+    <textarea
+      id="note-input"
+      placeholder="What's on your mind, Ruby? ✨"
+      autofocus
+      autocomplete="off"
+      autocorrect="on"
+      spellcheck="true"
+    ></textarea>
+    <div class="options-row">
+      <label class="toggle-group">
+        <span class="toggle">
+          <input type="checkbox" id="ai-name-toggle" checked>
+          <span class="toggle-track"></span>
+          <span class="toggle-thumb"></span>
+        </span>
+        Claudia names it
+      </label>
+      <span class="char-count" id="char-count">0 chars</span>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button class="btn-clear" id="btn-clear" title="Clear">✕</button>
+    <button class="btn-save" id="btn-save">Save note ✦</button>
+  </div>
+
+  <!-- Status line -->
+  <div id="status"></div>
+
+  <!-- Saved confirmation -->
+  <div id="saved-note">
+    <div class="saved-title">✓ Note saved!</div>
+    <div class="saved-filename" id="saved-filename"></div>
+  </div>
+
+</main>
+
+<script>
+  const input       = document.getElementById('note-input');
+  const btnSave     = document.getElementById('btn-save');
+  const btnClear    = document.getElementById('btn-clear');
+  const charCount   = document.getElementById('char-count');
+  const status      = document.getElementById('status');
+  const savedNote   = document.getElementById('saved-note');
+  const savedFname  = document.getElementById('saved-filename');
+  const aiToggle    = document.getElementById('ai-name-toggle');
+
+  // ── Char counter ──
+  input.addEventListener('input', () => {
+    const n = input.value.length;
+    charCount.textContent = n === 0 ? '0 chars' : `${n} char${n === 1 ? '' : 's'}`;
+  });
+
+  // ── Chips ──
+  document.getElementById('chips').addEventListener('click', e => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const prefix = chip.dataset.text || '';
+    if (!input.value.startsWith(prefix)) {
+      input.value = prefix + input.value;
+      input.dispatchEvent(new Event('input'));
+    }
+    input.focus();
+    // move cursor to end
+    const len = input.value.length;
+    input.setSelectionRange(len, len);
+  });
+
+  // ── Clear ──
+  btnClear.addEventListener('click', () => {
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    savedNote.classList.remove('show');
+    setStatus('');
+    input.focus();
+  });
+
+  // ── Save ──
+  btnSave.addEventListener('click', saveNote);
+  input.addEventListener('keydown', e => {
+    // Cmd+Enter or Ctrl+Enter to save
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      saveNote();
+    }
+  });
+
+  async function saveNote() {
+    const content = input.value.trim();
+    if (!content) {
+      setStatus('Nothing to save yet 🌸', 'err');
+      return;
+    }
+
+    btnSave.disabled = true;
+    setStatus('Saving…', 'busy');
+    savedNote.classList.remove('show');
+
+    try {
+      const body = { content };
+      if (!aiToggle.checked) {
+        // generate a simple timestamp name instead of AI naming
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        body.filename = `capture-${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}`;
+      }
+
+      const resp = await fetch('/api/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        throw new Error(err || resp.statusText);
+      }
+
+      const data = await resp.json();
+      setStatus('');
+      savedFname.textContent = `📁 D:\\Notes\\${data.filename}`;
+      savedNote.classList.add('show');
+
+      // Clear after success
+      input.value = '';
+      input.dispatchEvent(new Event('input'));
+
+      // Haptic feedback on iOS if available
+      if (navigator.vibrate) navigator.vibrate(50);
+
+    } catch (err) {
+      setStatus(`Oops: ${err.message}`, 'err');
+    } finally {
+      btnSave.disabled = false;
+    }
+  }
+
+  function setStatus(msg, type = '') {
+    status.textContent = msg;
+    status.className = type;
+  }
+
+  // ── Focus textarea on load ──
+  window.addEventListener('load', () => {
+    // Small delay so iOS keyboard doesn't fight viewport
+    setTimeout(() => input.focus(), 100);
+  });
+</script>
+
+</body>
+</html>
