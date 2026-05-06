@@ -35,6 +35,8 @@ func runGateway(args []string) {
 
 	logStore := servicelogs.New(servicelogs.DefaultMaxLines)
 	gwSink := logStore.Writer("gateway")
+	// Ensure the operator UI log buffer is never empty, even in GUI builds.
+	_, _ = fmt.Fprintln(gwSink, "claudia.start")
 	log := buildLoggerTo(platform.StdoutTee(gwSink), path)
 	rt, err := server.NewRuntime(path, log)
 	if err != nil {

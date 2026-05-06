@@ -33,6 +33,8 @@ const (
 	defaultQueueDepth     = 1024
 	defaultMaxFileBytes   = int64(8 * 1024 * 1024)
 	defaultRequestTimeout = 60 * time.Second
+
+	defaultStorageStatsPoll = 2 * time.Minute
 )
 
 // EnvGatewayURL and EnvGatewayToken are the v0.2 environment variables for
@@ -134,6 +136,14 @@ type FileConfig struct {
 	// (indexer.job.skipped, indexer.job.upload). When absent from all merged
 	// files, Resolve defaults to true so supervised /ui/logs shows progress.
 	VerboseJobLogs *bool `yaml:"verbose_job_logs"`
+
+	// StorageStatsPollMS sets GET /v1/indexer/storage/stats polling. Zero = default (~2 min).
+	// Negative = disable polling entirely.
+	StorageStatsPollMS int `yaml:"storage_stats_poll_ms"`
+
+	// QueueFanoutHWMPercent is p×100 for fair-share bulk fan-out (default 75 → p=0.75).
+	// Valid range 1–100; zero/absent resolves to 75.
+	QueueFanoutHWMPercent int `yaml:"queue_fanout_high_water_mark_percent"`
 }
 
 // Resolved is the runtime indexer configuration after merging YAML, env vars,
@@ -170,6 +180,14 @@ type Resolved struct {
 	// VerboseJobLogs emits per-file INFO (skips, upload start) for /ui/logs.
 	// Defaults true when unset in YAML; set false to reduce volume.
 	VerboseJobLogs bool
+
+	// StorageStatsPoll is how often to call GET /v1/indexer/storage/stats and
+	// emit indexer.state / storage stats logs. Zero disables polling.
+	StorageStatsPoll time.Duration
+
+	// QueueFanoutHWMPercent is the percentage of queue capacity reserved across
+	// all bulk scopes for fair-share fan-out (default 75).
+	QueueFanoutHWMPercent int
 }
 
 // Root is a watched directory and its stable, slug-form identifier used in
@@ -251,6 +269,20 @@ func Resolve(fc FileConfig, env func(string) string, ov Overrides) (Resolved, er
 	}
 	if fc.VerboseJobLogs != nil {
 		r.VerboseJobLogs = *fc.VerboseJobLogs
+	}
+	switch {
+	case fc.StorageStatsPollMS < 0:
+		r.StorageStatsPoll = 0
+	case fc.StorageStatsPollMS > 0:
+		r.StorageStatsPoll = time.Duration(fc.StorageStatsPollMS) * time.Millisecond
+	default:
+		r.StorageStatsPoll = defaultStorageStatsPoll
+	}
+	switch {
+	case fc.QueueFanoutHWMPercent >= 1 && fc.QueueFanoutHWMPercent <= 100:
+		r.QueueFanoutHWMPercent = fc.QueueFanoutHWMPercent
+	default:
+		r.QueueFanoutHWMPercent = 75
 	}
 	if fc.Defaults != nil {
 		r.DefaultScope = ScopeFragment{
@@ -495,6 +527,9 @@ func MergeFileConfig(base, overlay FileConfig) FileConfig {
 	if overlay.VerboseJobLogs != nil {
 		v := *overlay.VerboseJobLogs
 		out.VerboseJobLogs = &v
+	}
+	if overlay.QueueFanoutHWMPercent >= 1 && overlay.QueueFanoutHWMPercent <= 100 {
+		out.QueueFanoutHWMPercent = overlay.QueueFanoutHWMPercent
 	}
 	return out
 }

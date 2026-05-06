@@ -152,8 +152,8 @@ func TestIndexer_OneShotIngestsScannedFiles(t *testing.T) {
 	ix := New(cfg, NewGatewayClient(cfg.GatewayURL, cfg.Token, cfg.RequestTimeout), nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, err := ix.EnqueueInitialScan(ctx); err != nil {
-		t.Fatal(err)
+	if !ix.ScheduleInitialScan() {
+		t.Fatal("schedule initial scan")
 	}
 	done := make(chan struct{})
 	go func() {
@@ -210,8 +210,8 @@ func TestIndexer_RetriesTransientFailures(t *testing.T) {
 	ix := New(cfg, NewGatewayClient(cfg.GatewayURL, cfg.Token, cfg.RequestTimeout), nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, err := ix.EnqueueInitialScan(ctx); err != nil {
-		t.Fatal(err)
+	if !ix.ScheduleInitialScan() {
+		t.Fatal("schedule initial scan")
 	}
 	done := make(chan struct{})
 	go func() { ix.RunWorkers(ctx); close(done) }()
@@ -251,8 +251,8 @@ func TestIndexer_PausesAndResumesOnHealth(t *testing.T) {
 	ix := New(cfg, NewGatewayClient(cfg.GatewayURL, cfg.Token, cfg.RequestTimeout), nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
-	if _, err := ix.EnqueueInitialScan(ctx); err != nil {
-		t.Fatal(err)
+	if !ix.ScheduleInitialScan() {
+		t.Fatal("schedule initial scan")
 	}
 	done := make(chan struct{})
 	go func() { ix.RunWorkers(ctx); close(done) }()
@@ -311,8 +311,8 @@ func TestIndexer_IngestSendsScopedHeaders(t *testing.T) {
 	ix := New(cfg, NewGatewayClient(cfg.GatewayURL, cfg.Token, cfg.RequestTimeout), nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, err := ix.EnqueueInitialScan(ctx); err != nil {
-		t.Fatal(err)
+	if !ix.ScheduleInitialScan() {
+		t.Fatal("schedule initial scan")
 	}
 	done := make(chan struct{})
 	go func() {

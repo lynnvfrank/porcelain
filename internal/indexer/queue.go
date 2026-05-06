@@ -8,62 +8,125 @@ import (
 	"time"
 )
 
-// Job is a single ingest unit handed to workers.
-type Job struct {
-	Root    Root
-	RelPath string
-	AbsPath string
+// tierSlot tracks where a pending item lives for global dedup / tier upgrades.
+type tierSlot struct {
+	tier PriorityTier
+	idx  int
 }
 
-// Key returns the deduplication key used by the in-memory queue: root id +
-// relative path is unique per workspace.
-func (j Job) Key() string { return j.Root.ID + "\x00" + j.RelPath }
-
-// Queue is a bounded FIFO with set-style deduplication so rapid filesystem
-// events for the same path collapse into a single pending job.
+// Queue is a bounded priority queue: dequeue prefers TierInteractive, then
+// TierWrite, then TierBulk. Ingest jobs dedupe by Job.Key(); enqueueing a
+// duplicate at a higher tier replaces the lower-tier pending entry.
 type Queue struct {
-	mu      sync.Mutex
-	cond    *sync.Cond
-	items   []Job
-	pending map[string]struct{}
-	cap     int
-	closed  bool
+	mu   sync.Mutex
+	cond *sync.Cond
+
+	tier3 []WorkItem // interactive (create/delete)
+	tier2 []WorkItem // write
+	tier1 []WorkItem // bulk
+
+	pending map[string]tierSlot
+
+	cap    int
+	closed bool
 }
 
 // NewQueue creates a queue with the given capacity. Capacity <= 0 means
 // unbounded (still recommended to set a value).
 func NewQueue(capacity int) *Queue {
-	q := &Queue{cap: capacity, pending: map[string]struct{}{}}
+	q := &Queue{cap: capacity, pending: map[string]tierSlot{}}
 	q.cond = sync.NewCond(&q.mu)
 	return q
 }
 
-// Enqueue adds a job. If a job with the same Key is already pending, it is
-// dropped (event coalescing). Returns false if the queue is full.
-func (q *Queue) Enqueue(j Job) bool {
+func (q *Queue) totalLenLocked() int {
+	return len(q.tier3) + len(q.tier2) + len(q.tier1)
+}
+
+func tierSlice(q *Queue, tier PriorityTier) *[]WorkItem {
+	switch tier {
+	case TierInteractive:
+		return &q.tier3
+	case TierWrite:
+		return &q.tier2
+	case TierBulk:
+		return &q.tier1
+	default:
+		return &q.tier1
+	}
+}
+
+// removeAt removes work item at (tier, idx), fixing pending indices after swap-with-last.
+func (q *Queue) removeAtLocked(tier PriorityTier, idx int) WorkItem {
+	s := tierSlice(q, tier)
+	n := len(*s)
+	if idx < 0 || idx >= n {
+		return WorkItem{}
+	}
+	w := (*s)[idx]
+	last := n - 1
+	(*s)[idx] = (*s)[last]
+	*s = (*s)[:last]
+	delete(q.pending, w.Key())
+	if idx != last {
+		moved := (*s)[idx]
+		k := moved.Key()
+		if loc, ok := q.pending[k]; ok {
+			loc.idx = idx
+			q.pending[k] = loc
+		}
+	}
+	return w
+}
+
+// Enqueue adds work. Ingest keys dedupe; higher tier replaces lower. Returns false if full.
+func (q *Queue) Enqueue(w WorkItem) bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if q.closed {
 		return false
 	}
-	if _, ok := q.pending[j.Key()]; ok {
-		return true
-	}
-	if q.cap > 0 && len(q.items) >= q.cap {
+	key := w.Key()
+	if key == "" {
 		return false
 	}
-	q.items = append(q.items, j)
-	q.pending[j.Key()] = struct{}{}
+
+	if w.Kind != WorkIngest {
+		if _, ok := q.pending[key]; ok {
+			return true
+		}
+	}
+
+	if w.Kind == WorkIngest {
+		if loc, ok := q.pending[key]; ok {
+			if w.Tier <= loc.tier {
+				return true // coalesce duplicate at same or lower priority
+			}
+			q.removeAtLocked(loc.tier, loc.idx)
+		}
+	} else {
+		if _, ok := q.pending[key]; ok {
+			return true // meta job already pending (should not happen with unique ids)
+		}
+	}
+
+	if q.cap > 0 && q.totalLenLocked() >= q.cap {
+		return false
+	}
+
+	s := tierSlice(q, w.Tier)
+	idx := len(*s)
+	*s = append(*s, w)
+	q.pending[key] = tierSlot{tier: w.Tier, idx: idx}
 	q.cond.Signal()
 	return true
 }
 
-// Dequeue blocks until a job is available or the queue is closed.
-func (q *Queue) Dequeue(ctx context.Context) (Job, bool) {
+// Dequeue blocks until work is available or the queue is closed.
+func (q *Queue) Dequeue(ctx context.Context) (WorkItem, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	for len(q.items) == 0 && !q.closed {
-		// Wake the cond when the context is cancelled so the goroutine exits.
+	for q.totalLenLocked() == 0 && !q.closed {
 		done := make(chan struct{})
 		go func() {
 			select {
@@ -75,23 +138,57 @@ func (q *Queue) Dequeue(ctx context.Context) (Job, bool) {
 		q.cond.Wait()
 		close(done)
 		if ctx.Err() != nil {
-			return Job{}, false
+			return WorkItem{}, false
 		}
 	}
-	if len(q.items) == 0 {
-		return Job{}, false
+	if q.totalLenLocked() == 0 {
+		return WorkItem{}, false
 	}
-	j := q.items[0]
-	q.items = q.items[1:]
-	delete(q.pending, j.Key())
-	return j, true
+	var tier PriorityTier
+	var s *[]WorkItem
+	switch {
+	case len(q.tier3) > 0:
+		tier = TierInteractive
+		s = &q.tier3
+	case len(q.tier2) > 0:
+		tier = TierWrite
+		s = &q.tier2
+	default:
+		tier = TierBulk
+		s = &q.tier1
+	}
+	w := (*s)[0]
+	copy((*s)[0:], (*s)[1:])
+	*s = (*s)[:len(*s)-1]
+	delete(q.pending, w.Key())
+	// Fix indices for the tier we popped from (all shifted down by 1).
+	q.reindexTierLocked(tier)
+	return w, true
 }
 
-// Len returns the current number of queued items.
+func (q *Queue) reindexTierLocked(tier PriorityTier) {
+	s := tierSlice(q, tier)
+	for i := range *s {
+		k := (*s)[i].Key()
+		if loc, ok := q.pending[k]; ok {
+			loc.idx = i
+			q.pending[k] = loc
+		}
+	}
+}
+
+// Len returns the total queued items across tiers.
 func (q *Queue) Len() int {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return len(q.items)
+	return q.totalLenLocked()
+}
+
+// LenByTier returns per-tier queue depths for observability.
+func (q *Queue) LenByTier() (bulk, write, interactive int) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return len(q.tier1), len(q.tier2), len(q.tier3)
 }
 
 // Cap returns the configured capacity (0 means unbounded).

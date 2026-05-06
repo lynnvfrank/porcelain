@@ -44,8 +44,14 @@ recovery_poll_interval_ms: 30000
 debounce_ms: 750
 workers: 4
 queue_depth: 1024
+# Fair-share bulk fan-out: fraction of queue_depth reserved across scopes (default 75 → p=0.75).
+# queue_fanout_high_water_mark_percent: 75
 max_file_bytes: 8388608
 request_timeout_ms: 60000
+
+# Live Qdrant point counts for logs / operators: poll GET /v1/indexer/storage/stats every N ms.
+# Omit from YAML for ~2 minutes; set negative (e.g. -1) to disable periodic polls.
+# storage_stats_poll_ms: 120000
 
 # v0.4 — optional (defaults: sync state under .claudia/; whole-file limit from gateway only).
 # sync_state_path: ".claudia/indexer.sync-state.json"

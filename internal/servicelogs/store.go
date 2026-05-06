@@ -3,8 +3,10 @@ package servicelogs
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -36,6 +38,9 @@ type Store struct {
 	maxLines int
 	lines    []Entry
 	lastSeq  uint64
+
+	mirrorMu sync.Mutex
+	mirror   io.Writer // optional append-only sink (e.g. desktop disk log)
 
 	subsMu sync.Mutex
 	subs   map[uint64]chan Entry
@@ -88,6 +93,27 @@ func (s *Store) add(source, text string) {
 	s.mu.Unlock()
 
 	s.broadcast(ent)
+	s.writeMirror(source, text, ent.Time)
+}
+
+// SetMirror directs every completed log line to w in addition to the ring buffer.
+// Pass nil to disable. Used by the desktop app for a unified on-disk log file.
+func (s *Store) SetMirror(w io.Writer) {
+	s.mirrorMu.Lock()
+	s.mirror = w
+	s.mirrorMu.Unlock()
+}
+
+func (s *Store) writeMirror(source, text string, ts time.Time) {
+	s.mirrorMu.Lock()
+	w := s.mirror
+	s.mirrorMu.Unlock()
+	if w == nil {
+		return
+	}
+	t := strings.ReplaceAll(text, "\t", " ")
+	t = strings.ReplaceAll(t, "\n", "\\n")
+	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", ts.Format(time.RFC3339Nano), source, t)
 }
 
 func (s *Store) broadcast(ent Entry) {
@@ -112,11 +138,36 @@ func (s *Store) Snapshot() []Entry {
 }
 
 // EntriesAfter returns entries with Seq > afterSeq, and the highest Seq in the buffer (or afterSeq if empty).
+// isNoisyIndexerLine matches high-volume periodic indexer logs. When the indexer
+// source exceeds its cap, prefer dropping these first so job lines, run start, and
+// gateway config remain in the buffer for /ui/logs rollups.
+func isNoisyIndexerLine(text string) bool {
+	// Human message from slog (JSON and text handlers).
+	return strings.Contains(text, "indexer queue snapshot") ||
+		strings.Contains(text, "indexer state") ||
+		strings.Contains(text, "indexer storage stats")
+}
+
+func removeFirstSourceLineMatching(lines *[]Entry, source string, pred func(string) bool) bool {
+	sl := *lines
+	for i, e := range sl {
+		if e.Source != source || !pred(e.Text) {
+			continue
+		}
+		*lines = append(sl[:i], sl[i+1:]...)
+		return true
+	}
+	return false
+}
+
 func trimSourceToMax(lines *[]Entry, source string, max int) {
 	if max < 1 {
 		return
 	}
 	for countEntriesWithSource(*lines, source) > max {
+		if source == sourceIndexer && removeFirstSourceLineMatching(lines, source, isNoisyIndexerLine) {
+			continue
+		}
 		if !removeFirstWithSource(lines, source) {
 			break
 		}

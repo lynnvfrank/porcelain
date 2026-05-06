@@ -17,6 +17,10 @@
 // On startup the binary loads `env` and then `.env` (later wins) from the
 // current working directory, mirroring the main `claudia` binary so operators
 // can keep one secrets file for both.
+//
+// When --config names an explicit YAML layer (desktop supervised mode),
+// saves to that file trigger an automatic indexer restart of the watcher
+// session without restarting the desktop process.
 package main
 
 import (
@@ -27,6 +31,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -34,6 +39,10 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/lynn/claudia-gateway/internal/indexer"
 )
+
+// errSupervisedReload is a cancel-cause marker: the supervised --config file
+// changed and the watch session is cycling (not a hard failure).
+var errSupervisedReload = errors.New("indexer supervised config hot-reload")
 
 type rootList []string
 
@@ -47,6 +56,212 @@ func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "claudia-index:", err)
 		os.Exit(1)
+	}
+}
+
+func drainReloadSignals(ch <-chan struct{}) {
+	for {
+		select {
+		case <-ch:
+		default:
+			return
+		}
+	}
+}
+
+func runOneShot(parentCtx context.Context, wd string, cfgPath string, gatewayURL string, roots rootList, logJSON bool, baseLog *slog.Logger) error {
+	fc, err := indexer.LoadLayeredConfig(wd, cfgPath)
+	if err != nil {
+		return err
+	}
+	cfg, err := indexer.Resolve(fc, os.Getenv, indexer.Overrides{
+		GatewayURL: gatewayURL,
+		Roots:      roots,
+	})
+	if err != nil {
+		return err
+	}
+
+	runID := uuid.NewString()
+	log := attachSessionLogger(logJSON, baseLog, runID)
+	client := indexer.NewGatewayClient(cfg.GatewayURL, cfg.Token, cfg.RequestTimeout)
+	client.IndexRunID = runID
+
+	ix := indexer.New(cfg, client, log)
+	if _, err := ix.FetchAndLogConfig(parentCtx); err != nil {
+		var he *indexer.HTTPError
+		if errors.As(err, &he) && he.Status == 503 && strings.Contains(strings.ToLower(he.Body), "rag is not enabled") {
+			return fmt.Errorf("gateway at %s has RAG disabled — set rag.enabled=true in config/gateway.yaml and restart the gateway", cfg.GatewayURL)
+		}
+		log.Warn("continuing despite config fetch failure", "err", err)
+	}
+	ix.LogIndexerRunStart()
+	if !ix.ScheduleInitialScan() {
+		return fmt.Errorf("could not schedule initial scan (queue closed)")
+	}
+
+	drainCtx, drainCancel := context.WithCancel(parentCtx)
+	go func() {
+		for {
+			if ix.Queue().Len() == 0 {
+				drainCancel()
+				return
+			}
+			select {
+			case <-parentCtx.Done():
+				drainCancel()
+				return
+			default:
+			}
+		}
+	}()
+	ix.RunWorkers(drainCtx)
+	ix.Queue().Close()
+	ix.EmitStorageStatsAndState(parentCtx, false)
+	log.Info("indexer run done", indexer.RunDoneAttrs("one-shot", ix.OpsSnapshot())...)
+	return nil
+}
+
+func attachSessionLogger(logJSON bool, baseLog *slog.Logger, runID string) *slog.Logger {
+	if baseLog != nil {
+		return baseLog.With("index_run_id", runID, "service", "indexer")
+	}
+	var handler slog.Handler
+	if logJSON {
+		handler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})
+	} else {
+		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})
+	}
+	return slog.New(handler).With("index_run_id", runID, "service", "indexer")
+}
+
+func runWatchSession(sessionCtx context.Context, wd string, cfgPath string, gatewayURL string, roots rootList, logJSON bool, baseLog *slog.Logger, hotReloadCount int) error {
+	fc, err := indexer.LoadLayeredConfig(wd, cfgPath)
+	if err != nil {
+		return err
+	}
+	cfg, err := indexer.Resolve(fc, os.Getenv, indexer.Overrides{
+		GatewayURL: gatewayURL,
+		Roots:      roots,
+	})
+	if err != nil {
+		return err
+	}
+
+	runID := uuid.NewString()
+	log := attachSessionLogger(logJSON, baseLog, runID)
+	client := indexer.NewGatewayClient(cfg.GatewayURL, cfg.Token, cfg.RequestTimeout)
+	client.IndexRunID = runID
+
+	ix := indexer.New(cfg, client, log)
+	if _, err := ix.FetchAndLogConfig(sessionCtx); err != nil {
+		var he *indexer.HTTPError
+		if errors.As(err, &he) && he.Status == 503 && strings.Contains(strings.ToLower(he.Body), "rag is not enabled") {
+			return fmt.Errorf("gateway at %s has RAG disabled — set rag.enabled=true in config/gateway.yaml and restart the gateway", cfg.GatewayURL)
+		}
+		log.Warn("continuing despite config fetch failure", "err", err)
+	}
+	if hotReloadCount > 0 {
+		log.Info("indexer supervised config hot-reload; starting new watch session",
+			"msg", "indexer.supervised.hot_reload",
+			"n", hotReloadCount,
+		)
+	}
+	ix.LogIndexerRunStart()
+	if !ix.ScheduleInitialScan() {
+		return fmt.Errorf("could not schedule initial scan (queue closed)")
+	}
+
+	doneWorkers := make(chan struct{})
+	watchDone := make(chan error, 1)
+	go func() { defer close(doneWorkers); ix.RunWorkers(sessionCtx) }()
+	go ix.RunObservationLoop(sessionCtx, true)
+	go func() { watchDone <- ix.RunWatchers(sessionCtx) }()
+
+	errW := <-watchDone
+	ix.Queue().Close()
+	<-doneWorkers
+	if errW != nil {
+		log.Error("watcher exited", "err", errW)
+	}
+	if errors.Is(context.Cause(sessionCtx), errSupervisedReload) {
+		return errSupervisedReload
+	}
+	if sessionCtx.Err() != nil {
+		if errW != nil {
+			return errW
+		}
+		return sessionCtx.Err()
+	}
+	if errW != nil {
+		return errW
+	}
+	log.Info("indexer run stopped", indexer.RunDoneAttrs("watch", ix.OpsSnapshot())...)
+	return nil
+}
+
+func runWatchWithHotReload(ctx context.Context, wd string, absSupervisedCfg string, cfgFlag string, gatewayURL string, roots rootList, logJSON bool, baseLog *slog.Logger) error {
+	reloadCh := make(chan struct{}, 1)
+	signalReload := func() {
+		select {
+		case reloadCh <- struct{}{}:
+		default:
+		}
+	}
+	go func() {
+		werr := indexer.WatchConfigPathForReload(ctx, absSupervisedCfg, indexer.DefaultConfigReloadDebounce, signalReload, baseLog)
+		if werr != nil && ctx.Err() == nil && !errors.Is(werr, context.Canceled) {
+			baseLog.Warn("indexer supervised config watch ended", "err", werr)
+		}
+	}()
+
+	hotN := 0
+	for {
+		drainReloadSignals(reloadCh)
+
+		_, err := indexer.LoadLayeredConfig(wd, cfgFlag)
+		if err != nil {
+			if hotN == 0 {
+				return err
+			}
+			baseLog.Error("indexer supervised config reload skipped (invalid YAML)",
+				"err", err,
+				"config_layer", cfgFlag,
+				"msg", "indexer.supervised.hot_reload_yaml_error",
+			)
+			select {
+			case <-reloadCh:
+				continue
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
+		sessionCtx, cancel := context.WithCancelCause(ctx)
+
+		sessDone := make(chan error, 1)
+		go func() {
+			sessDone <- runWatchSession(sessionCtx, wd, cfgFlag, gatewayURL, roots, logJSON, baseLog, hotN)
+		}()
+
+		select {
+		case <-ctx.Done():
+			cancel(context.Canceled)
+			_ = <-sessDone
+			return ctx.Err()
+		case <-reloadCh:
+			cancel(errSupervisedReload)
+			<-sessDone
+			hotN++
+			continue
+		case err := <-sessDone:
+			if err != nil {
+				cancel(context.Canceled)
+				return err
+			}
+			cancel(context.Canceled)
+			return nil
+		}
 	}
 }
 
@@ -82,83 +297,29 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("getwd: %w", err)
 	}
-	fc, err := indexer.LoadLayeredConfig(wd, cfgPath)
-	if err != nil {
-		return err
-	}
-	cfg, err := indexer.Resolve(fc, os.Getenv, indexer.Overrides{
-		GatewayURL: gatewayURL,
-		Roots:      roots,
-	})
-	if err != nil {
-		return err
-	}
-
-	runID := uuid.NewString()
-	var handler slog.Handler
-	if logJSON {
-		handler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})
-	} else {
-		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})
-	}
-	baseLog := slog.New(handler)
-	log := baseLog.With("index_run_id", runID, "service", "indexer")
-	client := indexer.NewGatewayClient(cfg.GatewayURL, cfg.Token, cfg.RequestTimeout)
-	client.IndexRunID = runID
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	ix := indexer.New(cfg, client, log)
-	log.Info("indexer run start", "msg", "indexer.run.start",
-		"roots", len(cfg.Roots),
-		"root_ids", indexer.RootIDsCSV(cfg.Roots),
-		"ingest_project", indexer.IngestProject(cfg.DefaultScope),
-		"flavor_id", strings.TrimSpace(cfg.DefaultScope.FlavorID),
-		"scope_project_id", strings.TrimSpace(cfg.DefaultScope.ProjectID),
-		"scope_workspace_id", strings.TrimSpace(cfg.DefaultScope.WorkspaceID),
-	)
-	if _, err := ix.FetchAndLogConfig(ctx); err != nil {
-		var he *indexer.HTTPError
-		if errors.As(err, &he) && he.Status == 503 && strings.Contains(strings.ToLower(he.Body), "rag is not enabled") {
-			return fmt.Errorf("gateway at %s has RAG disabled — set rag.enabled=true in config/gateway.yaml and restart the gateway", cfg.GatewayURL)
-		}
-		log.Warn("continuing despite config fetch failure", "err", err)
-	}
-	if _, err := ix.EnqueueInitialScan(ctx); err != nil {
-		return err
+	var baseLog *slog.Logger
+	if logJSON {
+		baseLog = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	} else {
+		baseLog = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	}
 
+	explicitConfigLayer := strings.TrimSpace(cfgPath) != ""
 	if oneShot {
-		// Run workers until the queue drains, then stop.
-		drainCtx, drainCancel := context.WithCancel(ctx)
-		go func() {
-			for {
-				if ix.Queue().Len() == 0 {
-					drainCancel()
-					return
-				}
-				select {
-				case <-ctx.Done():
-					drainCancel()
-					return
-				default:
-				}
-			}
-		}()
-		ix.RunWorkers(drainCtx)
-		ix.Queue().Close()
-		log.Info("indexer run done", indexer.RunDoneAttrs("one-shot", ix.OpsSnapshot())...)
-		return nil
+		return runOneShot(ctx, wd, cfgPath, gatewayURL, roots, logJSON, baseLog)
 	}
 
-	doneWorkers := make(chan struct{})
-	go func() { defer close(doneWorkers); ix.RunWorkers(ctx) }()
-	if err := ix.RunWatchers(ctx); err != nil {
-		log.Error("watcher exited", "err", err)
+	if explicitConfigLayer {
+		absCfg, errPath := filepath.Abs(strings.TrimSpace(cfgPath))
+		if errPath != nil {
+			return fmt.Errorf("indexer supervised config path: %w", errPath)
+		}
+		return runWatchWithHotReload(ctx, wd, absCfg, cfgPath, gatewayURL, roots, logJSON, baseLog)
 	}
-	ix.Queue().Close()
-	<-doneWorkers
-	log.Info("indexer run stopped", indexer.RunDoneAttrs("watch", ix.OpsSnapshot())...)
-	return nil
+
+	return runWatchSession(ctx, wd, cfgPath, gatewayURL, roots, logJSON, baseLog, 0)
 }

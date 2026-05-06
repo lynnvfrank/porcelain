@@ -25,7 +25,11 @@ ingest can authenticate.
   **`../data/gateway/indexer.supervised.yaml`** relative to `gateway.yaml`) is
   passed as **`--config`** (highest merge layer). The operator UI exposes it at
   **`/ui/indexer`** (session cookie) with **GET/PUT `/api/ui/indexer/config`** and
-  **POST `/api/ui/indexer/append-root`**.
+  **POST `/api/ui/indexer/append-root`**. When that file changes on disk, the
+  supervised **`claudia-index` process detects the edit** (debounced), stops the
+  current watcher session, and **starts a new session** loaded from YAML—**no full
+  desktop restart**. If the indexer binary is stale, or other gateway settings
+  change, you still restart **`claudia serve`/desktop**.
 - **Logs:** stderr/stdout are teed into the same ring buffer as BiFrost/Qdrant;
   open **`/ui/logs`** and filter source **`indexer`**.
 - **Structured stderr:** enable **`indexer.supervised.log_json: true`** to add
@@ -33,14 +37,16 @@ ingest can authenticate.
 
 ### Structured operator logs (`--log-json`)
 
-Every line includes **`index_run_id`** and **`service":"indexer"`** (from `slog.With`). Use the duplicate JSON key **`msg`** (stable slug) for grouping in [`log-presentation-layer.plan.md`](log-presentation-layer.plan.md); the first **`msg`** in the object may be the human message string—**prefer the slug value** when both appear.
+After a successful **`GET /v1/indexer/config`**, the logger adds **`tenant_id`**, **`principal_id`** (same as tenant), and **`user_label`** to **all** structured lines via `log.With`, plus **`indexer_key`** when **every watched root resolves to the same** ingest **`indexer_target_key`**; if roots map to **multiple** projects/flavors, **`indexer_multi_target`** is set instead (**no** single `indexer_key`) so `/ui/logs` can split cards using **`root_scopes`** / job lines. Every line carries **`index_run_id`** and **`service":"indexer"`**. Stable slug **`msg`** for grouping: see [`log-presentation-layer.plan.md`](log-presentation-layer.plan.md).
 
 | `msg` slug | When | Notable fields |
 |------------|------|----------------|
-| `indexer.run.start` | Process start | `roots`, `root_ids`, `ingest_project`, `flavor_id`, `scope_project_id`, `scope_workspace_id` |
-| `gateway indexer config` | After successful `GET /v1/indexer/config` | `gateway_version`, `embedding_model`, `chunk_size`, …; optional `ingest_project` / `flavor_id` from default headers |
+| `indexer.run.start` | Process start (after config fetch when possible) | `roots`, `root_ids`, `watch_root_paths`, **`root_scopes`** (JSON array per root: `path`, `ingest_project`, `flavor_id`, **`indexer_target_key`**, workspace); legacy top-level `ingest_project` / scope fields mirror **YAML default scope** only (`defaults:` null → often empty — use **`root_scopes`** in `/ui/logs`) |
+| `gateway.indexer.config` | After successful `GET /v1/indexer/config` | `gateway_version`, `embedding_model`, `chunk_size`, …; optional `ingest_project` / `flavor_id` from request headers; **`defaults_project_id`** / **`defaults_flavor_id`** from gateway `defaults` (helps `/ui/logs` when YAML scope is empty) |
+| `indexer.storage.stats` | Periodic or one-shot (**`GET /v1/indexer/storage/stats`**) | `collection`, **`qdrant_points`**, `vector_dim`, `available`, optional `detail` / `err` |
+| `indexer.state` | Same cadence as storage stats polling (watch mode) or one-shot at exit | **`state`** (`watch_idle`, `backlog`, `uploading`, `recovery`, `initial_scanning`, `idle`), `queue_depth`, `ingest_inflight`, `initial_scan_complete`, `watch_mode`, `recovery`, **`qdrant_points_reported`** |
 | `indexer.reconcile.summary` | Corpus inventory loaded | `phase`=`inventory_loaded`, `remote_source_paths` |
-| `indexer.discovery.summary` | After initial walk of all roots | `candidates_discovered`, `candidates_enqueued`, `skipped_queue_full`, `skipped_*` |
+| `indexer.discovery.summary` | After initial walk of all roots | `candidates_*`, **`files_excluded_by_ignore_rules`** (same count as **`skipped_ignored`**), **`skipped_ignored_files`**, **`skipped_ignored_dirs`**, other `skipped_*` |
 | `indexer.queue.snapshot` | Run workers start/exit, after initial scan, pause/resume, **`phase`=`worker_drain_tick`** (immediate once + every 30s while draining) | `queue_depth`, `queue_cap`, `workers`, counters below |
 | `indexer.run.progress` | Milestone (unchanged) | e.g. `phase`=`initial_scan`, `candidates_enqueued` |
 | `indexer.retry.scheduled` | Before backoff sleep | `rel`, `attempt`, `max_attempts`, `delay_ms`, `err` |
@@ -117,7 +123,7 @@ ignore_extra:
   - "*.snapshot"
 ```
 
-`tenant_id` is implied by the bearer token. **v0.3** adds optional
+`tenant_id` is implied by the bearer token JSON response also returns **`tenant_id`**, **`user_label`** (from `tokens.yaml` / UI label), **`principal_id`** (same id as **`tenant_id`**) for indexer operator logs. **v0.3** adds optional
 `defaults`, per-root, and per-glob `project_id` / `flavor_id` / `workspace_id`
 in YAML. They are merged in order **defaults → root → overrides** (each
 `overrides[]` glob that matches the file’s root-relative path applies on top;

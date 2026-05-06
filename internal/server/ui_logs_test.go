@@ -420,12 +420,152 @@ func TestUILogsPage_servesLogsHTMLWhenAuthed(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := string(b)
-	if !strings.Contains(page, "Claudia — Logs") || !strings.Contains(page, "EventSource") {
-		snippet := page
-		if len(snippet) > 200 {
-			snippet = snippet[:200]
+	// Shell contract: keep these stable so the logs view can be refactored safely
+	// (CSS/JS extraction, modularization, and componentization) without breaking the page structure.
+	wantAll := []string{
+		"Claudia — Logs",
+		`href="/ui/assets/logs.css"`,
+		`src="/ui/assets/logs/testing/loader.js"`,
+		`src="/ui/assets/logs/util/escape.js"`,
+		`src="/ui/assets/logs/util/hash.js"`,
+		`src="/ui/assets/logs/util/time.js"`,
+		`src="/ui/assets/logs/parse/parseLogText.js"`,
+		`src="/ui/assets/logs/filters/filters.js"`,
+		`src="/ui/assets/logs/transport/streaming.js"`,
+		`src="/ui/assets/logs/render/rawTextarea.js"`,
+		`src="/ui/assets/logs/derive/conversationMetrics.js"`,
+		`src="/ui/assets/logs/derive/bifrostMetrics.js"`,
+		`src="/ui/assets/logs/derive/qdrantRagMetrics.js"`,
+		`src="/ui/assets/logs/derive/indexerMetrics.js"`,
+		`src="/ui/assets/logs/derive/gatewayUsageMetrics.js"`,
+		`src="/ui/assets/logs/components/StatusLine.js"`,
+		`src="/ui/assets/logs/components/KeyValueGrid.js"`,
+		`src="/ui/assets/logs/main.js"`,
+		`src="/ui/assets/logs.js"`,
+		`id="status"`,
+		`id="panel-classic"`,
+		`id="log-table"`,
+		`id="log-body"`,
+		`id="panel-summarized"`,
+		`id="panel-raw-logs"`,
+		`id="raw-logs-textarea"`,
+		`id="filters-bar"`,
+		`id="flt-app"`,
+		`id="flt-level"`,
+		`id="raw-bottom-toolbar"`,
+		`id="view-mode"`,
+		`value="summarized"`,
+		`value="raw"`,
+		`value="raw_logs"`,
+	}
+	for _, w := range wantAll {
+		if strings.Contains(page, w) {
+			continue
 		}
-		t.Fatalf("unexpected page: %q", snippet)
+		snippet := page
+		if len(snippet) > 600 {
+			snippet = snippet[:600]
+		}
+		t.Fatalf("missing %q in /ui/logs HTML shell; snippet=%q", w, snippet)
+	}
+	if strings.Contains(page, "<style") {
+		snippet := page
+		if len(snippet) > 600 {
+			snippet = snippet[:600]
+		}
+		t.Fatalf("expected CSS extracted (no inline <style>) in /ui/logs shell; snippet=%q", snippet)
+	}
+}
+
+func TestUILogsAssets_servesLogsJSWhenAuthed(t *testing.T) {
+	t.Setenv("CLAUDIA_UPSTREAM_API_KEY", "ukey")
+	up := bifrostStubForUILogs(t)
+	t.Cleanup(up.Close)
+
+	rt := runtimeForUILogs(t, up.URL)
+	ui := NewUIOptions()
+	ui.LogStore = servicelogs.New(10)
+	front := httptest.NewServer(NewMux(rt, testLog(), nil, ui))
+	t.Cleanup(front.Close)
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar}
+	if _, err := client.Post(front.URL+"/api/ui/login", "application/json", strings.NewReader(`{"token":"gw-ui-secret"}`)); err != nil {
+		t.Fatal(err)
+	}
+	res, err := client.Get(front.URL + "/ui/assets/logs.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status %d", res.StatusCode)
+	}
+	if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "javascript") {
+		t.Fatalf("content-type %q", ct)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	want := []string{
+		"ClaudiaLogs",
+		// logs.js is now a bootstrap that relies on module assets for most behavior.
+		"ClaudiaLogs.Main",
+	}
+	for _, w := range want {
+		if strings.Contains(js, w) {
+			continue
+		}
+		snippet := js
+		if len(snippet) > 600 {
+			snippet = snippet[:600]
+		}
+		t.Fatalf("missing %q in logs.js; snippet=%q", w, snippet)
+	}
+}
+
+func TestUILogsAssets_servesLogsModuleWhenAuthed(t *testing.T) {
+	t.Setenv("CLAUDIA_UPSTREAM_API_KEY", "ukey")
+	up := bifrostStubForUILogs(t)
+	t.Cleanup(up.Close)
+
+	rt := runtimeForUILogs(t, up.URL)
+	ui := NewUIOptions()
+	ui.LogStore = servicelogs.New(10)
+	front := httptest.NewServer(NewMux(rt, testLog(), nil, ui))
+	t.Cleanup(front.Close)
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Jar: jar}
+	if _, err := client.Post(front.URL+"/api/ui/login", "application/json", strings.NewReader(`{"token":"gw-ui-secret"}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := client.Get(front.URL + "/ui/assets/logs/transport/streaming.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("status %d", res.StatusCode)
+	}
+	if ct := res.Header.Get("Content-Type"); !strings.Contains(ct, "javascript") {
+		t.Fatalf("content-type %q", ct)
+	}
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "Transport") {
+		t.Fatalf("unexpected module body: %q", string(b)[:min(200, len(b))])
 	}
 }
 

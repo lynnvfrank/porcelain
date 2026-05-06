@@ -58,6 +58,9 @@ func handleIndexerConfig(w http.ResponseWriter, r *http.Request, rt *Runtime, _ 
 			"project_id": res.RAG.DefaultProject,
 			"flavor_id":  res.RAG.DefaultFlavor,
 		},
+		"tenant_id":    sess.TenantID,
+		"user_label":   strings.TrimSpace(sess.Label),
+		"principal_id": sess.TenantID,
 	})
 }
 

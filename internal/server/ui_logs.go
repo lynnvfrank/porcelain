@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/lynn/claudia-gateway/internal/servicelogs"
@@ -90,7 +91,82 @@ func (a *adminUI) handleLogsPoll(w http.ResponseWriter, r *http.Request) {
 	}
 	lines, maxSeq := store.EntriesAfter(since)
 	if limit > 0 && len(lines) > limit {
-		lines = lines[len(lines)-limit:]
+		// For initial loads (since=0), a naive "last N" tail can be dominated by one noisy source
+		// (most commonly the indexer). That makes the UI look empty for other sources and prevents
+		// filter dropdowns from being populated. Prefer a balanced tail across sources.
+		if since == 0 {
+			bySrc := map[string][]servicelogs.Entry{}
+			for _, e := range lines {
+				bySrc[e.Source] = append(bySrc[e.Source], e)
+			}
+			if len(bySrc) <= 1 {
+				// With only one source, balanced selection reduces to the naive newest tail.
+				lines = lines[len(lines)-limit:]
+			} else {
+				full := lines // EntriesAfter(0): chronological slice of everything after since
+				const srcIndexer = "indexer"
+				idx := bySrc[srcIndexer]
+				other := make([]servicelogs.Entry, 0, len(lines))
+				for s, sl := range bySrc {
+					if s == srcIndexer {
+						continue
+					}
+					other = append(other, sl...)
+				}
+				sort.Slice(other, func(i, j int) bool { return other[i].Seq < other[j].Seq })
+				sort.Slice(idx, func(i, j int) bool { return idx[i].Seq < idx[j].Seq })
+
+				// Reserve a meaningful slice for non-indexer sources, but ensure we still
+				// return `limit` lines when the buffer has that many entries.
+				idxBudget := (limit + 1) / 2
+				if idxBudget < 120 {
+					idxBudget = 120
+				}
+				if idxBudget > limit-1 {
+					idxBudget = limit - 1
+				}
+				otherBudget := limit - idxBudget
+				if otherBudget < 1 {
+					otherBudget = 1
+					idxBudget = limit - otherBudget
+				}
+
+				cand := make([]servicelogs.Entry, 0, limit)
+				if len(idx) > idxBudget {
+					cand = append(cand, idx[len(idx)-idxBudget:]...)
+				} else {
+					cand = append(cand, idx...)
+				}
+				if len(other) > otherBudget {
+					cand = append(cand, other[len(other)-otherBudget:]...)
+				} else {
+					cand = append(cand, other...)
+				}
+				// Fill any remaining slots from the global newest tail (deduped below).
+				if len(cand) < limit && len(full) >= limit {
+					need := limit - len(cand)
+					cand = append(cand, full[len(full)-need:]...)
+				}
+
+				sort.Slice(cand, func(i, j int) bool { return cand[i].Seq < cand[j].Seq })
+				dedup := cand[:0]
+				var prev uint64
+				for i, e := range cand {
+					if i > 0 && e.Seq == prev {
+						continue
+					}
+					dedup = append(dedup, e)
+					prev = e.Seq
+				}
+				cand = dedup
+				if len(cand) > limit {
+					cand = cand[len(cand)-limit:]
+				}
+				lines = cand
+			}
+		} else {
+			lines = lines[len(lines)-limit:]
+		}
 	}
 	resp.Lines = lines
 	resp.MaxSeq = maxSeq

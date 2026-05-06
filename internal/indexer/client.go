@@ -61,6 +61,28 @@ type IndexerConfig struct {
 		Project string `json:"project"`
 		Flavor  string `json:"flavor"`
 	} `json:"headers"`
+	// Defaults are effective RAG ingest scope when optional headers are omitted
+	// (mirrors gateway GET /v1/indexer/config "defaults").
+	Defaults struct {
+		ProjectID string `json:"project_id"`
+		FlavorID  string `json:"flavor_id"`
+	} `json:"defaults"`
+	TenantID    string `json:"tenant_id"`
+	UserLabel   string `json:"user_label"`
+	PrincipalID string `json:"principal_id"`
+}
+
+// StorageStatsResponse mirrors GET /v1/indexer/storage/stats.
+type StorageStatsResponse struct {
+	Object     string `json:"object"`
+	Collection string `json:"collection"`
+	TenantID   string `json:"tenant_id"`
+	ProjectID  string `json:"project_id"`
+	FlavorID   string `json:"flavor_id"`
+	Points     int64  `json:"points"`
+	VectorDim  int    `json:"vector_dim"`
+	Available  bool   `json:"available"`
+	Detail     string `json:"detail"`
 }
 
 // FetchConfig calls GET /v1/indexer/config. Optional hdrs are merged into the
@@ -82,6 +104,31 @@ func (c *GatewayClient) FetchConfig(ctx context.Context, hdrs map[string]string)
 	var out IndexerConfig
 	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
 		return nil, fmt.Errorf("decode indexer config: %w", err)
+	}
+	return &out, nil
+}
+
+// FetchStorageStats calls GET /v1/indexer/storage/stats scoped by hdrs project/flavor headers.
+func (c *GatewayClient) FetchStorageStats(ctx context.Context, hdrs map[string]string) (*StorageStatsResponse, error) {
+	req, err := c.newRequest(ctx, http.MethodGet, "/v1/indexer/storage/stats", "", nil, hdrs)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.HTTP.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(res.Body, 65536))
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, &HTTPError{Path: "/v1/indexer/storage/stats", Status: res.StatusCode, Body: string(body)}
+	}
+	var out StorageStatsResponse
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, fmt.Errorf("decode storage stats: %w", err)
 	}
 	return &out, nil
 }

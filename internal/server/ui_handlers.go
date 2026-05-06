@@ -31,7 +31,7 @@ func sanitizeLoginNext(next string) string {
 	return next
 }
 
-//go:embed embedui/login.html embedui/panel.html embedui/logs.html embedui/metrics.html embedui/shell.html embedui/setup.html embedui/indexer.html embedui/continue.html
+//go:embed embedui/login.html embedui/panel.html embedui/logs.html embedui/logs.css embedui/logs.js embedui/logs_bootstrap.js embedui/logs/* embedui/logs/*/* embedui/metrics.html embedui/shell.html embedui/setup.html embedui/indexer.html embedui/continue.html
 var adminEmbedUI embed.FS
 
 func bifrostAdminClient(rt *Runtime) *bifrostadmin.Client {
@@ -114,6 +114,46 @@ func (a *adminUI) serveEmbed(name string) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write(b)
+	}
+}
+
+func (a *adminUI) serveEmbedAsset(name string, contentType string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		b, err := adminEmbedUI.ReadFile(name)
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		// WebView2 can aggressively cache local app assets across runs; these UI assets
+		// are versioned with the executable, so prefer correctness over caching.
+		w.Header().Set("Cache-Control", "no-store")
+		if contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
+		_, _ = w.Write(b)
+	}
+}
+
+func (a *adminUI) serveLogsModuleAsset() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// /ui/assets/logs/<path>
+		p := strings.TrimPrefix(r.URL.Path, "/ui/assets/logs/")
+		p = strings.TrimSpace(p)
+		if p == "" || strings.Contains(p, "..") || strings.HasPrefix(p, "/") || strings.ContainsAny(p, "\\") {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		name := "embedui/logs/" + p
+		b, err := adminEmbedUI.ReadFile(name)
+		if err != nil {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		// All current module assets are JS. If/when CSS/images are added here, make this smarter.
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		// Same rationale as serveEmbedAsset: avoid stale JS in desktop WebView.
+		w.Header().Set("Cache-Control", "no-store")
 		_, _ = w.Write(b)
 	}
 }
@@ -324,6 +364,10 @@ func registerAdminUI(mux *http.ServeMux, rt *Runtime, log *slog.Logger, ui *UIOp
 	mux.HandleFunc("GET /ui/panel", a.requireAuthPage(a.serveEmbed("embedui/panel.html")))
 	mux.HandleFunc("GET /ui/metrics", a.requireAuthPage(a.serveEmbed("embedui/metrics.html")))
 	if a.opts.LogStore != nil {
+		mux.HandleFunc("GET /ui/assets/logs.css", a.requireAuthPage(a.serveEmbedAsset("embedui/logs.css", "text/css; charset=utf-8")))
+		mux.HandleFunc("GET /ui/assets/logs.js", a.requireAuthPage(a.serveEmbedAsset("embedui/logs_bootstrap.js", "application/javascript; charset=utf-8")))
+		mux.HandleFunc("GET /ui/assets/logs/main.js", a.requireAuthPage(a.serveEmbedAsset("embedui/logs.js", "application/javascript; charset=utf-8")))
+		mux.HandleFunc("GET /ui/assets/logs/", a.requireAuthPage(a.serveLogsModuleAsset()))
 		mux.HandleFunc("GET /ui/logs", a.requireAuthPage(a.serveEmbed("embedui/logs.html")))
 		mux.HandleFunc("GET /ui/desktop", a.requireAuthPage(a.serveEmbed("embedui/shell.html")))
 		mux.HandleFunc("GET /ui/indexer", a.requireAuthPage(a.serveEmbed("embedui/indexer.html")))

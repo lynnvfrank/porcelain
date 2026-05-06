@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -112,8 +113,37 @@ func runServe(args []string, openWebview bool) {
 		fmt.Fprintf(os.Stderr, "claudia serve: load gateway config: %v\n", err)
 		os.Exit(1)
 	}
-	bootstrap := server.BootstrapMode(rt)
 	res, _, _ := rt.Snapshot()
+
+	var diskLog *os.File
+	if openWebview {
+		dir := filepath.Dir(res.MetricsSQLitePath)
+		if mkErr := os.MkdirAll(dir, 0755); mkErr != nil {
+			log.Warn("disk log: mkdir", "dir", dir, "err", mkErr)
+		} else {
+			p := filepath.Join(dir, "claudia-desktop.log")
+			f, oerr := os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+			if oerr != nil {
+				log.Warn("disk log: open", "path", p, "err", oerr)
+			} else {
+				diskLog = f
+				logStore.SetMirror(f)
+				log.Info("disk logging enabled", "path", p)
+			}
+		}
+	}
+	defer func() {
+		logStore.SetMirror(nil)
+		if diskLog != nil {
+			_ = diskLog.Close()
+		}
+	}()
+
+	// Ensure the operator UI log buffer is never empty, even in GUI builds
+	// where stdout/stderr may not be visible/attached (also seeds disk log on desktop).
+	_, _ = fmt.Fprintln(gwSink, "claudia.start")
+
+	bootstrap := server.BootstrapMode(rt)
 	qBin := strings.TrimSpace(*qdrantBin)
 
 	childCtx, stopChildren := context.WithCancel(context.Background())

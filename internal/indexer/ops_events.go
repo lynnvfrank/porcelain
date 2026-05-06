@@ -7,13 +7,20 @@ import (
 
 // discoveryAgg counts walk-time skips and enqueue outcomes for indexer.discovery.summary.
 type discoveryAgg struct {
-	Candidates      int
-	Enqueued        int
-	QueueFull       int
-	SkippedIgnored  int
-	SkippedBinary   int
-	SkippedOversize int
-	SkippedOther    int
+	Candidates          int
+	Enqueued            int
+	QueueFull           int
+	SkippedIgnoredFiles int
+	SkippedIgnoredDirs  int
+	SkippedBinary       int
+	SkippedOversize     int
+	SkippedOther        int
+}
+
+// SkippedIgnoredByRules returns hits from ignore patterns (.gitignore/.claudiaignore/default rules)
+// counting both skipped directories and skipped files discovered during Walk.
+func (d *discoveryAgg) SkippedIgnoredByRules() int {
+	return d.SkippedIgnoredFiles + d.SkippedIgnoredDirs
 }
 
 func classifyDiscoverySkip(reason string) string {
@@ -31,9 +38,16 @@ func classifyDiscoverySkip(reason string) string {
 }
 
 func (d *discoveryAgg) noteSkip(reason string) {
+	r := strings.ToLower(reason)
+	if strings.Contains(r, "ignored") {
+		if strings.Contains(r, "dir") {
+			d.SkippedIgnoredDirs++
+		} else {
+			d.SkippedIgnoredFiles++
+		}
+		return
+	}
 	switch classifyDiscoverySkip(reason) {
-	case "ignored":
-		d.SkippedIgnored++
 	case "binary":
 		d.SkippedBinary++
 	case "oversize":
@@ -52,10 +66,13 @@ func (ix *Indexer) logDiscoverySummary(d *discoveryAgg) {
 		"candidates_discovered", d.Candidates,
 		"candidates_enqueued", d.Enqueued,
 		"skipped_queue_full", d.QueueFull,
-		"skipped_ignored", d.SkippedIgnored,
+		"skipped_ignored", d.SkippedIgnoredByRules(),
+		"skipped_ignored_files", d.SkippedIgnoredFiles,
+		"skipped_ignored_dirs", d.SkippedIgnoredDirs,
 		"skipped_binary", d.SkippedBinary,
 		"skipped_oversize", d.SkippedOversize,
 		"skipped_other", d.SkippedOther,
+		"files_excluded_by_ignore_rules", d.SkippedIgnoredByRules(),
 	)
 }
 
@@ -65,10 +82,14 @@ func (ix *Indexer) LogQueueSnapshot(phase string) {
 		return
 	}
 	cap := ix.queue.Cap()
+	bulkQ, writeQ, interactQ := ix.queue.LenByTier()
 	args := []any{
 		"msg", "indexer.queue.snapshot",
 		"phase", phase,
 		"queue_depth", ix.queue.Len(),
+		"queue_depth_bulk", bulkQ,
+		"queue_depth_write", writeQ,
+		"queue_depth_interactive", interactQ,
 		"queue_cap", cap,
 		"workers", ix.cfg.Workers,
 		"ingest_completed", atomic.LoadInt64(&ix.opsIngestOK),

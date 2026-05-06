@@ -43,6 +43,15 @@ type Indexer struct {
 	opsIngestFail           int64
 	opsRetry                int64
 	opsDequeued             int64
+
+	ingestInflight       atomic.Int32
+	inRecovery           atomic.Bool
+	initialScanCompleted atomic.Bool
+	qdrantPoints         atomic.Int64
+
+	// pendingBulkByScope counts tier-1 bulk ingest jobs queued from fan-out (fair-share).
+	pendingBulkMu      sync.Mutex
+	pendingBulkByScope map[string]int64
 }
 
 // Hooks is an optional set of callbacks tests can install to observe and
@@ -104,7 +113,26 @@ func (ix *Indexer) FetchAndLogConfig(ctx context.Context) (*IndexerConfig, error
 		return nil, err
 	}
 	ix.lastGW.Store(cfg)
+	targetKeys := DistinctIndexerTargetKeys(ix.cfg, cfg)
+	var withArgs []any
+	if tid := strings.TrimSpace(cfg.TenantID); tid != "" {
+		withArgs = append(withArgs, "tenant_id", tid, "principal_id", tid)
+	}
+	if ul := strings.TrimSpace(cfg.UserLabel); ul != "" {
+		withArgs = append(withArgs, "user_label", ul)
+	}
+	// Single-ingest-scope processes get a stable log.With indexer_key. Multi-scope
+	// configs (distinct project/flavor pairs across roots) omit it so /ui/logs can
+	// partition by indexer_target_key from indexer.run.start root_scopes and job rows.
+	if len(targetKeys) == 1 {
+		withArgs = append(withArgs, "indexer_key", targetKeys[0])
+	} else if len(targetKeys) > 1 {
+		withArgs = append(withArgs, "indexer_multi_target", true)
+	}
+	ix.log = ix.log.With(withArgs...)
+
 	logArgs := []any{
+		"msg", "gateway.indexer.config",
 		"gateway_version", cfg.GatewayVersion,
 		"embedding_model", cfg.EmbeddingModel,
 		"embedding_dim", cfg.EmbeddingDim,
@@ -129,55 +157,33 @@ func (ix *Indexer) FetchAndLogConfig(ctx context.Context) (*IndexerConfig, error
 	if v := strings.TrimSpace(ix.cfg.DefaultScope.WorkspaceID); v != "" {
 		logArgs = append(logArgs, "scope_workspace_id", v)
 	}
+	if v := strings.TrimSpace(cfg.Defaults.ProjectID); v != "" {
+		logArgs = append(logArgs, "defaults_project_id", v)
+	}
+	if v := strings.TrimSpace(cfg.Defaults.FlavorID); v != "" {
+		logArgs = append(logArgs, "defaults_flavor_id", v)
+	}
 	ix.log.Info("gateway indexer config", logArgs...)
 	return cfg, nil
 }
 
-// EnqueueInitialScan walks every configured root and pushes a Job for every
-// candidate file. Matchers are cached per root for reuse during fs events.
-// When gateway config was loaded, it first pulls corpus inventory for
-// reconciliation hints (best-effort).
-func (ix *Indexer) EnqueueInitialScan(ctx context.Context) (int, error) {
-	if err := ix.loadRemoteCorpusInventory(ctx); err != nil {
-		ix.log.Warn("corpus inventory fetch skipped", "err", err)
+// ScheduleInitialScan enqueues a single tier-1 ScanJob ("initial"). Discovery,
+// corpus inventory load, and fan-out happen asynchronously inside worker
+// handlers (queue-safe). Returns false if the queue is closed or full.
+func (ix *Indexer) ScheduleInitialScan() bool {
+	ok := ix.queue.Enqueue(WorkItem{
+		Kind:   WorkScan,
+		Tier:   TierBulk,
+		ScanID: "initial",
+	})
+	if ok {
+		ix.log.Info("scheduled initial scan job",
+			"msg", "indexer.run.progress",
+			"phase", "scan_scheduled",
+			"scan_id", "initial",
+		)
 	}
-	var disc discoveryAgg
-	for _, r := range ix.cfg.Roots {
-		m, err := NewMatcher(r.AbsPath, ix.cfg.IgnoreExtra)
-		if err != nil {
-			return disc.Enqueued, fmt.Errorf("ignore matcher for %s: %w", r.AbsPath, err)
-		}
-		ix.matchers[r.ID] = m
-		cands, err := Walk(r, WalkOptions{
-			Matcher:              m,
-			MaxFileBytes:         ix.cfg.MaxFileBytes,
-			BinaryNullByteSample: ix.cfg.BinaryNullByteSample,
-			BinaryNullByteRatio:  ix.cfg.BinaryNullByteRatio,
-			OnSkip: func(rel, reason string) {
-				disc.noteSkip(reason)
-				ix.log.Debug("skip", "root", r.ID, "rel", rel, "reason", reason)
-				if ix.hooks.OnSkip != nil {
-					ix.hooks.OnSkip(rel, reason)
-				}
-			},
-		})
-		if err != nil {
-			return disc.Enqueued, fmt.Errorf("walk %s: %w", r.AbsPath, err)
-		}
-		disc.Candidates += len(cands)
-		for _, c := range cands {
-			if !ix.queue.Enqueue(Job{Root: c.Root, RelPath: c.RelPath, AbsPath: c.AbsPath}) {
-				disc.QueueFull++
-				ix.log.Warn("queue full; dropping", "root", c.Root.ID, "rel", c.RelPath)
-			} else {
-				disc.Enqueued++
-			}
-		}
-	}
-	ix.logDiscoverySummary(&disc)
-	ix.LogQueueSnapshot("after_initial_scan")
-	ix.log.Info("initial scan complete", "msg", "indexer.run.progress", "phase", "initial_scan", "candidates_enqueued", disc.Enqueued)
-	return disc.Enqueued, nil
+	return ok
 }
 
 func (ix *Indexer) loadRemoteCorpusInventory(ctx context.Context) error {
@@ -240,28 +246,46 @@ func (ix *Indexer) RunWorkers(ctx context.Context) {
 			defer wg.Done()
 			rng := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id)))
 			for {
-				j, ok := ix.queue.Dequeue(ctx)
+				wi, ok := ix.queue.Dequeue(ctx)
 				if !ok {
 					return
 				}
 				atomic.AddInt64(&ix.opsDequeued, 1)
-				if err := ix.processJob(ctx, j, rng); err != nil {
+				if wi.Kind == WorkIngest && wi.FromFanout && wi.BulkScopeKey != "" {
+					ix.decPendingBulk(wi.BulkScopeKey)
+				}
+				if err := ix.processWorkItem(ctx, wi, rng); err != nil {
 					if errors.Is(err, ErrPaused) {
+						rel := ""
+						if wi.Kind == WorkIngest {
+							rel = wi.Job.RelPath
+						}
 						ix.log.Warn("worker paused; awaiting health recovery",
 							"msg", "indexer.worker.paused",
-							"worker", id, "rel", j.RelPath)
+							"worker", id, "rel", rel,
+							"work_kind", wi.Kind,
+						)
 						ix.LogQueueSnapshot("worker_paused_before_recovery")
 						if perr := ix.waitForRecovery(ctx); perr != nil {
 							return
 						}
-						_ = ix.queue.Enqueue(j)
+						if wi.Kind == WorkIngest && wi.FromFanout && wi.BulkScopeKey != "" {
+							ix.incPendingBulk(wi.BulkScopeKey)
+						}
+						_ = ix.queue.Enqueue(wi)
 						ix.LogQueueSnapshot("worker_resumed_after_recovery")
 						continue
 					}
-					atomic.AddInt64(&ix.opsIngestFail, 1)
-					ix.log.Error("ingest failed (dropped)",
-						"msg", "indexer.job.failed",
-						"worker", id, "rel", j.RelPath, "err", err)
+					if wi.Kind == WorkIngest {
+						atomic.AddInt64(&ix.opsIngestFail, 1)
+						ix.log.Error("ingest failed (dropped)",
+							"msg", "indexer.job.failed",
+							"worker", id, "rel", wi.Job.RelPath, "err", err)
+					} else {
+						ix.log.Error("work item failed (dropped)",
+							"msg", "indexer.work.failed",
+							"worker", id, "kind", wi.Kind, "err", err)
+					}
 				}
 			}
 		}(i)
@@ -270,12 +294,28 @@ func (ix *Indexer) RunWorkers(ctx context.Context) {
 	ix.LogQueueSnapshot("run_workers_exit")
 }
 
-// processJob ingests a single file with bounded retries. It returns
-// ErrPaused if all retry attempts fail with a retryable error so the caller
-// can switch to recovery polling.
-func (ix *Indexer) processJob(ctx context.Context, j Job, rng *rand.Rand) error {
+// processWorkItem dispatches scan, fan-out, or ingest work.
+func (ix *Indexer) processWorkItem(ctx context.Context, wi WorkItem, rng *rand.Rand) error {
+	switch wi.Kind {
+	case WorkScan:
+		return ix.runScanJob(ctx, wi.ScanID)
+	case WorkFanoutList:
+		return ix.runFanoutList(ctx, wi)
+	case WorkIngest:
+		return ix.processIngestWithRetries(ctx, wi, rng)
+	default:
+		return nil
+	}
+}
+
+// processIngestWithRetries runs ingestOne with backoff. Returns ErrPaused if
+// retries are exhausted while errors remain retryable.
+func (ix *Indexer) processIngestWithRetries(ctx context.Context, wi WorkItem, rng *rand.Rand) error {
+	j := wi.Job
 	for attempt := 0; attempt < ix.cfg.RetryMaxAttempts; attempt++ {
+		ix.ingestInflight.Add(1)
 		err := ix.ingestOne(ctx, j)
+		ix.ingestInflight.Add(-1)
 		if err == nil {
 			return nil
 		}
@@ -506,6 +546,8 @@ func (ix *Indexer) effectiveWholeFileLimit(gw *IndexerConfig) int64 {
 }
 
 func (ix *Indexer) waitForRecovery(ctx context.Context) error {
+	ix.inRecovery.Store(true)
+	defer ix.inRecovery.Store(false)
 	t := time.NewTicker(ix.cfg.RecoveryPollInterval)
 	defer t.Stop()
 	pollN := 0
@@ -586,7 +628,7 @@ func (ix *Indexer) RunWatchers(ctx context.Context) error {
 		}
 	}
 
-	debouncer := newDebouncer(ix.cfg.Debounce, func(absPath string) {
+	debouncer := newDebouncer(ix.cfg.Debounce, func(absPath string, tier PriorityTier) {
 		root, rel, ok := ix.matchAbs(absPath)
 		if !ok {
 			return
@@ -606,7 +648,8 @@ func (ix *Indexer) RunWatchers(ctx context.Context) error {
 		if err != nil || bin {
 			return
 		}
-		_ = ix.queue.Enqueue(Job{Root: root, RelPath: rel, AbsPath: absPath})
+		w := IngestEnqueue(Job{Root: root, RelPath: rel, AbsPath: absPath}, tier, false, "")
+		_ = ix.queue.Enqueue(w)
 	})
 	defer debouncer.Close()
 
@@ -619,7 +662,11 @@ func (ix *Indexer) RunWatchers(ctx context.Context) error {
 				return nil
 			}
 			if ev.Op&(fsnotify.Create|fsnotify.Write) != 0 {
-				debouncer.Trigger(ev.Name)
+				tier := TierWrite
+				if ev.Op&fsnotify.Create != 0 {
+					tier = TierInteractive
+				}
+				debouncer.Trigger(ev.Name, tier)
 			}
 			if ev.Op&fsnotify.Create != 0 {
 				if st, err := os.Stat(ev.Name); err == nil && st.IsDir() {

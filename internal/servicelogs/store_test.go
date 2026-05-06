@@ -9,6 +9,22 @@ import (
 	"time"
 )
 
+func TestSetMirror_writesTabSeparatedLines(t *testing.T) {
+	var b strings.Builder
+	s := New(10)
+	s.SetMirror(&b)
+	w := s.Writer("gateway")
+	_, _ = io.WriteString(w, "hello\n")
+	s.SetMirror(nil)
+	got := b.String()
+	if !strings.Contains(got, "\tgateway\thello\n") {
+		t.Fatalf("mirror output %q", got)
+	}
+	if strings.Count(got, "\n") != 1 {
+		t.Fatalf("expected single line, got %q", got)
+	}
+}
+
 func TestLineWriter_splitsLinesAndCarriageReturn(t *testing.T) {
 	s := New(100)
 	w := s.Writer("test")
@@ -47,6 +63,36 @@ func TestStore_maxLinesEvictsOldest(t *testing.T) {
 	}
 	if got[0].Text != "L2" || got[2].Text != "L4" {
 		t.Fatalf("expected L2,L3,L4 got %#v", got)
+	}
+}
+
+func TestIndexerCap_prefersTrimmingNoisyIndexerLines(t *testing.T) {
+	s := New(50)
+	wIdx := s.Writer("indexer")
+	// One high-value line that must survive heavy noisy traffic.
+	_, _ = io.WriteString(wIdx, `{"msg":"indexer.run.start","service":"indexer","root_scopes":[]}`+"\n")
+	for i := range 40 {
+		_, _ = io.WriteString(wIdx, fmt.Sprintf("indexer queue snapshot #%d\n", i))
+	}
+	_, _ = io.WriteString(wIdx, `{"msg":"indexer.job.skipped","service":"indexer","rel":"keep/this.vue"}`+"\n")
+	got := s.Snapshot()
+	var hasStart, hasJob bool
+	for _, e := range got {
+		if e.Source != "indexer" {
+			continue
+		}
+		if strings.Contains(e.Text, "indexer.run.start") {
+			hasStart = true
+		}
+		if strings.Contains(e.Text, "keep/this.vue") {
+			hasJob = true
+		}
+	}
+	if !hasStart {
+		t.Fatal("expected indexer.run.start to survive when noisy lines are trimmed first")
+	}
+	if !hasJob {
+		t.Fatal("expected last job line to remain in buffer")
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 
 func TestQueue_DedupesAndBounds(t *testing.T) {
 	q := NewQueue(2)
-	j := Job{Root: Root{ID: "r"}, RelPath: "a"}
+	j := IngestEnqueue(Job{Root: Root{ID: "r"}, RelPath: "a"}, TierBulk, false, "")
 	if !q.Enqueue(j) {
 		t.Fatal("first enqueue should succeed")
 	}
@@ -19,17 +19,55 @@ func TestQueue_DedupesAndBounds(t *testing.T) {
 	if q.Len() != 1 {
 		t.Fatalf("len=%d, want 1", q.Len())
 	}
-	if !q.Enqueue(Job{Root: Root{ID: "r"}, RelPath: "b"}) {
+	if !q.Enqueue(IngestEnqueue(Job{Root: Root{ID: "r"}, RelPath: "b"}, TierBulk, false, "")) {
 		t.Fatal("enqueue b")
 	}
-	if q.Enqueue(Job{Root: Root{ID: "r"}, RelPath: "c"}) {
+	if q.Enqueue(IngestEnqueue(Job{Root: Root{ID: "r"}, RelPath: "c"}, TierBulk, false, "")) {
 		t.Fatal("queue should be full")
+	}
+}
+
+func TestQueue_DequeuePrefersInteractiveTier(t *testing.T) {
+	q := NewQueue(10)
+	if !q.Enqueue(IngestEnqueue(Job{Root: Root{ID: "r"}, RelPath: "bulk"}, TierBulk, false, "")) {
+		t.Fatal("enqueue bulk")
+	}
+	if !q.Enqueue(IngestEnqueue(Job{Root: Root{ID: "r"}, RelPath: "live"}, TierInteractive, false, "")) {
+		t.Fatal("enqueue interactive")
+	}
+	ctx := context.Background()
+	w, ok := q.Dequeue(ctx)
+	if !ok || w.Job.RelPath != "live" || w.Tier != TierInteractive {
+		t.Fatalf("expected interactive first, got %+v ok=%v", w, ok)
+	}
+	w2, ok := q.Dequeue(ctx)
+	if !ok || w2.Job.RelPath != "bulk" {
+		t.Fatalf("expected bulk second, got %+v", w2)
+	}
+}
+
+func TestQueue_IngestTierUpgrade(t *testing.T) {
+	q := NewQueue(4)
+	low := IngestEnqueue(Job{Root: Root{ID: "r"}, RelPath: "x"}, TierBulk, false, "")
+	high := IngestEnqueue(Job{Root: Root{ID: "r"}, RelPath: "x"}, TierInteractive, false, "")
+	if !q.Enqueue(low) {
+		t.Fatal("enqueue low")
+	}
+	if !q.Enqueue(high) {
+		t.Fatal("enqueue upgrade")
+	}
+	if q.Len() != 1 {
+		t.Fatalf("want one pending item after upgrade, got %d", q.Len())
+	}
+	w, _ := q.Dequeue(context.Background())
+	if w.Tier != TierInteractive {
+		t.Fatalf("want tier 3, got %d", w.Tier)
 	}
 }
 
 func TestQueue_DequeueBlocksThenReturns(t *testing.T) {
 	q := NewQueue(4)
-	got := make(chan Job, 1)
+	got := make(chan WorkItem, 1)
 	go func() {
 		j, ok := q.Dequeue(context.Background())
 		if ok {
@@ -37,10 +75,10 @@ func TestQueue_DequeueBlocksThenReturns(t *testing.T) {
 		}
 	}()
 	time.Sleep(10 * time.Millisecond)
-	q.Enqueue(Job{Root: Root{ID: "r"}, RelPath: "a"})
+	q.Enqueue(IngestEnqueue(Job{Root: Root{ID: "r"}, RelPath: "a"}, TierBulk, false, ""))
 	select {
 	case j := <-got:
-		if j.RelPath != "a" {
+		if j.Job.RelPath != "a" {
 			t.Fatalf("got %+v", j)
 		}
 	case <-time.After(time.Second):

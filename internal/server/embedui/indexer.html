@@ -403,7 +403,10 @@
       lastLoadedRoots = JSON.parse(JSON.stringify(d.roots || []));
       renderRoots(d.roots || []);
       showNewPanel(false);
-      setStatus("Added indexer root.", "ok");
+      setStatus(
+        "Added indexer root. Restart the desktop app (or claudia serve) so the supervised indexer reloads YAML and watches the new folder.",
+        "ok"
+      );
     }).catch(function (e) {
       setStatus(String(e.message || e), "err");
     });
