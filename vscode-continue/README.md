@@ -16,8 +16,11 @@ Continue reference: [Continue configuration](https://docs.continue.dev/reference
 
 - `X-Claudia-Project` — project slug for collection routing.
 - `X-Claudia-Flavor-Id` — optional corpus key within the project.
+- `X-Claudia-Conversation-Id` — optional stable chat thread id for gateway logs and **`/ui/logs`** (**Conversations** view). If omitted, the gateway generates one and echoes it on the response; clients can persist and resend the same value across turns in a thread.
 
-Exact YAML keys depend on your Continue version (`requestOptions`, `defaultRequestOptions`, etc.). See `config.yml` in this folder for copy-paste snippets.
+Exact YAML keys depend on your Continue version (`requestOptions`, `defaultRequestOptions`, nested `headers`, etc.). See `config.yml` in this folder for copy-paste comments.
+
+Product context: [`docs/version-v0.2.md`](../docs/version-v0.2.md) § **Themes: conversation headers and Continue templates**.
 
 ## Workspace layout
 

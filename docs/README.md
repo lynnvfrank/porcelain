@@ -4,7 +4,7 @@
 
 **Roadmaps, release notes, and engineering plans:** [`plans/`](plans/README.md).
 
-Current release line: **v0.2.x** — RAG, ingest, workspace indexer (`claudia-index`), supervised-stack option, operator `/ui/*`, desktop webview. Summary of shipped work: [plans/releases-v0.2.x.md](plans/releases-v0.2.x.md).
+Current release line: **v0.2.x** — RAG, ingest, workspace indexer (`claudia-index`), supervised-stack option, operator `/ui/*`, desktop webview. Shipped patches (v0.2.0–v0.2.2): [version-v0.2.md — Shipped releases](version-v0.2.md#shipped-releases-v020-through-v022).
 
 ## Operator docs (`docs/`)
 

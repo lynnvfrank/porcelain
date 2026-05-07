@@ -3,15 +3,25 @@
 | Field | Value |
 |-------|-------|
 | **Doc kind** | `version-roadmap` |
-| **Owners / areas** | Gateway RAG, indexer, vector storage |
+| **Owners / areas** | Gateway RAG, indexer, vector storage, operator logs UI (webview / desktop), chat token estimates, usage metrics, provider limits |
 | **Status** | `shipped` |
 | **Targets** | Gateway v0.2 RAG baseline |
 | **Last updated** | See git history |
-| **Supersedes / superseded by** | Summarized by [`releases-v0.2.x.md`](releases-v0.2.x.md) |
+| **Supersedes / superseded by** | Patch train **v0.2.0–v0.2.2** documented in § [Shipped releases](#shipped-releases-v020-through-v022) |
 
 ## At a glance
 
-Give chat memory of your code: index your project folders, retrieve the relevant snippets at query time, and weave them into the prompt. Operators run Qdrant alongside the gateway and let `claudia-index` watch their workspaces. Retrieval is scoped to the bearer token's tenant so private data stays where it belongs.
+**v0.2** gives chat **memory of your code**: operators index workspace folders through **`claudia-index`** and gateway **`POST /v1/ingest`**; at chat time the virtual model **retrieves** from **Qdrant** and injects context into the prompt. **Tenant isolation** is enforced by the bearer token; **project** and **flavor** headers pick the corpus.
+
+The **workspace indexer** pairs watch-mode ingest with a **queue-safe** scan and fan-out model so large trees and **multiple roots** stay fair and observable—see § **File indexer** (**Themes — indexer runtime and queue**).
+
+**Operator observability** is a first-class concern: **`/ui/logs`** offers **conversation** vs **subsystem** lenses on the same stream, **correlation IDs** and stable **`msg`** tagging, **summarized** cards (including **Indexers**) with **SSE + poll** delivery, and **raw / structured** fallbacks—see § **Operator logs UI** (**Themes — logs and operator observability**). From **v0.2.2**, the **desktop** shell foregrounds this experience ([`gui-testing.md`](gui-testing.md)).
+
+**Patch-level** configuration and routes (**v0.2.0** → **v0.2.2**) are spelled out in § **[Shipped releases](#shipped-releases-v020-through-v022)**.
+
+The **chat path** records **tiktoken-compatible `cl100k_base`** estimates on the **proxied JSON body**, aggregates **request counts and estimated tokens** into **per-minute and per-day** windows in **SQLite**, and enforces **vendor-style caps** from **`provider-model-limits.yaml`** before calling upstream—see § **Token counting (chat path)** and § **Usage metrics and provider limits**.
+
+**Also in v0.2:** **chunked ingest sessions** for oversized files; **custom headers** (including **`X-Claudia-Conversation-Id`**) documented for **Continue** in **`vscode-continue/`**; **chat robustness** (fallback, quotas, tool-router) carried forward from v0.1.x; **Make-driven catalog tools** that refresh **free-tier / limits snapshots** and **`provider-free-tier`** YAML—see § **Additional operator themes** below.
 
 | Theme | Outcome | Status |
 |-------|---------|--------|
@@ -19,14 +29,19 @@ Give chat memory of your code: index your project folders, retrieve the relevant
 | [Indexer REST](#indexer-rest-gateway-owned) | Config, storage health and stats, paginated corpus inventory | `done` |
 | [Chunking, embeddings, Qdrant](#chunking-embedding-and-qdrant) | One collection per (tenant, project, flavor); stable payload fields | `done` |
 | [Retrieval & prompt assembly](#retrieval-and-prompt-assembly) | Top-k with score floor; numbered context block before the user turn | `done` |
-| [Token counting](#token-counting-messages-and-pre-embed) | Counts logged for chat messages and pre-embed strings | `done` |
+| [Token counting (chat path)](#token-counting-chat-path) | `cl100k_base` estimate on outbound chat JSON; structured log (`outgoingTokens`); same estimate drives metrics + quota admission | `done` |
+| [Usage metrics and provider limits](#usage-metrics-and-provider-limits) | SQLite minute/day rollups; RPM/RPD/TPM/TPD from YAML; **429** `gateway_provider_limits` when a call would exceed | `done` |
 | [Health probe](#health-and-operations) | `/health` adds a Qdrant probe when RAG is enabled | `done` |
-| [Workspace indexer (`claudia-index` v0.2)](#file-indexer-v02) | Watch roots, ignore rules, whole-file ingest aligned with the v0.2 APIs | `done` |
-| [Exploration: local ONNX retrieval](#future-update-plan-enhanced-local-vector-rag-vectordb-cli--custom-llm-gateway) | Single-machine ONNX embedding + iterative retrieval | `deferred` |
+| [Workspace indexer (`claudia-index` v0.2)](#file-indexer-v02) | Watch roots, ignore rules, queue-safe scan/fan-out, ingest aligned with v0.2 APIs | `done` |
+| [Operator logs UI](#operator-logs-ui-correlation--summarized-views) | Correlation + tagging; conversation / subsystem views; Indexers cards; SSE/poll; desktop shell — **Themes** subsections | `done` |
+| [Indexer chunked ingestion](#themes-indexer-chunked-ingestion) | Session API when files exceed **`max_whole_file_bytes`**; indexer uses whole POST or chunked transport per config | `done` |
+| [Conversation headers & Continue](#themes-conversation-headers-and-continue-templates) | **`X-Claudia-Conversation-Id`** (+ project/flavor); gateway accepts or generates; templates in **`vscode-continue/`** | `done` |
+| [Chat robustness](#themes-chat-robustness) | Virtual-model **429/5xx** fallback chain; **413** skip-to-next on virtual path; **tool-router** slimming; **gateway_provider_limits** **429** | `done` |
+| [Catalog & limits tooling (Make)](#themes-catalog-and-limits-tooling-make) | **`catalog-free`**, **`catalog-available`**, **`config-provider-free-tier`**; snapshots inform **`provider-model-limits.yaml`** maintenance | `done` |
 
 ---
 
-**Status:** The capabilities below are **shipped** in the **v0.2.0** baseline and subsequent patches (**v0.2.1** logging/UI/conversation merge, **v0.2.2** supervised indexer + shell). See **[releases-v0.2.x.md](releases-v0.2.x.md)** for a concise release-by-release list.
+**Status:** The capabilities below are **shipped** in the **v0.2.0** baseline and subsequent patches (**v0.2.1** logging/UI/conversation merge, **v0.2.2** supervised indexer + shell). Per-patch operator detail lives in § **[Shipped releases: v0.2.0 through v0.2.2](#shipped-releases-v020-through-v022)** below.
 
 This document pulls together **everything scoped to product v0.2** from [`claudia-gateway.plan.md`](claudia-gateway.plan.md) (authoritative product roadmap), [`overview.md`](overview.md), [`network.md`](network.md), [`configuration.md`](configuration.md), and cross-links the **file indexer** work in a **separate** plan: [`plans/indexer.md`](plans/indexer.md).
 
@@ -48,6 +63,7 @@ This document pulls together **everything scoped to product v0.2** from [`claudi
 - **Qdrant adapter** + **query-time retrieval** + **prompt assembly**
 - **Collection** naming rules; `X-Claudia-Project` / `X-Claudia-Flavor-Id` headers
 - `GET /health` includes **Qdrant** probe when **RAG is enabled**
+- **Chat token estimates** (`cl100k_base`) on the proxied body; **usage rollups** (minute/day) and **`provider-model-limits.yaml`** admission on the chat path (see § **Token counting (chat path)** and § **Usage metrics and provider limits**)
 
 ---
 
@@ -58,6 +74,7 @@ This document pulls together **everything scoped to product v0.2** from [`claudi
 - **Bearer token** (same as chat) defines **tenant**; **from v0.2** the token **authorizes RAG** so retrieval and ingested memory are **only** for that tenant’s data (gateway plan *Tenant authentication · 1*).
 - `X-Claudia-Project: <slug>` on chat (when RAG applies) and on **ingestion**; falls back to token default (*Tenant authentication · 2*).
 - Optional `X-Claudia-Flavor-Id: <key>` (or token default `flavor_id`) selects the **corpus** within tenant + project.
+- Optional **`X-Claudia-Conversation-Id`** on chat — stable **conversation / thread** id for logs and **`/ui/logs`** (**Conversations** view); if omitted, the gateway **generates** one. Successful responses **echo** the id when the client should persist it. Operators wire these through IDE templates — see **`vscode-continue/`** ([`vscode-continue/README.md`](../vscode-continue/README.md)) and § **Themes: conversation headers and Continue templates** below.
 
 ### Virtual model and RAG
 
@@ -66,6 +83,7 @@ This document pulls together **everything scoped to product v0.2** from [`claudi
 ### Ingestion API
 
 - `POST /v1/ingest` — **one document per request** (multipart `file` and/or JSON with `text`, `source`, etc.); finalize and document the **exact schema** in `docs/` and implementation.
+- **Chunked ingest session** — For payloads larger than **`rag.ingest.max_whole_file_bytes`** (surfaced via **`GET /v1/indexer/config`** as **`max_whole_file_bytes`**), **`claudia-index`** uses the gateway **`/v1/ingest/session`** flow (start, chunk upload, complete) instead of a single whole-body POST. See [`indexer.md`](indexer.md) and § **Themes: indexer chunked ingestion** below.
 - Accept **client-supplied `content_hash`** (algorithm and field name per contract) for **inventory / change detection**; gateway stores it as specified in [`plans/indexer.md`](plans/indexer.md) (indexer v0.2–v0.3 uses client hash as local truth until server-authoritative hash lands in later milestones).
 
 ### Indexer REST (gateway-owned)
@@ -85,11 +103,24 @@ This document pulls together **everything scoped to product v0.2** from [`claudi
 - **One collection** per `(tenant_id, project_id, flavor_id)`; **collection name encoding:** lowercase, spaces → hyphens, collapse repeats, strip illegal characters, deterministic short hash suffix on collision.
 - **Qdrant payload (minimum):** `tenant_id`, `project_id`, `text`, `source`, optional `created_at`, optional `flavor_id`.
 
-### Token counting (messages and pre-embed)
+### Token counting (chat path)
 
-- The **Go gateway** must be able to **count tokens** for arbitrary strings used in the **chat path** (user-facing message text extracted from OpenAI-style `messages`) and for text **immediately before** calls to the **embedding** path (ingest chunks, query strings for retrieval embeddings, etc., as those code paths land in v0.2).
-- Use a **maintained, fast** Go tokenizer library whose **encoding** is documented and aligned with the **embedding / chat models** you configure (default assumption: **OpenAI-compatible cl100k_base**-style counting unless config pins another scheme). Operators should treat counts as **approximate** when the upstream model’s tokenizer differs; document that caveat in code comments and, if needed, a one-line `docs/configuration.md` note when a config knob exists.
-- **Observability:** on every authenticated `POST /v1/chat/completions`, emit a structured `slog.Info` line that includes the **token count** for the **user message payload** (see agent plan below for how to aggregate roles / multimodal parts), alongside existing fields such as `tenant`, `clientModel`, and `stream`.
+**Status:** **`done`** — implemented in **`internal/tokencount`** (tiktoken-compatible **`cl100k_base`**) and wired through **`internal/chat`** for **`POST /v1/chat/completions`**.
+
+- **What gets counted:** After the gateway builds the **outbound** JSON body (client fields plus resolved **`model`** and **`stream`**), the **entire marshalled string** is passed through **`tokencount.Count`** — the same estimate feeds **structured logs**, **SQLite usage metrics**, and **provider limit** admission ([`docs/tokencount-talk.md`](tokencount-talk.md) discusses calibration vs upstream tokenizers).
+- **Logging:** Successful counts appear on the upstream relay line (e.g. structured field **`outgoingTokens`**, **`msg`** `chat.bifrost.request`). Count failures **do not** fail the request; they degrade to logging without the numeric field.
+- **CLI:** Operators can run **`claudia tokencount`** for ad-hoc counts (`cl100k_base`, optional **`o200k_base`** display for comparison) — not required for gateway operation.
+- **Embedding / RAG paths:** Pre-embed counting for ingest chunks and retrieval query strings remains aligned with the same **`tokencount`** package where those code paths need estimates; product caveats about **approximate** counts vs non–cl100k upstream models still apply.
+
+### Usage metrics and provider limits
+
+**Status:** **`done`** — persisted metrics and YAML caps work together on the chat path via **`internal/gatewaymetrics`**, **`internal/providerlimits`**, and **`config/provider-model-limits.yaml`** (see also [`version-v0.1.1.md`](version-v0.1.1.md) § gateway metrics for historical baseline).
+
+- **Recording:** Each upstream **`/v1/chat/completions`** attempt records **model id**, **HTTP status**, and the **same estimated token count** used for logging (`internal/chat`). Aggregates are stored in **SQLite** under the configured metrics path (typically **`data/gateway/`** — see [`configuration.md`](configuration.md)).
+- **Rollups:** Tables maintain **per-minute** (UTC minute bucket) and **per-calendar-day** windows so the gateway can answer “how many **calls** and **estimated tokens** for this model in the current minute / current usage day?” Day boundaries honor **`usage_day_timezone`** from the limits file (defaults and per-provider overrides — e.g. vendor-local midnight for Gemini-style reporting).
+- **`provider-model-limits.yaml`:** **`schema_version: 1`** defines optional **`rpm`**, **`rpd`**, **`tpm`**, **`tpd`** per provider/model (`null` / omitted means **no cap** on that dimension). Defaults cascade **provider → model**; invalid values are rejected at load.
+- **Admission:** Before issuing the upstream HTTP request, **`providerlimits.Guard`** compares current minute/day usage **plus this request’s estimate** against the resolved limits. If the call would exceed a configured cap, the gateway returns **HTTP 429** with error type **`gateway_provider_limits`** (body explains quota would be exceeded). Metrics lookup failures **fail open** (request allowed, warning logged) so a broken store does not brick chat.
+- **Operator surfaces:** **`/ui/metrics`** and **`GET /api/ui/metrics`** expose rollups and recent events when metrics are enabled; logs UI may consume the same snapshot ([`plans/log-view-refactor.md`](plans/log-view-refactor.md)). Example limits live beside runtime config as **`config/provider-model-limits.example.yaml`**.
 
 ### Retrieval and prompt assembly
 
@@ -102,15 +133,78 @@ This document pulls together **everything scoped to product v0.2** from [`claudi
 - `GET /health`: when **RAG is enabled**, also probe **Qdrant** (e.g. `GET http://qdrant:6333/` in Compose); if RAG disabled, **omit** Qdrant. Failure → **503**, **`degraded`: true**, per-check detail (*Observability · 3*).
 - **Structured logging (v0.1 baseline, v0.2 extension):** **DEBUG** (and appropriate levels) should cover **RAG** path activity — retrieve, ingest, collection id (**v0.2+**).
 
+### Operator logs UI (correlation & summarized views)
+
+**Status:** **`done`** — shipped across **v0.2.1** and **v0.2.2**; concrete bullets for those patches sit in § **[Shipped releases](#shipped-releases-v020-through-v022)** · [v0.2.1](#v021--logging-correlation-logs-ui-optional-conversation-merge) and [v0.2.2](#v022--desktop-shell-supervised-indexer-indexer--continue-operator-ui).
+
+**Intent:** Treat logs as a **presentation layer**: structured lines stay **verbatim** in the gateway’s in-memory buffer (and any other capture paths), while **`/ui/logs`** **interprets, groups, threads, and summarizes** them so operators see **what happened** without scanning opaque JSON. Design rationale and vocabulary live in **[`plans/log-presentation-layer.md`](plans/log-presentation-layer.md)** (Phases **A–D** shipped; **Phase E** — optional server-side event store for cross-restart history — remains **`todo`**).
+
+#### Themes — logs and operator observability
+
+- **Two lenses on one stream** — **Conversations** follow **who** (principal / token) and **what happened in a chat thread**; **Subsystems** follow **gateway**, **BiFrost**, **Qdrant**, and **indexer** health and activity. Same underlying log lines, different narratives ([`plans/log-presentation-layer.md`](plans/log-presentation-layer.md) §3–4).
+- **Explicit correlation and tagging** — Stable **`request_id`**, **`conversation_id`**, **`index_run_id`**, **`principal_id`**, **`service`**, and **`msg`** families so the UI can filter, thread, and roll up without guessing ([`plans/log-presentation-layer.md`](plans/log-presentation-layer.md) §5).
+- **Summarized by default, lossless on demand** — Headlines and cards first; expand for full structured fields or switch to **structured grid / raw** modes so debugging never depends on summaries alone ([`plans/log-view-refactor.md`](plans/log-view-refactor.md)).
+- **Live delivery and resilience** — **`/api/ui/logs`** plus **SSE** (`/api/ui/logs/stream`) with **poll fallback**, backfill, and filters so the page stays usable under transport hiccups ([`plans/log-view-refactor.md`](plans/log-view-refactor.md)).
+- **Operator ergonomics and deep links** — URL and embedded-shell parameters (**`view`**, **`principal`**, **`conversation`**, **`seq`**, **`embed`**) support sharing and desktop/webview integration ([`plans/log-view-refactor.md`](plans/log-view-refactor.md)).
+- **Presentation without a durable log DB (in v0.2)** — Interpretation happens in the client over the ring buffer; **cross-restart search / long retention** (presentation plan **Phase E**) is **not** part of the shipped v0.2 contract.
+
+**Indexer ↔ logs** themes (cards, identity fields, stats polling) live under § **File indexer** · **Themes — indexer and log presentation** below. Desktop webview behavior — **[`gui-testing.md`](gui-testing.md)**.
+
+**Related planning / maintenance docs** (implementation detail, not normative product contract): [`plans/log-view-refactor.md`](plans/log-view-refactor.md), [`plans/logs-ui-maintainability.md`](plans/logs-ui-maintainability.md).
+
+**Optional:** **`conversation_merge`** in `gateway.yaml` (requires gateway metrics / SQLite) merges chat turns when no conversation id is sent — documented in **[`configuration.md`](configuration.md)** and § [v0.2.1](#v021--logging-correlation-logs-ui-optional-conversation-merge) below.
+
 ### Operator documentation (delta for v0.2)
 
 The gateway plan requires `docs/` to cover overview, network, install, Docker cookbook, and configuration reference **for v0.1**; **v0.2** adds:
 
 - Data flow **IDE → gateway → embed path → Qdrant** (and **indexer → gateway** for ingest).
 - **Ingest** and **indexer** API paths, auth, and headers.
-- **Continue** (or client) samples: `X-Claudia-Project` and `X-Claudia-Flavor-Id` on the OpenAI-compatible provider entry (**v0.2+** custom headers) — see `vscode-continue/` convention in the gateway plan.
+- **Operator Logs** (`/ui/logs`): summarized vs detailed views, correlation fields, themes under § **Operator logs UI** (**Themes — logs and operator observability**), and **[`plans/log-presentation-layer.md`](plans/log-presentation-layer.md)**; indexer card themes under § **File indexer**.
+- **Continue** (or client) samples: **`X-Claudia-Project`**, **`X-Claudia-Flavor-Id`**, and **`X-Claudia-Conversation-Id`** — see **`vscode-continue/`** and § **Themes: conversation headers and Continue templates**; gateway plan continues convention for RAG headers.
 
 [`network.md`](network.md) already notes **v0.2+**: Claudia → Qdrant for retrieval and indexer-backed workflows. [`configuration.md`](configuration.md) notes `tenant_id` in logs and **v0.2+** RAG scoping by tenant — keep these aligned as behavior lands.
+
+---
+
+## Additional operator themes
+
+Normative API detail for RAG and indexer remains in **Gateway and stack** and [**`plans/indexer.md`**](plans/indexer.md). This section groups **cross-cutting** behaviors that operators and IDE configs rely on together.
+
+### Themes: indexer chunked ingestion
+
+- **Threshold:** Gateway **`rag.ingest.max_whole_file_bytes`** caps **single-request** whole-file ingest; effective ceiling is also exposed on **`GET /v1/indexer/config`** so **`claudia-index`** can choose **whole** vs **chunked** transport (`transport`: **`whole`** \| **`chunked`** in structured logs — [`indexer.md`](indexer.md)).
+- **Flow:** Chunked uploads use the **`/v1/ingest/session`** HTTP surface (session lifecycle + per-chunk writes + completion); correlates with **`index_run_id`** / ingest logging like simple ingest ([`plans/log-presentation-layer.md`](plans/log-presentation-layer.md) activity log).
+- **Operator story:** Large workspace files still index without blowing HTTP body limits; tune **`max_whole_file_bytes`** in **`gateway.yaml`** (and optional indexer YAML override per [`indexer.md`](indexer.md)).
+
+### Themes: conversation headers and Continue templates
+
+- **`X-Claudia-Conversation-Id`:** Optional on **`POST /v1/chat/completions`**. When sent, the gateway uses it as the session key for **structured logs**, metrics joins, and **`/ui/logs`** conversation threading; when absent, it **generates** an id. Responses **echo** the header so clients can reuse it on follow-up turns.
+- **RAG scope headers:** **`X-Claudia-Project`** and **`X-Claudia-Flavor-Id`** remain required for correct corpus selection when RAG applies (same as gateway plan).
+- **`vscode-continue/`:** Example **`config.yml`** and [**`README.md`**](../vscode-continue/README.md) document how to attach **custom headers** for Continue (exact YAML keys vary by Continue version — `requestOptions.headers`, `defaultRequestOptions`, etc.). Operators should add **project**, **flavor**, and **conversation** headers there so IDE traffic matches gateway expectations and logs stay correlated.
+
+### Themes: chat robustness
+
+*v0.2 builds on the v0.1 / v0.1.1 gateway path; this is a **summary** — authoritative detail lives in [`version-v0.1.md`](version-v0.1.md), [`version-v0.1.1.md`](version-v0.1.1.md), and [`configuration.md`](configuration.md).*
+
+- **Virtual model (`Claudia-<semver>`):** On upstream **429** or **5xx**, the gateway walks **`routing.fallback_chain`** from the appropriate index and retries the **same** client payload against the next candidate ([`internal/chat`](../internal/chat/chat.go)).
+- **Payload too large (413):** On the **virtual-model** path, an upstream **413** records metrics and triggers **fallback** (same request, next model), skipping models that already returned **413** for that request; **direct** upstream model ids return **413** to the client ([`version-v0.1.1.md`](version-v0.1.1.md) § G5).
+- **Tool payload size:** When enabled, **`transform.ApplyToolRouter`** may **trim** the **`tools`** array using **`routing.router_models`** / **`routing.tool_router`** before routing ([`version-v0.1.1.md`](version-v0.1.1.md)); per-request **`X-Claudia-Tool-Router: skip`** and **`X-Claudia-Tool-Confidence-Threshold`** remain supported.
+- **Provider quotas:** Before upstream HTTP, **`providerlimits.Guard`** may return **429** **`gateway_provider_limits`** when **`provider-model-limits.yaml`** would be exceeded (§ **Usage metrics and provider limits**).
+
+### Themes: catalog and limits tooling (Make)
+
+Operator-maintained **`config/provider-model-limits.yaml`** follows **`schema_version: 1`** (**`rpm`**, **`rpd`**, **`tpm`**, **`tpd`**) — see § **Usage metrics and provider limits** and [`configuration.md`](configuration.md). The repo ships **Make targets** and CLIs to **refresh vendor-derived snapshots** used when building or auditing that file and **`provider-free-tier`** routing input:
+
+| Target | Purpose |
+|--------|---------|
+| **`make catalog-free`** | Runs **`cmd/catalog-write-free`**: fetches **Groq** + **Gemini** public docs, extracts **BiFrost-style model ids** and **rate-limit metadata**, writes **`config/catalog-free-tier.snapshot.yaml`** (override with **`OUT=`**). Optional **`INTERSECT=`** filters to a catalog file. |
+| **`make catalog-available`** | Runs **`cmd/catalog-write-available`**: **`GET`** BiFrost **`/v1/models`**, writes **`config/catalog-available.snapshot.yaml`** (**requires** BiFrost up; **`OUT=`** override). |
+| **`make config-provider-free-tier`** | Runs **`catalog-available`** then **`catalog-write-free`** with **`INTERSECT=`** the available snapshot; writes **`config/catalog-free-tier.snapshot.yaml`** and **`config/provider-free-tier.generated.yaml`** (override **`FREE_OUT=`**, **`PROVIDER_FT_OUT=`**). Produces **`provider-free-tier`** YAML (**`format_version`**, patterns such as **`ollama/*`**, intersected Groq/Gemini ids) for **routing / free-tier filtering** — see [`docs/plans/makefile.md`](plans/makefile.md). |
+
+**Relating snapshots to `provider-model-limits.yaml`:** The **catalog-free** snapshot carries **per-model limit notes** from vendor pages; operators **merge or reconcile** those values into **`provider-model-limits.yaml`** (committed example: **`config/provider-model-limits.example.yaml`**). There is **no** single Make target that overwrites **`provider-model-limits.yaml`** automatically — by design, so operators review before replacing caps.
+
+**Tests:** **`make test-catalog-free`** and **`make test-catalog-available`** exercise the catalog CLIs.
 
 ---
 
@@ -121,6 +215,21 @@ All **indexer** milestones, configuration schema, gateway client behavior, Makef
 **[`plans/indexer.md`](plans/indexer.md)**
 
 **Summary for this release:** the first shippable `claudia-index` **aligns with gateway v0.2** — whole-file `POST /v1/ingest`, `GET /v1/indexer/config`, storage **health** (and related APIs), client `content_hash`, env-based token, watch roots + ignore rules, **no symlink follow** by default, debouncing/backpressure, and documented behavior for **oversized files** under whole-file-only ingest until **indexer v0.4** dual-mode exists.
+
+#### Themes — indexer runtime and queue
+
+- **Queue-safe initial indexing** — Initial work follows **scan → sharded fan-out list jobs → per-file ingest**, avoiding flooding a bounded queue with a single walk-and-enqueue-all pass ([`plans/indexer-scan-and-fanout-jobs.md`](plans/indexer-scan-and-fanout-jobs.md)).
+- **Fairness across workspaces** — **Tiered priority** (watcher-driven work ahead of bulk backlog) plus **round-robin interleaving** of candidates across **`(project, flavor)`** scopes so multi-root configs do not starve later scopes ([`plans/indexer-scan-and-fanout-jobs.md`](plans/indexer-scan-and-fanout-jobs.md)).
+- **Telemetry that matches the model** — Per-scope **discovery** lines (**`indexer.discovery.summary.scope`**), **scan complete**, and **queue snapshots** (including **per-tier depths**) align logs with the queue and fan-out design ([`plans/indexer-scan-and-fanout-jobs.md`](plans/indexer-scan-and-fanout-jobs.md)).
+- **UI parity as incremental** — Summarized **card-per-scope** polish and **live “current file / totals”** status are **partial or planned** where [`plans/indexer-scan-and-fanout-jobs.md`](plans/indexer-scan-and-fanout-jobs.md) marks operator UI phases incomplete; v0.2 still ships the **runtime** behavior and structured signals those views consume.
+
+#### Themes — indexer and log presentation
+
+- **Stable indexer identity in telemetry** — After gateway config fetch, structured logs carry **`indexer_key`**, **`tenant_id`**, **`principal_id`**, **`user_label`** so the UI can group and title cards consistently ([`plans/log-view-indexer.md`](plans/log-view-indexer.md)).
+- **State plus live vector-store snapshot** — **`indexer.state`** and periodic **`indexer.storage.stats`** (from gateway **`GET /v1/indexer/storage/stats`**, configurable **`storage_stats_poll_ms`**, **`-1`** disables periodic poll) give operators a current picture without per-file noise ([`plans/log-view-indexer.md`](plans/log-view-indexer.md)).
+- **“Indexers” as first-class UI** — Summarized **Indexers** section: cards keyed by **`indexer_key`** (fallback **`index_run_id`**), titles reflecting **label · project · flavor**, expanded detail for **watched roots** and **ignore-rule impact** ([`plans/log-view-indexer.md`](plans/log-view-indexer.md)).
+- **Readable signal, not just JSON** — Event-mix / queue / jobs rollups and **plain-language** lines interpret indexer traffic for humans; derivation is covered by tests ([`plans/log-view-indexer.md`](plans/log-view-indexer.md), [`plans/log-view-refactor.md`](plans/log-view-refactor.md)).
+- **Advanced topology honesty** — **Multi-ingest-target** YAML can split logical indexers; **P3** items (e.g. separate stats polls per flavor, optional human summary field) remain **deferred**; a **single default-header** stats scope per process is a **known limitation** until those plans land ([`plans/log-view-indexer.md`](plans/log-view-indexer.md) §Limitations / P3).
 
 ---
 
@@ -140,88 +249,121 @@ This is the **current** system the gateway plan targets for **v0.2** — the anc
 
 ---
 
-## Future update plan: enhanced local vector RAG (vectordb-cli + custom LLM gateway)
+## Shipped releases: v0.2.0 through v0.2.2
 
-The following is a **forward-looking** architecture (single developer machine, **no containers**, **vectordb-cli** as the indexer populator). It is **not** the locked v0.2 contract above; use it to reason about **keys**, **collection naming**, **embedding alignment**, and **retrieval quality** when evolving beyond gateway-mediated `POST /v1/ingest` + remote embeddings. **Goal:** high-relevance code/text retrieval with low latency, strong validation, and optional iterative refinement while staying **deterministic** where the pipeline is pinned (models, collection names, preprocessing).
+Operator-oriented summary of what landed in each **patch** on the v0.2 line (configuration knobs, HTTP surfaces, UI routes). Normative behavior across the line remains summarized above in **Gateway and stack** and companion plans.
 
-### 1. Connection information, ports, paths, and configuration
+The virtual model id stays **`Claudia-<gateway.semver>`** (set in `config/gateway.yaml`); example configs may show an older patch until you bump semver locally.
 
-- **Qdrant ports** (firewall / localhost only):
-  - **Primary:** **6334/TCP (gRPC)** — intended for indexing and querying in this design.
-  - **Optional:** **6333/TCP (HTTP/REST)** — dashboard, manual checks, or health-style probes.
-  - No external exposure; bind to **localhost** or same-machine private network. **TLS** only if traffic leaves the host.
-- **Connection details:**
-  - `QDRANT_URL` (example default: `http://localhost:6334` — **note:** URL scheme must match client library expectations for gRPC vs REST; align with Qdrant client docs) or equivalent in `config.toml`.
-  - Optional `QDRANT_API_KEY` shared between indexer manager, gateway, and Qdrant when enabled.
-  - **Manager** process injects these per indexing run; **gateway** reuses the same logical connection (singleton + pooling).
-- **Key paths** (manager / gateway):
-  - **Source directories:** **absolute** paths resolved from gateway **project config** (contrasts with v0.2 **relative `source`** in HTTP ingest — if both worlds coexist, define an explicit mapping at integration time).
-  - **ONNX embedding model + tokenizer:** fixed **read-only** paths to the `.onnx` file and tokenizer assets; **must match exactly** between indexer (**vectordb-cli**) and gateway at query time.
-  - **vectordb-cli config:** prefer **environment variables + CLI flags** over `~/.config/vectordb-cli/config.toml` to reduce file-locking and stale state.
-- **Collection naming** (deterministic; **shared** manager + router code):
-  - Derive stable name from **user + project** (e.g. `repo_user-abc123-proj-xyz789`).
-  - Sanitize for Qdrant (no slashes, respect length limits).
-  - **Per-project collections** — isolation without payload filters for tenancy (similar *shape* to v0.2’s **one collection per triple**, different **key inputs**).
+**Deeper references (beyond this section)**
 
-### 2. Indexing flow (manager process)
+- Indexer product plan: [`plans/indexer.md`](plans/indexer.md), operator quick start: [`indexer.md`](indexer.md)
+- Log UI and correlation: [`plans/log-presentation-layer.md`](plans/log-presentation-layer.md)
 
-- **Manager** (separate **Go** process) periodically or via webhook **pulls project config** from the gateway (user keys + file paths).
-- **Per project:** derive **repo/collection name**, run **vectordb-cli** repo management + sync/index with retries and exponential backoff.
-- **Full re-index vs delta** depending on **Git repo** vs plain directory.
-- Indexing = **short-lived CLI invocations** (not a daemon); data lands in Qdrant and is **immediately** queryable.
-- **Watch-outs:** **fsnotify** or gateway push for change detection; schedule work on **separate CPU cores** so indexing does not starve the gateway.
+| Release | Outcome | Status |
+|---------|---------|--------|
+| [v0.2.0](#v020--rag-baseline-ingest-indexer-apis-claudia-index) | RAG baseline: ingest, retrieval, Qdrant, `claudia-index` | `done` |
+| [v0.2.1](#v021--logging-correlation-logs-ui-optional-conversation-merge) | Per-request correlation, richer logs UI, optional conversation merge | `done` |
+| [v0.2.2](#v022--desktop-shell-supervised-indexer-indexer--continue-operator-ui) | Desktop shell, supervised `claudia-index`, indexer and Continue admin pages | `done` |
 
-### 3. Query-time flow (router / gateway layer)
+### v0.2.0 — RAG baseline, ingest, indexer APIs, `claudia-index`
 
-Target **request-scoped** pipeline (**under ~600 ms** end-to-end where practical):
+**Theme:** Gateway-mediated **retrieval-augmented generation** with **Qdrant**, **ingestion**, **indexer-facing REST**, and the `claudia-index` workspace indexer binary.
 
-1. Extract **user + project** identifiers from the incoming request.
-2. Compute the **exact Qdrant collection name** (same derivation as the manager).
-3. **Enrich** the raw query text (see §4).
-4. **Embed** enriched text with the **identical ONNX model** as the indexer.
-5. **Vector search** on that collection.
-6. **Validate and rerank** top‑k (score thresholds, intra-file checks, micro-judging).
-7. **Optional** iterative refinement (**≤ 2** rounds): follow-up queries → re-search → merge.
-8. Attach validated top‑k chunks (metadata: `file_path`, `language`, `chunk_type`) to the final LLM prompt.
-9. **Graceful fallback:** if the collection is missing or Qdrant is unreachable, return **empty context** rather than failing the chat request.
+**Configuration (`config/gateway.yaml`)**
 
-### 4. Embedding the query + enrichment strategies
+- `rag.enabled` and `rag.*`: Qdrant URL (optional API key), embedding path/model/dimension, chunk size/overlap, retrieval **top_k** and score threshold, ingest size limits (including `max_whole_file_bytes` vs chunked session ingest).
 
-- **Core embedding:** always the **same ONNX model and tokenizer** as **vectordb-cli** at index time. Input = **enriched** query text; output vector goes straight to Qdrant search. **Dimension and normalization** must match.
-- **Enrichment** (before embedding), examples:
-  - **Simple rewrite:** small LLM reframes the query as a precise dev-style search (symbols, file patterns, edge cases).
-  - **Multi-query:** **3–5** variants; embed each and fuse (**RRF** or vector averaging).
-  - **HyDE:** LLM drafts a short hypothetical snippet that would answer the query; embed the hypothetical.
-  - **Context injection:** prefix with **project hints** from gateway config (language, framework, etc.).
-- **Normalization:** final enriched text should follow the **same whitespace / newline rules** as the indexer to stay in the same embedding space.
-- **Alignment test:** index a known snippet → enrich a matching query → expect **self-retrieval score > ~0.85** (tune per model).
+**HTTP API**
 
-### 5. Model size and type recommendations (CPU-friendly, local)
+- `POST /v1/ingest` — document ingestion (multipart / JSON); server-side chunking, embedding, upsert into Qdrant.
+- **Chunked ingest session** for files larger than `rag.ingest.max_whole_file_bytes` (see indexer docs).
+- **Indexer REST** (Bearer-scoped): `GET /v1/indexer/config`, `GET /v1/indexer/storage/health`, `GET /v1/indexer/storage/stats`, `GET /v1/indexer/corpus/inventory` (paginated reconciliation).
+- `GET /health` — when RAG is enabled, includes a **Qdrant** probe (degraded behavior per implementation).
 
-Aim for **~4–6 GB RAM** total, **quantized** execution, **sub‑300 ms** per hot path on a typical dev machine (targets, not guarantees).
+**Chat**
 
-- **Embedding (index + query):** e.g. **BGE-M3**, **bge-base-en-v1.5** (dense + sparse hybrid where supported); alternatives **Nomic Embed Text v1.5**, **E5-base-v2**, **Jina Code Embeddings v2** (code-heavy). Require **ONNX/GGUF**, **8-bit** quantization where used; **fixed dimension**.
-- **Small LLM** (enrichment, HyDE, follow-ups, micro-judge): e.g. **Phi-4-mini-instruct** (~3.8B); alternatives **Llama 3.2** 1B/3B, **Gemma 3** 1B/4B, **Qwen3** small, **SmolLM2** 1.7B. Run **4-bit/8-bit GGUF** via **llama.cpp** / **Ollama** or ONNX bindings.
-- **Dedicated reranker:** classic **cross-encoder** (e.g. **ms-marco-MiniLM** L-6 / L-12) on top‑20–50; or **bge-reranker-base**, **mxbai-rerank-xsmall**.
+- Virtual model `Claudia-<semver>`: when RAG is enabled, **query-time retrieval** and **prompt assembly** (retrieved context injected ahead of the conversation).
+- Tenant scoping via gateway tokens; `X-Claudia-Project` and `X-Claudia-Flavor-Id` select project/corpus (with token defaults).
 
-### 6. Caching, better matching, validation, and iteration
+**Indexer CLI**
 
-- **Caching:**
-  - **Embedding cache:** key ≈ hash(enriched query + user + project + model hash) → vector; in-memory or **BoltDB**; **5–15 min TTL** or invalidate on re-index for that collection.
-  - **Full result cache:** top‑k + scores; invalidate on **any indexer run** for that collection.
-- **Better matching:** hybrid **dense + sparse/BM25** at collection creation where supported; **rerank** post-retrieval; **metadata** filters (`file_path`, `language`, `chunk_type`); optional **pseudo-relevance** feedback (average top‑k vectors or text → new search).
-- **Validation** before prompt attachment: hard **cosine** floor (e.g. **> 0.75**); **intra-file** neighborhood embedding check; **self-similarity** across top‑k; **LLM micro-judge** (batched, confidence **> 0.7**); code signals (AST/symbols) where available.
-- **Iterative loop:** router-controlled; **max 2** rounds; **relevance-delta** stop + **overall timeout**; enable only for **complex** queries.
+- `claudia-index` walks configured roots, respects ignore rules, hashes files, and calls `POST /v1/ingest` (or chunked session for large files). Build: `make indexer-build`.
 
-### 7. Implementation watch-outs and best practices
+**Stack**
 
-- **Embedding alignment** is non-negotiable — **golden** test projects.
-- **Collection naming** must be **identical** and **collision-free** in manager and router.
-- Keep router decisions **request-scoped** and **unit-testable** (enrichment + validation).
-- **Latency budget:** enrichment + validation + optional iteration **~300–600 ms** total when features are on.
-- **Resource isolation:** indexer/manager vs gateway **CPU affinity**; **fallback** paths always available.
-- **Test loop:** small golden codebase → full manager cycle → end-to-end gateway request → assert relevant chunks.
-- **Operations:** monitor Qdrant **disk**; **payload indexes** on frequently filtered fields.
+- Continues to use **BiFrost** as the OpenAI-compatible upstream for chat and embeddings (embedding model configured under `rag.embedding`).
+
+### v0.2.1 — Logging correlation, logs UI, optional conversation merge
+
+**Theme:** Request-scoped correlation across access logs, chat/RAG/ingest/indexer, and a richer **Logs** UI; optional **session merge** when the client does not send a conversation id.
+
+**Middleware and access logs**
+
+- `requestid` middleware: stable `request_id` on requests and responses.
+- Access / structured logs include `service` and `request_id` where applicable.
+
+**Chat and RAG logging**
+
+- `conversation_id`: from header `X-Claudia-Conversation-Id` or generated by the gateway.
+- `principal_id` on chat logs where applicable.
+- Stable `msg` slugs on chat / RAG / ingest paths for filtering and dashboards (see log-presentation docs).
+
+**Ingest and indexer**
+
+- Ingest echoes `index_run_id`; indexer client sends the agreed header for correlation.
+- Indexer process logs use `indexer.run.*` style messages and attach `index_run_id` to structured stderr when JSON logging is enabled.
+
+**Logs UI (`/ui/logs`)**
+
+- Views: **Detailed**, **Summary**, **Conversations**, **Subsystems**; preferred view stored in `localStorage`.
+- `wrapResponse` logging fix so logged **statusCode** matches the handler outcome on early errors.
+
+**Optional conversation merge (`conversation_merge` in `gateway.yaml`)**
+
+- When enabled (requires **gateway metrics** / SQLite migrations): merges chat turns into an existing session using **embedding similarity** and recent-window rules when `X-Claudia-Conversation-Id` is absent. Schema and defaults are documented in `config/gateway.example.yaml` and [`configuration.md`](configuration.md).
+
+**Documentation added in-tree**
+
+- [`plans/log-presentation-layer.md`](plans/log-presentation-layer.md).
+
+### v0.2.2 — Desktop shell, supervised indexer, indexer + Continue operator UI
+
+**Theme:** First-run / **main** shell experience, **supervised `claudia-index`**, dedicated **Indexer** and **Continue** admin pages, consolidated **observability** (stats surfaced alongside logs), and desktop polish.
+
+**Supervisor**
+
+- When `indexer.supervised.enabled` is set (and RAG or `start_when_rag_disabled` conditions are met), `claudia serve` / desktop can start `claudia-index` as a child with `CLAUDIA_GATEWAY_URL`, merged `--config`, and optional `--log-json`. See [`indexer.md`](indexer.md) § Supervised mode and [`supervisor.md`](supervisor.md).
+
+**Operator UI**
+
+- **Main** shell page: clearer status/summary for the local stack.
+- `/ui/indexer`: configure supervised indexer YAML (paths/roots), `GET/PUT /api/ui/indexer/config`, append roots (including desktop folder picker where supported).
+- `/ui/continue` (or embedded Continue flow): **copy-ready** VS Code **Continue** snippet and guidance aligned with `vscode-continue/`, including hooks for RAG headers and indexer-related setup.
+- **Logs** view: improved tracking and presentation (subsystem filters, correlation with v0.2.1 fields).
+- Prior **Stats** metrics view consolidated into the logs/observability experience as shipped in this release (use `/ui/metrics` where still exposed for raw metrics JSON).
+
+**Desktop**
+
+- Native **window icon** support on Windows (and stubs on other OSes); embedded assets under `assets/`.
+
+**Indexer runtime**
+
+- Additional structured events (`internal/indexer/ops_events.go`), skip reasons, supervised config wiring, and related tests — see git history for `Version 0.2.2` if you need file-level detail.
+
+### Suggested verification (v0.2.x)
+
+| Release | Quick check |
+|---------|-------------|
+| **0.2.0** | `rag.enabled: true`, `GET /health` shows Qdrant when configured; `POST /v1/ingest` and `GET /v1/indexer/config` succeed with a valid token; virtual-model chat includes retrieved context when collections exist. |
+| **0.2.1** | Logs show `request_id` and `conversation_id`; `/ui/logs` view modes persist; optional `conversation_merge` behaves per config when metrics DB is enabled. |
+| **0.2.2** | With `indexer.supervised.enabled`, `claudia-index` appears in supervisor logs and `/ui/logs` (source **indexer**); `/ui/indexer` and Continue snippet pages load after login. |
+
+### See also (releases context)
+
+- [`README.md`](../README.md) — install/build entrypoints
+- [`network.md`](network.md) — ports and data paths
+- [`version-v0.1.1.md`](version-v0.1.1.md) — tool router, metrics SQLite, quota limits (still applicable alongside 0.2.x)
 
 ---
 
@@ -229,7 +371,7 @@ Aim for **~4–6 GB RAM** total, **quantized** execution, **sub‑300 ms** per h
 
 Keep these on later roadmap entries (see [`claudia-gateway.plan.md`](claudia-gateway.plan.md) **Release roadmap**):
 
-- **v0.3** — peer LiteLLM, virtual keys, cross-host publishing, per-key observability (*Resilience · 1*), etc.
+- **v0.3** — Chimera branding/onboarding, optional **internal embedding** exploration (see [`version-v0.3.md`](version-v0.3.md)), peer LiteLLM, virtual keys, cross-host publishing, per-key observability (*Resilience · 1*), etc.
 - **v0.4** — ensembles, escalation, **dual-mode / streaming large-file ingest**, server-authoritative hash in ingest response (indexer plan **v0.4**).
 - **v0.5+** — gateway MCP, conversation archive ingestion, etc.
 - **v0.7** — TLS, hardening, `/health` lockdown on untrusted networks.
@@ -248,11 +390,13 @@ Use this to track cross-cutting v0.2 work; gate detailed indexer items in [`plan
 | **Config** | Gateway config to enable/disable RAG, embedding model id, Qdrant (or adapter) connection, chunking knobs, retrieval thresholds, feature flags as needed. |
 | **HTTP API** | Implement `POST /v1/ingest`, `GET /v1/indexer/config`, `GET /v1/indexer/storage/health`, `GET /v1/indexer/storage/stats`; document schemas and limits (e.g. max body size for whole-file ingest). |
 | **Chat path** | Virtual model: when RAG enabled, run retrieval + prompt assembly; honor `X-Claudia-Project` / `X-Claudia-Flavor-Id`. |
-| **Token counting** | Add a fast tokenizer dependency; shared helper for **chat `messages`** and **pre-embed** strings; `INFO` log token totals on `POST /v1/chat/completions` (see § **Token counting** + **Agent implementation plan: token counting**). |
+| **Token counting** | Shipped: **`internal/tokencount`** + chat-path wiring; **`outgoingTokens`** on relay logs (§ **Token counting (chat path)**). |
+| **Usage metrics & limits** | SQLite minute/day rollups; **`provider-model-limits.yaml`** + **`providerlimits.Guard`**; **429** `gateway_provider_limits` (§ **Usage metrics and provider limits**). |
 | **Qdrant / adapter** | Collections per triple; payload fields; collection naming; cosine/dot and dimension checks. |
 | **Health** | Extend `GET /health` with Qdrant probe when RAG enabled. |
-| **Docs** | Update `docs/overview.md`, `docs/network.md`, `docs/configuration.md`, ingestion/indexer references; `vscode-continue/` samples with v0.2 headers. |
-| **Indexer** | Follow [`plans/indexer.md`](plans/indexer.md) **Indexer v0.2** checklist and **Gateway coordination** section. |
+| **Logs UI** | Themes under § **Operator logs UI** and § **File indexer**; correlation IDs; `/ui/logs` modes and APIs ([`plans/log-presentation-layer.md`](plans/log-presentation-layer.md), [`plans/log-view-refactor.md`](plans/log-view-refactor.md), [`plans/log-view-indexer.md`](plans/log-view-indexer.md)); desktop shell (`/ui/desktop`). |
+| **Docs** | Update `docs/overview.md`, `docs/network.md`, `docs/configuration.md`, ingestion/indexer references; **`vscode-continue/`** headers (project, flavor, **conversation**); § **Additional operator themes**. |
+| **Indexer** | Follow [`plans/indexer.md`](plans/indexer.md) **Indexer v0.2** checklist and **Gateway coordination**; queue/fairness themes — [`plans/indexer-scan-and-fanout-jobs.md`](plans/indexer-scan-and-fanout-jobs.md). |
 
 ---
 
@@ -266,46 +410,27 @@ Use this to track cross-cutting v0.2 work; gate detailed indexer items in [`plan
 | [`overview.md`](overview.md) | Repo-oriented product summary |
 | [`network.md`](network.md) | Ports and v0.2+ Qdrant data path |
 | [`configuration.md`](configuration.md) | Config files and v0.2+ tenant scoping note |
+| [`plans/log-presentation-layer.md`](plans/log-presentation-layer.md) | Log presentation layer (correlation, view modes; Phase E deferred) |
+| [`plans/log-view-refactor.md`](plans/log-view-refactor.md) | `/ui/logs` modularization, APIs (poll + SSE), view modes and deep-link params |
+| [`plans/log-view-indexer.md`](plans/log-view-indexer.md) | Indexer cards and summarized indexer UX in `/ui/logs` |
+| [`plans/indexer-scan-and-fanout-jobs.md`](plans/indexer-scan-and-fanout-jobs.md) | Queue-safe scan/fan-out, fairness, indexer telemetry aligned with logs |
+| [`plans/makefile.md`](plans/makefile.md) | **`catalog-free`**, **`catalog-available`**, **`config-provider-free-tier`** targets |
+| [`version-v0.1.1.md`](version-v0.1.1.md) | Gateway metrics SQLite, upstream events — baseline for § **Usage metrics and provider limits** |
+| [`tokencount-talk.md`](tokencount-talk.md) | Chat-path token estimate semantics vs TPM admission |
 
-This document also carries a **future** local **vectordb-cli** stack (§ **Future update plan**) for retrieval enhancement; reconcile its **collection naming** and **path** conventions with the v0.2 **triple** + **relative `source`** model when implementing a bridge.
+Deferred notes on **running embeddings locally** (ONNX alignment, optional **vectordb-cli**-style paths, retrieval-depth ideas) live in [`version-v0.3.md`](version-v0.3.md) under **Internal embedding provider (exploration)** — relevant only if that exploration ships or informs indexer-side experiments; they are **not** part of the locked v0.2 HTTP ingest contract.
 
 ---
 
-## Agent implementation plan: token counting
+## Implementation snapshot (token metrics & limits)
 
-**Goal:** Implement the § **Token counting (messages and pre-embed)** requirements in the **Claudia Gateway** Go service ([`README.md`](../README.md): OpenAI-compatible proxy in front of **BiFrost**, `POST /v1/chat/completions` handled in [`internal/server/server.go`](../internal/server/server.go) via `handleV1Chat` and [`internal/chat/chat.go`](../internal/chat/chat.go)).
+The former agent checklist for token counting is **superseded** by the shipped layout below:
 
-### 1. Choose and add a tokenizer dependency
+| Concern | Location |
+|---------|----------|
+| Tokenizer (`cl100k_base`) | [`internal/tokencount`](../internal/tokencount/) |
+| Chat relay, estimates, metrics record | [`internal/chat/chat.go`](../internal/chat/chat.go) (`prepareChatPayload`, `estTokensFromPayload`, `recordUpstreamMetrics`) |
+| SQLite recording / rollups | [`internal/gatewaymetrics`](../internal/gatewaymetrics/) |
+| YAML limits + admission | [`internal/providerlimits`](../internal/providerlimits/), [`config/provider-model-limits.yaml`](../config/provider-model-limits.yaml) |
 
-- Add a **fast**, pure-Go (or acceptable CGO) library via `go get`, run `go mod tidy`, and document the chosen **encoding** (e.g. **cl100k_base**) in a short package comment or next to the helper.
-- **Candidates to evaluate** (pick one, justify in PR): Tiktoken-compatible Go ports (e.g. `github.com/pkoukk/tiktoken-go`), or other widely used tokenizer bindings that match your latency and licensing constraints.
-- Prefer **singleton / cached** encoder initialization (startup or `sync.Once`) so per-request counting does not reload data files.
-
-### 2. Implement a small internal API
-
-- Add something like `internal/tokencount/` (name to match repo style) with:
-  - `Count(s string) (int, error)` or `Count(ctx, s) (int, error)` wrapping the library.
-  - `MessagesTokenEstimate(messages json.RawMessage) (int, error)` (or equivalent) that parses the OpenAI `messages` array from the decoded chat body and **concatenates** (or sums per segment) all `content` text:
-    - `content` as a **string** → count that string.
-    - `content` as an **array** (multimodal parts) → include `type: text` / `text` fields; skip or zero-length non-text parts per OpenAI shape.
-    - Optionally include `name` / `tool_calls` text if product wants “full payload” counts; default to **user/assistant/system visible text** only and document the choice.
-- Expose a helper `CountForEmbed(s string)` that is the **same** underlying counter (single source of truth) for **ingest chunks** and **retrieval query** strings when those paths are implemented—call it from the embedding call sites **immediately before** the HTTP embed request.
-
-### 3. Wire `POST /v1/chat/completions`
-
-- In `handleV1Chat` (after JSON decode, alongside the existing `log.Info("chat completion request", …)` in [`internal/server/server.go`](../internal/server/server.go)):
-  - Read `raw["messages"]`, run the messages helper, and on success log at `slog.LevelInfo` with a dedicated attribute, e.g. `"promptTokens"` or `"messageTokens"` (name consistently with any future `usage` mirroring).
-  - On parse or count **failure**, log `Warn` (or `Error` if invariant) with a short reason; do **not** fail the request solely because counting failed unless you explicitly decide otherwise (default: **degrade gracefully**).
-- Ensure **virtual model** (`chat.WithVirtualModelFallback`) and **direct proxy** paths both run through the **same** counting + logging so every successful auth chat request gets one **INFO** line with the count.
-
-### 4. Tests and verification
-
-- **Unit tests** for the message parser: string content, array content, empty messages, malformed JSON (expect graceful behavior).
-- **Unit test** for known fixed strings if the library publishes golden token lengths for a given encoding.
-- Run `make precommit` (or at least `test`, `vet`, `fmt-check`) after touching `go.mod`.
-
-### 5. Done criteria
-
-- `go list -m all` includes the new tokenizer module; builds are clean on supported platforms.
-- Every authenticated `POST /v1/chat/completions` emits `INFO` structured log line(s) that include **token count** for the extracted message text plus **tenant** / **model** / **stream** context.
-- Embedding-bound code paths (when present) use the **same** counter **before** calling the embed API.
+Regression coverage includes **`internal/providerlimits/*_test.go`**, **`internal/chat/chat_limits_test.go`**, and tokenizer tests under **`internal/tokencount`**.

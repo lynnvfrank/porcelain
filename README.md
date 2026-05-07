@@ -1,6 +1,6 @@
 # Claudia Gateway
 
-This repo is **Claudia Gateway**: a **Go** OpenAI-compatible HTTP service that fronts **BiFrost** (provider keys and upstream models). Clients use a single virtual model id (`Claudia-<semver>`), gateway-issued bearer tokens, YAML routing policy with mtime reload, and sequential upstream fallback on 429/5xx; `GET /health` reports upstream (and optional Qdrant when RAG is on). With `rag.enabled`, the gateway adds **Qdrant** retrieval, `POST /v1/ingest`, indexer REST, and optional supervised `claudia-index`. Operator docs are in `docs/`; milestones and release notes in `docs/plans/`. Current ship line is **v0.2.x** — see [docs/plans/releases-v0.2.x.md](docs/plans/releases-v0.2.x.md) for v0.2.0–v0.2.2 deliverables.
+This repo is **Claudia Gateway**: a **Go** OpenAI-compatible HTTP service that fronts **BiFrost** (provider keys and upstream models). Clients use a single virtual model id (`Claudia-<semver>`), gateway-issued bearer tokens, YAML routing policy with mtime reload, and sequential upstream fallback on 429/5xx; `GET /health` reports upstream (and optional Qdrant when RAG is on). With `rag.enabled`, the gateway adds **Qdrant** retrieval, `POST /v1/ingest`, indexer REST, and optional supervised `claudia-index`. Operator docs are in `docs/`; milestones and release notes in `docs/plans/`. Current ship line is **v0.2.x** — see [docs/version-v0.2.md](docs/version-v0.2.md#shipped-releases-v020-through-v022) for v0.2.0–v0.2.2 deliverables.
 
 ## Quick start
 
@@ -193,7 +193,6 @@ Build snapshot artifacts with **GoReleaser**.
 ## Documentation
 
 - **Index:** [docs/README.md](docs/README.md)
-- **v0.2.0–v0.2.2 releases:** [docs/plans/releases-v0.2.x.md](docs/plans/releases-v0.2.x.md)
 - **Overview / ports:** [docs/overview.md](docs/overview.md), [docs/network.md](docs/network.md)
 - **Installation:** [docs/installation.md](docs/installation.md)
 - **Configuration:** [docs/configuration.md](docs/configuration.md)
@@ -212,7 +211,7 @@ Build snapshot artifacts with **GoReleaser**.
 |---------|---------------|
 | **v0.1** | [Working notes](docs/plans/version-v0.1.md); [Go + BiFrost migration plan](docs/plans/go-bifrost-migration.plan.md) |
 | **v0.1.1** | [Tool router, metrics, quotas](docs/plans/version-v0.1.1.md) |
-| **v0.2.0 – v0.2.2** | [Shipped features](docs/plans/releases-v0.2.x.md); [v0.2 capability plan](docs/plans/version-v0.2.md) |
+| **v0.2.0 – v0.2.2** | [Shipped releases + capability plan](docs/version-v0.2.md) |
 | **Planned (desktop/onboarding)** | [Working plan — gateway v0.3](docs/plans/version-v0.3.md) |
 | **Later** | [Release roadmap](docs/claudia-gateway.plan.md#release-roadmap) in [docs/claudia-gateway.plan.md](docs/claudia-gateway.plan.md) |
 

@@ -167,6 +167,91 @@ In `gateway.yaml`, the path that points at this file should use `paths.api_keys`
   - **Download on first install or first enable** (checksum-verified, org-mirror-friendly) when the license permits **runtime fetch** but not **vendoring**—document size, hash, and offline fallback for air-gapped operators.
 - **Exploration output:** A short **spike or design note** listing candidate models, legal constraints, and a **recommendation** (ship in v0.3, feature-flag pilot, or defer).
 
+### Research notes: local ONNX embedding, optional vectordb-cli path, retrieval depth
+
+The material below was **carried from [`version-v0.2.md`](version-v0.2.md)** when that doc was trimmed to the **shipped** RAG baseline. It **only** informs this exploration (internal ONNX/sidecar embedding, indexer experiments, and retrieval quality ideas); it is **not** a parallel locked contract. Today’s ingest path remains gateway-mediated (`POST /v1/ingest`, indexer REST) unless an implementation explicitly adds an alternative populator.
+
+**Map to v0.3 identity:** Older sketches derived collections from **user + project**. Chimera v0.3 targets **tenant + project + optional flavor** and **base + flavor union** at retrieval time ([Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor)). Any **manager + vectordb-cli** or pure-local indexer design must reconcile **collection naming** and **path** conventions with that model (and with **relative `source`** in HTTP ingest — see [`plans/indexer.md`](plans/indexer.md)) if both stacks coexist.
+
+#### 1. Connection information, ports, paths, and configuration
+
+- **Qdrant ports** (firewall / localhost only):
+  - **Primary:** **6334/TCP (gRPC)** — intended for indexing and querying in this design.
+  - **Optional:** **6333/TCP (HTTP/REST)** — dashboard, manual checks, or health-style probes.
+  - No external exposure; bind to **localhost** or same-machine private network. **TLS** only if traffic leaves the host.
+- **Connection details:**
+  - `QDRANT_URL` (example default: `http://localhost:6334` — **note:** URL scheme must match client library expectations for gRPC vs REST; align with Qdrant client docs) or equivalent in `config.toml`.
+  - Optional `QDRANT_API_KEY` shared between indexer manager, gateway, and Qdrant when enabled.
+  - **Manager** process injects these per indexing run; **gateway** reuses the same logical connection (singleton + pooling).
+- **Key paths** (manager / gateway):
+  - **Source directories:** **absolute** paths resolved from gateway **project config** (contrasts with **relative `source`** in HTTP ingest — if both worlds coexist, define an explicit mapping at integration time).
+  - **ONNX embedding model + tokenizer:** fixed **read-only** paths to the `.onnx` file and tokenizer assets; **must match exactly** between indexer (**vectordb-cli** or equivalent) and gateway at query time.
+  - **vectordb-cli config:** prefer **environment variables + CLI flags** over `~/.config/vectordb-cli/config.toml` to reduce file-locking and stale state.
+- **Collection naming** (deterministic; **shared** manager + router code):
+  - Derive stable names from the **same logical keys** as production retrieval (for v0.3: **tenant + project + flavor** semantics, not an ad-hoc alternate scheme unless documented).
+  - Sanitize for Qdrant (no slashes, respect length limits).
+  - **Per-scope collections** — isolation without relying on payload filters alone where that matches the deployed adapter (same *shape* as one collection per `(tenant, project, flavor)` in the gateway plan).
+
+#### 2. Indexing flow (manager process)
+
+- **Manager** (separate **Go** process) periodically or via webhook **pulls project config** from the gateway (tenant/workspace keys + file paths).
+- **Per workspace:** derive **collection name**, run **vectordb-cli** repo management + sync/index with retries and exponential backoff.
+- **Full re-index vs delta** depending on **Git repo** vs plain directory.
+- Indexing = **short-lived CLI invocations** (not a daemon); data lands in Qdrant and is **immediately** queryable.
+- **Watch-outs:** **fsnotify** or gateway push for change detection; schedule work on **separate CPU cores** so indexing does not starve the gateway.
+
+#### 3. Query-time flow (router / gateway layer)
+
+Target **request-scoped** pipeline (**under ~600 ms** end-to-end where practical):
+
+1. Extract **tenant + project (+ flavor)** identifiers from the incoming request (and apply **union** rules when flavors are present — see workspace scope above).
+2. Compute the **exact Qdrant collection name(s)** (same derivation as the manager).
+3. **Enrich** the raw query text (see §4).
+4. **Embed** enriched text with the **identical ONNX model** as the indexer.
+5. **Vector search** on the relevant collection(s).
+6. **Validate and rerank** top‑k (score thresholds, intra-file checks, micro-judging).
+7. **Optional** iterative refinement (**≤ 2** rounds): follow-up queries → re-search → merge.
+8. Attach validated top‑k chunks (metadata: `file_path`, `language`, `chunk_type`) to the final LLM prompt.
+9. **Graceful fallback:** if the collection is missing or Qdrant is unreachable, return **empty context** rather than failing the chat request.
+
+#### 4. Embedding the query + enrichment strategies
+
+- **Core embedding:** always the **same ONNX model and tokenizer** as at index time. Input = **enriched** query text; output vector goes straight to Qdrant search. **Dimension and normalization** must match.
+- **Enrichment** (before embedding), examples:
+  - **Simple rewrite:** small LLM reframes the query as a precise dev-style search (symbols, file patterns, edge cases).
+  - **Multi-query:** **3–5** variants; embed each and fuse (**RRF** or vector averaging).
+  - **HyDE:** LLM drafts a short hypothetical snippet that would answer the query; embed the hypothetical.
+  - **Context injection:** prefix with **project hints** from gateway config (language, framework, etc.).
+- **Normalization:** final enriched text should follow the **same whitespace / newline rules** as the indexer to stay in the same embedding space.
+- **Alignment test:** index a known snippet → enrich a matching query → expect **self-retrieval score > ~0.85** (tune per model).
+
+#### 5. Model size and type recommendations (CPU-friendly, local)
+
+Aim for **~4–6 GB RAM** total, **quantized** execution, **sub‑300 ms** per hot path on a typical dev machine (targets, not guarantees).
+
+- **Embedding (index + query):** e.g. **BGE-M3**, **bge-base-en-v1.5** (dense + sparse hybrid where supported); alternatives **Nomic Embed Text v1.5**, **E5-base-v2**, **Jina Code Embeddings v2** (code-heavy). Require **ONNX/GGUF**, **8-bit** quantization where used; **fixed dimension**.
+- **Small LLM** (enrichment, HyDE, follow-ups, micro-judge): e.g. **Phi-4-mini-instruct** (~3.8B); alternatives **Llama 3.2** 1B/3B, **Gemma 3** 1B/4B, **Qwen3** small, **SmolLM2** 1.7B. Run **4-bit/8-bit GGUF** via **llama.cpp** / **Ollama** or ONNX bindings.
+- **Dedicated reranker:** classic **cross-encoder** (e.g. **ms-marco-MiniLM** L-6 / L-12) on top‑20–50; or **bge-reranker-base**, **mxbai-rerank-xsmall**.
+
+#### 6. Caching, better matching, validation, and iteration
+
+- **Caching:**
+  - **Embedding cache:** key ≈ hash(enriched query + tenant + project + flavor scope + model hash) → vector; in-memory or **BoltDB**; **5–15 min TTL** or invalidate on re-index for that collection.
+  - **Full result cache:** top‑k + scores; invalidate on **any indexer run** for that collection.
+- **Better matching:** hybrid **dense + sparse/BM25** at collection creation where supported; **rerank** post-retrieval; **metadata** filters (`file_path`, `language`, `chunk_type`); optional **pseudo-relevance** feedback (average top‑k vectors or text → new search).
+- **Validation** before prompt attachment: hard **cosine** floor (e.g. **> 0.75**); **intra-file** neighborhood embedding check; **self-similarity** across top‑k; **LLM micro-judge** (batched, confidence **> 0.7**); code signals (AST/symbols) where available.
+- **Iterative loop:** router-controlled; **max 2** rounds; **relevance-delta** stop + **overall timeout**; enable only for **complex** queries.
+
+#### 7. Implementation watch-outs and best practices
+
+- **Embedding alignment** is non-negotiable — **golden** test projects.
+- **Collection naming** must be **identical** and **collision-free** in manager and router.
+- Keep router decisions **request-scoped** and **unit-testable** (enrichment + validation).
+- **Latency budget:** enrichment + validation + optional iteration **~300–600 ms** total when features are on.
+- **Resource isolation:** indexer/manager vs gateway **CPU affinity**; **fallback** paths always available.
+- **Test loop:** small golden codebase → full manager cycle → end-to-end gateway request → assert relevant chunks.
+- **Operations:** monitor Qdrant **disk**; **payload indexes** on frequently filtered fields.
+
 ### Relationship to the setup wizard
 
 - **Document order:** This section appears **after** [Product naming](#product-naming) and [Credential file naming](#credential-file-naming) and **immediately before** [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor); together they precede [First-run token handoff](#first-run-token-handoff) and [Setup wizard](#setup-wizard) so wizard copy and combobox sources can include an **internal** embedding entry once the contract is clear—see [Setup wizard](#setup-wizard) step 5 below.

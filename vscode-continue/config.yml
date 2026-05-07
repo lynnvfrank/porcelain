@@ -19,6 +19,14 @@ models:
     provider: openai
     apiKey: <GATEWAY_TOKEN>
     apiBase: <CLAUDIA_GATEWAY_URL>
+    # Attach gateway headers for RAG + log correlation (Continue schema varies by version).
+    # Uncomment and adapt one of the shapes below; keys often appear under requestOptions or similar.
+    #
+    # requestOptions:
+    #   headers:
+    #     X-Claudia-Project: my-project
+    #     X-Claudia-Flavor-Id: ""
+    #     X-Claudia-Conversation-Id: "<uuid-or-thread-id>"
     roles:
       - chat
       - edit
