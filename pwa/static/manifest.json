@@ -1,7 +1,7 @@
 {
-  "name": "Claudia",
-  "short_name": "Claudia",
-  "description": "Chat, journal, notes — Claudia PWA",
+  "name": "Locus",
+  "short_name": "Locus",
+  "description": "Chat, journal, notes — Locus",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

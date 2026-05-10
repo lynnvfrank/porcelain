@@ -1,86 +1,43 @@
-/* ── Tab bar (Chat / Room) ── */
+/* ── Tab bar (Chat / Journal / Files / Notes) ── */
 var currentTab='chat';
-var bedroomTick=null;
-var bedroomWalkEnd=null;
-var WAYPOINTS=[{id:'bed',x:52,y:72},{id:'tv',x:48,y:40},{id:'plants',x:20,y:52},{id:'window',x:76,y:48},{id:'center',x:44,y:58}];
-var ACTIVITIES={bed:'\uD83D\uDCA4',tv:'\uD83D\uDCFA',plants:'\uD83C\uDF3F',window:'\u2615',center:''};
-function setSpritePosition(xPct,yPct){
-  if(!claudiaSprite)return;
-  claudiaSprite.style.left=xPct+'%';claudiaSprite.style.top=yPct+'%';
-}
-function showActivity(emoji){
-  if(!activityBubble)return;
-  activityBubble.textContent=emoji||'';
-  activityBubble.className='show'+(emoji==='\uD83D\uDCA4'?' zzz':'');
-  activityBubble.setAttribute('aria-label',emoji?'Activity: '+emoji:'');
-}
-function hideActivity(){
-  if(!activityBubble)return;
-  activityBubble.className='';activityBubble.textContent='';
-}
-function pickNext(){
-  var idx=Math.floor(Math.random()*WAYPOINTS.length);
-  return WAYPOINTS[idx];
-}
-function runBedroomLoop(){
-  if(currentTab!=='room'||!claudiaSprite||!roomPanel)return;
-  var dest=pickNext();
-  claudiaSprite.classList.remove('sleep');claudiaSprite.classList.add('walk');
-  setSpritePosition(dest.x,dest.y);
-  if(bedroomWalkEnd)clearTimeout(bedroomWalkEnd);
-  bedroomWalkEnd=setTimeout(function(){
-    bedroomWalkEnd=null;
-    claudiaSprite.classList.remove('walk');
-    var emoji=ACTIVITIES[dest.id];
-    if(emoji){showActivity(emoji);if(dest.id==='bed')claudiaSprite.classList.add('sleep');}
-    var duration=4000+Math.random()*4000;
-    setTimeout(function(){
-      hideActivity();claudiaSprite.classList.remove('sleep');
-      bedroomTick=setTimeout(runBedroomLoop,800+Math.random()*1200);
-    },duration);
-  },2600);
-}
-function startBedroom(){runBedroomLoop();}
-function stopBedroom(){
-  if(bedroomTick){clearTimeout(bedroomTick);bedroomTick=null;}
-  if(bedroomWalkEnd){clearTimeout(bedroomWalkEnd);bedroomWalkEnd=null;}
-  hideActivity();
-  if(claudiaSprite){claudiaSprite.classList.remove('walk','sleep');}
-}
 function switchToTab(tab){
   currentTab=tab;
   if(!appEl)return;
-  appEl.classList.toggle('show-room',tab==='room');
-  if(roomPanel)roomPanel.setAttribute('aria-hidden',tab!=='room');
+  /* Toggle panel visibility classes */
+  appEl.classList.toggle('show-journal',tab==='journal');
+  appEl.classList.toggle('show-files',tab==='files');
+  appEl.classList.toggle('show-notes',tab==='notes');
+  /* Tab button active state */
   var tabs=tabBar?tabBar.querySelectorAll('.tab'):[];
   tabs.forEach(function(t){var isActive=t.getAttribute('data-tab')===tab;t.classList.toggle('active',isActive);t.setAttribute('aria-selected',isActive);});
-  if(tab==='room'){startBedroom();}else{stopBedroom();}
-  isGroupView=(tab==='social');
-  if(isGroupView){
-    if(hdrName)hdrName.textContent='Group';
-    if(hdrSub)hdrSub.textContent='Ruby, Lynn, Claudia, Raven';
-    loadGroupChat();
-  }else{
+  /* Update indicator */
+  updateTabIndicator();
+  /* Load data for the activated tab */
+  if(tab==='journal')loadJournal();
+  if(tab==='files')loadFiles(_filesCurrentPath||'D:\\');
+  if(tab==='notes')loadNotes();
+  /* Update header for chat tab */
+  if(tab==='chat'){
     if(hdrName)hdrName.textContent=currentConvoTitle||'Chat';
-    if(hdrSub)hdrSub.textContent=currentSrc==='mobile'?'Claudia':(currentSrc||'');
+    if(hdrSub)hdrSub.textContent=currentSrc==='mobile'?'AI':(currentSrc||'');
     if(currentId)loadConvo(currentId,currentSrc);
     else{clearChat();showEmpty();}
   }
   updateCopyConvoButtonVisibility();
 }
-async function loadGroupChat(){
-  try{
-    var r=await fetch('/api/group_chat',mergeApiHeaders({cache:'no-store'}));
-    if(!r.ok){clearChat();showEmpty(true);currentMessages=[];return;}
-    var d=await r.json();
-    currentMessages=d.messages||[];
-    if(!currentMessages.length){clearChat();showEmpty(true);}
-    else{renderMessages(currentMessages,false,'mobile',{group:true});scrollBottom();}
-  }catch(e){clearChat();showEmpty(true);currentMessages=[];}
-  updateCopyConvoButtonVisibility();
+function updateTabIndicator(){
+  var indicator=tabBar?tabBar.querySelector('.tab-indicator'):null;
+  if(!indicator||!tabBar)return;
+  var activeTab=tabBar.querySelector('.tab.active');
+  if(!activeTab)return;
+  var tabBarRect=tabBar.getBoundingClientRect();
+  var tabRect=activeTab.getBoundingClientRect();
+  indicator.style.left=(tabRect.left-tabBarRect.left)+'px';
+  indicator.style.width=tabRect.width+'px';
 }
 if(tabBar){
   tabBar.querySelectorAll('.tab').forEach(function(btn){
     btn.addEventListener('click',function(){var t=btn.getAttribute('data-tab');if(t)switchToTab(t);});
   });
+  updateTabIndicator();
 }

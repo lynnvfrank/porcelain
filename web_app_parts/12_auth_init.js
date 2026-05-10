@@ -7,7 +7,7 @@ function setSignedInState(signedIn,user,displayName){
   if(signedInAs){signedInAs.style.display=signedIn?'inline':'none';signedInAs.textContent=signedIn?'Signed in as '+(displayName||user||''):'';}
   if(signOutBtn){signOutBtn.style.display=signedIn?'block':'none';}
   if(!signedIn){continueConvos=[];grokConvos=[];cursorConvos=[];}
-  if(signedIn&&user){try{localStorage.setItem('claudia_user',user);}catch(e){}setClaudiaUserCookie(user);if(userSelect){userSelect.value=user;}}
+  if(signedIn&&user){try{localStorage.setItem('locus_user',user);}catch(e){}setLocusUserCookie(user);if(userSelect){userSelect.value=user;}}
 }
 function hideLoginOverlay(){if(loginOverlay){loginOverlay.classList.remove('show');loginOverlay.setAttribute('aria-hidden','true');loginOverlay.setAttribute('inert','');}if(loginError){loginError.style.display='none';loginError.textContent='';}}
 function showLoginOverlay(){if(loginOverlay){loginOverlay.classList.add('show');loginOverlay.removeAttribute('aria-hidden');loginOverlay.removeAttribute('inert');}}
@@ -128,7 +128,7 @@ function saveUserProfile(){
   }).catch(function(){userProfileSave.disabled=false;});
 }
 if(userSelect){
-  try{ var u=getCurrentUser(); userSelect.value=u; lastSelectedUser=u; setClaudiaUserCookie(u); }catch(e){}
+  try{ var u=getCurrentUser(); userSelect.value=u; lastSelectedUser=u; setLocusUserCookie(u); }catch(e){}
   fetchAvatarMe();
   loadAvatarPicker();
   showUserProfileSection();
@@ -143,8 +143,8 @@ if(userSelect){
       return;
     }
     lastSelectedUser=next;
-    try{ localStorage.setItem('claudia_user',next); }catch(e){}
-    setClaudiaUserCookie(next);
+    try{ localStorage.setItem('locus_user',next); }catch(e){}
+    setLocusUserCookie(next);
     fetchAvatarMe();
     loadAvatarPicker();
     showUserProfileSection();
@@ -153,7 +153,7 @@ if(userSelect){
 }
 (function(){
   try{
-    var path=sessionStorage.getItem('claudia_pending_file_path');
+    var path=sessionStorage.getItem('locus_pending_file_path');
     if(!path)return;
     var inputArea=document.getElementById('inputArea');
     if(!inputArea)return;
@@ -164,7 +164,7 @@ if(userSelect){
     span.textContent='Including file: '+path+' — your next message will include it.';
     var btn=document.createElement('button');
     btn.type='button';btn.textContent='Clear';btn.style.cssText='margin-left:auto;padding:4px 10px;border-radius:8px;border:1px solid #ff7ad9;background:transparent;color:#ff7ad9;cursor:pointer;font-size:12px';
-    btn.onclick=function(){sessionStorage.removeItem('claudia_pending_file_path');sessionStorage.removeItem('claudia_pending_file_content');banner.remove();};
+    btn.onclick=function(){sessionStorage.removeItem('locus_pending_file_path');sessionStorage.removeItem('locus_pending_file_content');banner.remove();};
     banner.appendChild(span);banner.appendChild(btn);
     inputArea.parentNode.insertBefore(banner,inputArea);
   }catch(e){}

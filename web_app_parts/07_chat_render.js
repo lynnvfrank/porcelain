@@ -11,7 +11,7 @@ function showEmpty(isGroup){
     +'<div class="em-sub">No messages yet. Say hi!</div>';
   }else{
     el.innerHTML='<div class="em-icon">&#128172;</div><div class="em-title">Start a conversation</div>'
-    +'<div class="em-sub">Say anything &#8212; Claudia knows your memories and can search the web.</div>'
+    +'<div class="em-sub">Say anything &#8212; your AI knows your memories and can search the web.</div>'
     +'<div class="em-sub" style="margin-top:8px;font-size:11px;opacity:.85">Same workspace as your PC. Open the menu to see Mobile, VS Code, Cursor &amp; Grok chats.</div>';
   }
   chatArea.insertBefore(el,typing);
@@ -80,7 +80,7 @@ function addBubble(role,content,scroll,quickReplies,isQuickReplyChoice,opts){
   var row=document.createElement('div');row.className='msg-row';
   var av=document.createElement('div');
   if(role==='user'){av.className='msg-av user-av';var ui=document.createElement('img');ui.src=currentUserAvatarUrl;ui.alt='';ui.style.cssText='width:64px;height:64px;max-width:64px;max-height:64px;object-fit:contain;display:block;flex-shrink:0';ui.onerror=function(){av.textContent='\u273F';};av.appendChild(ui);}
-  else{av.className='msg-av';var ai=document.createElement('img');ai.src='/claudia_avatar.svg';ai.alt='';ai.style.cssText='width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;display:block;flex-shrink:0';ai.onerror=function(){this.src='/chat_icon.png';this.onerror=function(){this.src='/icon.svg';};};av.appendChild(ai);}
+  else{av.className='msg-av';var ai=document.createElement('img');ai.src='/locus_avatar.svg';ai.alt='';ai.style.cssText='width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;display:block;flex-shrink:0';ai.onerror=function(){this.src='/chat_icon.png';this.onerror=function(){this.src='/icon.svg';};};av.appendChild(ai);}
   var bubble=document.createElement('div');bubble.className='bubble';
   var imgSrc=opts.imageDataUrl||(opts.imagePath?('/api/chat_image?path='+encodeURIComponent(opts.imagePath)):null);
   if(role==='user'){
@@ -188,14 +188,14 @@ function renderMessages(messages,ro,src,opts){
     messages.forEach(function(m,idx){
       var role=(m.role||'').toLowerCase();
       if(role!=='user'&&role!=='assistant')role='assistant';
-      var sender=m.sender||(role==='assistant'?'claudia':'ruby');
-      var senderLabel=userDisplayNames[sender]||(sender==='claudia'?'Claudia':sender);
+      var sender=m.sender||(role==='assistant'?'ai':'ruby');
+      var senderLabel=userDisplayNames[sender]||(sender==='ai'?'AI':sender);
       var wrap=document.createElement('div');wrap.className='msg-wrap '+(role==='user'?'user':'assistant')+(isGroup?' group-msg':'')+(role==='assistant'&&m.style==='thinking'?' thinking-msg':'');
       if(isGroup){var senderRow=document.createElement('div');senderRow.className='msg-row msg-sender-row';senderRow.innerHTML='<span class="msg-sender-label">'+escapeHtml(senderLabel)+'</span>';wrap.appendChild(senderRow);}
       var row=document.createElement('div');row.className='msg-row';
       var av=document.createElement('div');
       if(role==='user'){av.className='msg-av user-av';var ui=document.createElement('img');ui.src=currentUserAvatarUrl;ui.alt='';ui.style.cssText='width:64px;height:64px;max-width:64px;max-height:64px;object-fit:contain;display:block;flex-shrink:0';ui.onerror=function(){av.textContent='\u273F';};av.appendChild(ui);}
-      else{av.className='msg-av';var ai=document.createElement('img');ai.src='/claudia_avatar.svg';ai.alt='';ai.style.cssText='width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;display:block;flex-shrink:0';ai.onerror=function(){this.src='/chat_icon.png';this.onerror=function(){this.src='/icon.svg';};};av.appendChild(ai);}
+      else{av.className='msg-av';var ai=document.createElement('img');ai.src='/locus_avatar.svg';ai.alt='';ai.style.cssText='width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;display:block;flex-shrink:0';ai.onerror=function(){this.src='/chat_icon.png';this.onerror=function(){this.src='/icon.svg';};};av.appendChild(ai);}
       var bubble=document.createElement('div');bubble.className='bubble';
       var content=m.content||'';
       if(role==='user'){
@@ -339,13 +339,13 @@ function renderMessages(messages,ro,src,opts){
   }
   if(opts.group){updateCopyConvoButtonVisibility();scrollBottom();return;}
   var convo=allConvos().find(function(c){return c.id===currentId&&c.source===currentSrc});
-  if(convo){hdrName.textContent=convo.title||'Claudia \u2665';hdrSub.textContent=srcLabel(convo.source)+' chat'}
-  else{hdrName.textContent='Claudia \u2665';hdrSub.textContent='Claudia Core \u00B7 same workspace as your PC'}
+  if(convo){hdrName.textContent=convo.title||'Locus \u2665';hdrSub.textContent=srcLabel(convo.source)+' chat'}
+  else{hdrName.textContent='Locus \u2665';hdrSub.textContent='Locus \u00B7 same workspace as your PC'}
   if(ro){
 roHint.style.display='flex';
 var srcName={continue:'VS Code',grok:'Grok',cursor:'Cursor'}[src]||src;
 roHint.innerHTML='<span>'+srcName+' chat \u2014 read only</span>'
-  +'<button id="forkBtn">\u25B6\uFE0F Continue with Claudia</button>';
+  +'<button id="forkBtn">\u25B6\uFE0F Continue</button>';
 document.getElementById('forkBtn').addEventListener('click',forkConvo);
 msgInput.disabled=true;sendBtn.style.display='none';
   }else{roHint.style.display='none';msgInput.disabled=false;sendBtn.style.display='flex'}
@@ -430,7 +430,7 @@ async function sendGroupMessage(){
   var firstPdf=pendingAttachments.find(function(a){return a.type==='file'&&a.fileBase64;});
   if(firstPdf){fileB64ToSend=firstPdf.fileBase64;fileMimeToSend=firstPdf.fileMime||'application/pdf';fileB64Name=firstPdf.name;}
   pendingAttachments=[];hideAttachPreview();
-  msgInput.value='';msgInput.placeholder='Message Claudia...';autoResize();updateContextIndicator();
+  msgInput.value='';msgInput.placeholder='Message...';autoResize();updateContextIndicator();
   typing.classList.add('show');setHeaderMood('thinking');sendBtn.disabled=true;scrollBottom();
   try{
     var body={content:contentToSend,want_reply:true,image_base64:imgToSend||null};

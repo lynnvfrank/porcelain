@@ -7,13 +7,13 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>Claudia</title>
+  <title>Locus</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
   <meta name="theme-color" content="#0a0614">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Claudia">
-  <link rel="manifest" href="/claudia.webmanifest">
+  <meta name="apple-mobile-web-app-title" content="Locus">
+  <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
   <link rel="apple-touch-icon" href="/icon.svg">
   <style>
@@ -21,9 +21,9 @@
       --pink: #ff7ad9; --pink-dim: rgba(255,122,217,0.12);
       --bg: #0a0614; --surface: #120920; --surface2: #1e1030;
       --border: #321854; --text: #f0eaff; --text-dim: #8060a8;
-      --claudia-bg: #1f0f38; --claudia-text: #f0d8ff; --claudia-border: #5a2890;
+      --ai-bg: #1f0f38; --ai-text: #f0d8ff; --ai-border: #5a2890;
       --ruby-bg: #ff7ad9; --ruby-text: #111;
-      --claudia-av-bg: #f5d0e0;
+      --ai-av-bg: #f5d0e0;
     }
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
     /* PWA / home screen: fill entire viewport so no black at top (status bar) or bottom (home indicator) */
@@ -290,7 +290,7 @@
     body.bubble-no-wrap .copyable-block{overflow-wrap:normal;overflow-x:auto}
     body.bubble-no-wrap .copyable-block pre,body.bubble-no-wrap .copyable-block code{white-space:pre !important;overflow-x:auto}
     .msg-wrap.user .bubble{background:var(--ruby-bg);color:var(--ruby-text);border-bottom-right-radius:4px}
-    .msg-wrap.assistant .bubble{background:var(--claudia-bg);color:var(--claudia-text);border-bottom-left-radius:4px;border:1px solid var(--claudia-border)}
+    .msg-wrap.assistant .bubble{background:var(--ai-bg);color:var(--ai-text);border-bottom-left-radius:4px;border:1px solid var(--ai-border)}
     .msg-wrap.assistant.thinking-msg .bubble{font-size:14px;opacity:.95;border-color:rgba(80,200,180,.4)}
     .thinking-details{width:100%;max-width:100%;margin:0}
     .thinking-summary{font-size:13px;font-weight:600;color:var(--text-dim);cursor:pointer;list-style:none;padding:4px 0;user-select:none}
@@ -299,11 +299,11 @@
     .thinking-details[open] .thinking-summary::before{transform:rotate(90deg)}
     .thinking-readout{background:rgba(40,40,50,.85);color:rgba(220,220,230,.95);font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto;padding:10px 12px;border-radius:10px;margin-top:6px;border:1px solid rgba(80,200,180,.25);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
     mark.search-highlight{background:rgba(255,122,217,.35);color:inherit;border-radius:3px;padding:0 2px;box-shadow:0 0 12px rgba(255,122,217,.6),0 0 4px rgba(255,122,217,.4)}
-    .chat-search-bar{display:none;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--claudia-border);flex-shrink:0}
+    .chat-search-bar{display:none;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--ai-border);flex-shrink:0}
     .chat-search-bar.open{display:flex}
-    .chat-search-bar input{flex:1;min-width:0;padding:8px 12px;border-radius:10px;border:1px solid var(--claudia-border);background:var(--claudia-bg);color:var(--claudia-text);font-size:14px}
+    .chat-search-bar input{flex:1;min-width:0;padding:8px 12px;border-radius:10px;border:1px solid var(--ai-border);background:var(--ai-bg);color:var(--ai-text);font-size:14px}
     .chat-search-label{font-size:12px;color:var(--text-dim);white-space:nowrap}
-    .chat-search-bar button{padding:6px 10px;border-radius:8px;border:1px solid var(--claudia-border);background:var(--claudia-bg);color:var(--claudia-text);cursor:pointer;font-size:14px}
+    .chat-search-bar button{padding:6px 10px;border-radius:8px;border:1px solid var(--ai-border);background:var(--ai-bg);color:var(--ai-text);cursor:pointer;font-size:14px}
     .chat-search-bar button:hover:not(:disabled){opacity:.9}
     .chat-search-bar button:disabled{opacity:.5;cursor:default}
     mark.chat-search-mark{background:rgba(255,122,217,.4);color:inherit;border-radius:2px;padding:0 1px}
@@ -318,34 +318,34 @@
     /* ── In-chat quick replies (multiple choice on iPhone) ── */
     .msg-row.quick-replies{align-items:center;margin-top:4px}
     .quick-reply-wrap{display:flex;flex-wrap:wrap;gap:8px;max-width:82%}
-    .quick-reply-btn{font-size:14px;padding:8px 14px;border-radius:14px;border:1px solid var(--claudia-border);background:var(--claudia-bg);color:var(--claudia-text);cursor:pointer;transition:opacity .15s}
+    .quick-reply-btn{font-size:14px;padding:8px 14px;border-radius:14px;border:1px solid var(--ai-border);background:var(--ai-bg);color:var(--ai-text);cursor:pointer;transition:opacity .15s}
     .quick-reply-btn:hover{opacity:.9}
     .chat-doc-cards{display:flex;flex-direction:column;gap:10px;max-width:82%;margin-top:10px}
-    .chat-doc-card{border:1px solid var(--claudia-border);border-radius:12px;background:rgba(40,20,50,.4);padding:12px 14px}
+    .chat-doc-card{border:1px solid var(--ai-border);border-radius:12px;background:rgba(40,20,50,.4);padding:12px 14px}
     .chat-doc-card h4{font-size:13px;font-weight:700;color:var(--pink);margin:0 0 6px;display:flex;align-items:center;gap:8px}
     .chat-doc-type{font-size:10px;text-transform:uppercase;opacity:.85;font-weight:600}
-    .chat-doc-preview{font-size:13px;line-height:1.45;color:var(--claudia-text);white-space:pre-wrap;max-height:80px;overflow:hidden;margin-bottom:10px}
+    .chat-doc-preview{font-size:13px;line-height:1.45;color:var(--ai-text);white-space:pre-wrap;max-height:80px;overflow:hidden;margin-bottom:10px}
     .chat-doc-actions{display:flex;gap:8px;flex-wrap:wrap}
     .chat-doc-edit-btn,.chat-doc-files-btn{font-size:12px;padding:6px 12px;border-radius:10px;border:1px solid var(--pink);background:transparent;color:var(--pink);cursor:pointer;font-weight:600;-webkit-appearance:none;appearance:none}
     .chat-doc-edit-btn:hover,.chat-doc-files-btn:hover{background:var(--pink);color:#111}
     .draft-editor-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px}
-    .draft-editor-modal{background:var(--claudia-bg);border:1px solid var(--claudia-border);border-radius:16px;max-width:100%;width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
-    .draft-editor-modal h3{padding:14px 16px;margin:0;font-size:16px;border-bottom:1px solid var(--claudia-border)}
-    .draft-editor-modal textarea{flex:1;min-height:200px;padding:14px;font-size:14px;line-height:1.5;resize:vertical;border:none;background:transparent;color:var(--claudia-text)}
-    .draft-editor-modal .modal-actions{padding:12px 16px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--claudia-border)}
+    .draft-editor-modal{background:var(--ai-bg);border:1px solid var(--ai-border);border-radius:16px;max-width:100%;width:480px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+    .draft-editor-modal h3{padding:14px 16px;margin:0;font-size:16px;border-bottom:1px solid var(--ai-border)}
+    .draft-editor-modal textarea{flex:1;min-height:200px;padding:14px;font-size:14px;line-height:1.5;resize:vertical;border:none;background:transparent;color:var(--ai-text)}
+    .draft-editor-modal .modal-actions{padding:12px 16px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--ai-border)}
     .settings-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;display:none;align-items:center;justify-content:center;padding:16px}
     .settings-panel-overlay.show{display:flex}
-    .settings-panel-modal{background:var(--claudia-bg);border:1px solid var(--claudia-border);border-radius:16px;max-width:100%;width:400px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 24px rgba(0,0,0,.3)}
-    .settings-panel-modal h3{padding:14px 16px;margin:0;font-size:16px;border-bottom:1px solid var(--claudia-border);color:var(--text)}
+    .settings-panel-modal{background:var(--ai-bg);border:1px solid var(--ai-border);border-radius:16px;max-width:100%;width:400px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 0 24px rgba(0,0,0,.3)}
+    .settings-panel-modal h3{padding:14px 16px;margin:0;font-size:16px;border-bottom:1px solid var(--ai-border);color:var(--text)}
     .settings-panel-modal .settings-body{overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
     .settings-panel-modal .settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
-    .settings-panel-modal .settings-row label{font-size:14px;color:var(--claudia-text);cursor:pointer;flex:1}
-    .settings-panel-modal .settings-row input[type="number"]{width:72px;padding:6px 10px;border-radius:8px;border:1px solid var(--claudia-border);background:var(--surface);color:var(--text);font-size:14px}
-    .settings-panel-modal .modal-actions{padding:12px 16px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--claudia-border)}
-    .settings-panel-modal .settings-dev-section{margin-top:8px;padding-top:12px;border-top:1px solid var(--claudia-border)}
+    .settings-panel-modal .settings-row label{font-size:14px;color:var(--ai-text);cursor:pointer;flex:1}
+    .settings-panel-modal .settings-row input[type="number"]{width:72px;padding:6px 10px;border-radius:8px;border:1px solid var(--ai-border);background:var(--surface);color:var(--text);font-size:14px}
+    .settings-panel-modal .modal-actions{padding:12px 16px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--ai-border)}
+    .settings-panel-modal .settings-dev-section{margin-top:8px;padding-top:12px;border-top:1px solid var(--ai-border)}
     .settings-panel-modal .settings-dev-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin-bottom:6px}
     .settings-panel-modal .settings-row-actions{display:flex;gap:8px;flex-wrap:wrap}
-    .settings-panel-modal .settings-dev-btn{font-size:12px;padding:6px 12px;border-radius:8px;border:1px solid var(--claudia-border);background:var(--surface);color:var(--claudia-text);cursor:pointer;-webkit-appearance:none;appearance:none}
+    .settings-panel-modal .settings-dev-btn{font-size:12px;padding:6px 12px;border-radius:8px;border:1px solid var(--ai-border);background:var(--surface);color:var(--ai-text);cursor:pointer;-webkit-appearance:none;appearance:none}
     .settings-panel-modal .settings-dev-btn:hover{background:rgba(255,122,217,.12);color:var(--pink);border-color:rgba(255,122,217,.35)}
     .quick-reply-btn.used{opacity:.6;cursor:default;pointer-events:none}
     .quick-reply-wrap.quick-replies-used .quick-reply-btn{opacity:.55;cursor:default;pointer-events:none;filter:grayscale(.4)}
@@ -353,7 +353,7 @@
     .msg-wrap.quick-reply-choice .bubble{opacity:.95;border-left:3px solid rgba(255,122,217,.5)}
     /* ── Floating thoughts (2–3 lightweight options) ── */
     .floating-thoughts-row{margin-top:2px}
-    .floating-thoughts{font-size:13px;color:var(--claudia-text);opacity:.85;max-width:82%;display:flex;flex-wrap:wrap;align-items:center;gap:0}
+    .floating-thoughts{font-size:13px;color:var(--ai-text);opacity:.85;max-width:82%;display:flex;flex-wrap:wrap;align-items:center;gap:0}
     .floating-thought-sep{opacity:.6;user-select:none;pointer-events:none}
     .floating-thought-link{cursor:pointer;border:none;background:none;padding:0;font:inherit;color:inherit;text-decoration:none;border-radius:2px}
     .floating-thought-link:hover{text-decoration:underline;opacity:1}
@@ -423,7 +423,7 @@
     #typing.show{display:flex}
     .typing-av{width:40px;height:40px;min-width:40px;max-width:40px !important;min-height:40px;max-height:40px !important;border-radius:0;overflow:visible;flex-shrink:0;position:relative;background:transparent}
     .typing-av img{width:40px !important;height:40px !important;max-width:40px !important;max-height:40px !important;min-width:0;object-fit:contain;display:block;vertical-align:top}
-    .typing-bubble{background:var(--claudia-bg);border:1px solid var(--claudia-border);border-radius:18px;border-bottom-left-radius:4px;padding:12px 16px;display:flex;gap:8px;align-items:center}
+    .typing-bubble{background:var(--ai-bg);border:1px solid var(--ai-border);border-radius:18px;border-bottom-left-radius:4px;padding:12px 16px;display:flex;gap:8px;align-items:center}
     .dot{width:6px;height:6px;border-radius:50%;background:var(--pink);animation:boing 1.2s ease infinite}
     /* Context indicator in input row (word-count warning, Cursor-style) */
     .context-indicator{flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--pink);opacity:.85;transition:transform .2s ease}
@@ -539,7 +539,7 @@
     #sendBtn:hover:not(:disabled) .send-btn-icon{filter:drop-shadow(0 0 6px rgba(255,136,238,.9)) drop-shadow(0 0 12px rgba(255,100,240,.6)) drop-shadow(0 0 4px rgba(255,255,255,.2))}
     #sendBtn:disabled{opacity:.4;cursor:default}
     #sendBtn:focus-visible{outline:2px solid rgba(255,255,255,.9);outline-offset:2px}
-    .voice-input-btn,#voiceInputBtn{-webkit-appearance:none;appearance:none;width:36px;height:36px;min-width:36px;min-height:36px;border-radius:50%;border:1px solid var(--claudia-border);background:var(--claudia-bg);color:var(--pink);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 36px;padding:0;transition:opacity .15s,background .15s;overflow:hidden}
+    .voice-input-btn,#voiceInputBtn{-webkit-appearance:none;appearance:none;width:36px;height:36px;min-width:36px;min-height:36px;border-radius:50%;border:1px solid var(--ai-border);background:var(--ai-bg);color:var(--pink);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 36px;padding:0;transition:opacity .15s,background .15s;overflow:hidden}
     .voice-input-btn:hover,#voiceInputBtn:hover{opacity:.9;background:rgba(255,122,217,.12)}
     .voice-input-btn.listening,#voiceInputBtn.listening{background:rgba(255,122,217,.3);box-shadow:0 0 12px rgba(255,122,217,.4)}
     #attachImgBtn:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
@@ -610,15 +610,76 @@
     #tabBar .tab:hover,#tabBar .tab:active{color:var(--text)}
     #tabBar .tab.active{color:var(--pink)}
     #tabBar .tab-indicator{position:absolute;bottom:0;left:0;height:3px;background:var(--pink);border-radius:3px 3px 0 0;transition:left .25s cubic-bezier(.4,0,.2,1),width .25s cubic-bezier(.4,0,.2,1);pointer-events:none}
-    /* ── Room tab disabled: hide only Room tab and room panel; keep Chat and Social visible ── */
-    #app.room-tab-disabled #tabBar .tab[data-tab="room"]{display:none}
-    #app.room-tab-disabled #roomPanel{display:none !important}
-    #app.room-tab-disabled #mainWrap{padding-bottom:calc(72px + max(28px,env(safe-area-inset-bottom)))}
-    /* ── Room panel (Claudia bedroom) ── */
-    #roomPanel{display:none;position:fixed;top:0;left:0;right:0;bottom:calc(56px + max(20px,env(safe-area-inset-bottom)));z-index:25;background:var(--bg)}
-    #roomPanel.visible{display:block}
-    #app.show-room #mainWrap{display:none}
-    #app.show-room #roomPanel{display:block}
+    /* ── Side panels: Journal, Files, Notes ── */
+    .side-panel{display:none;position:fixed;top:0;left:0;right:0;bottom:calc(56px + max(20px,env(safe-area-inset-bottom)));z-index:25;background:var(--bg);flex-direction:column;overflow:hidden}
+    #app.show-journal #journalPanel,#app.show-files #filesPanel,#app.show-notes #notesPanel{display:flex}
+    #app.show-journal #mainWrap,#app.show-files #mainWrap,#app.show-notes #mainWrap{display:none}
+    /* Panel header */
+    .panel-hdr{height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+    .panel-hdr-title{font-size:15px;font-weight:700;flex:1}
+    .panel-hdr-btn{background:none;border:1px solid var(--border);color:var(--text-dim);font-size:13px;font-weight:600;border-radius:20px;padding:5px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+    .panel-hdr-btn:active{opacity:.7}
+    .panel-hdr-btn.primary{background:linear-gradient(135deg,var(--pink),var(--purple));color:#fff;border-color:transparent}
+    /* AI ask bar inside panels */
+    .panel-ask-bar{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+    .panel-ask-bar input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:8px 14px;color:var(--text);font-size:14px;outline:none;font-family:inherit}
+    .panel-ask-bar input::placeholder{color:var(--text-dim)}
+    .panel-ask-bar button{background:var(--pink);color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    /* AI ask result */
+    .panel-ask-result{display:none;flex-direction:column;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;max-height:220px}
+    .panel-ask-result-hdr{display:flex;align-items:center;padding:8px 14px;gap:8px;flex-shrink:0}
+    .panel-ask-result-label{font-size:12px;font-weight:700;color:var(--pink);flex:1}
+    .panel-ask-result-close{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;padding:2px 6px;-webkit-tap-highlight-color:transparent}
+    .panel-ask-result-body{overflow-y:auto;padding:0 14px 12px;font-size:14px;line-height:1.6;color:var(--text)}
+    /* Scrollable list area */
+    .panel-list{flex:1;overflow-y:auto}
+    .panel-list-item{display:flex;flex-direction:column;gap:3px;padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--surface);transition:background .1s}
+    .panel-list-item:active{background:var(--surface2,#2a1a3a)}
+    .pli-title{font-size:15px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pli-meta{font-size:12px;color:var(--text-dim)}
+    /* Detail slide-over */
+    .panel-detail{position:absolute;inset:0;background:var(--bg);transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;z-index:10}
+    .panel-detail.open{transform:translateX(0)}
+    .panel-detail-hdr{height:52px;display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+    .panel-detail-back{background:none;border:none;color:var(--pink);font-size:15px;font-weight:600;cursor:pointer;padding:4px 8px 4px 0;-webkit-tap-highlight-color:transparent}
+    .panel-detail-title{font-size:14px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .panel-detail-action{background:none;border:none;color:var(--purple);font-size:14px;font-weight:600;cursor:pointer;padding:4px 0 4px 8px;-webkit-tap-highlight-color:transparent}
+    .panel-detail-content{flex:1;overflow-y:auto;padding:18px 16px;font-size:15px;line-height:1.7;color:var(--text)}
+    .panel-detail-content h1{font-size:20px;margin:0 0 12px;color:var(--pink)}
+    .panel-detail-content h2{font-size:17px;margin:14px 0 7px;color:var(--pink)}
+    .panel-detail-content h3{font-size:15px;margin:10px 0 5px;color:var(--purple)}
+    .panel-detail-content p{margin-bottom:10px}
+    .panel-detail-content code{background:var(--surface);border:1px solid var(--border);padding:2px 6px;border-radius:5px;font-size:13px;font-family:"SF Mono","Fira Code",monospace;color:var(--pink)}
+    .panel-detail-content pre{background:var(--surface);border:1px solid var(--border);padding:14px;border-radius:10px;overflow-x:auto;margin:10px 0}
+    .panel-detail-content pre code{background:none;border:none;padding:0;color:var(--text)}
+    .panel-detail-content ul,.panel-detail-content ol{padding-left:20px;margin-bottom:10px}
+    .panel-detail-content li{margin-bottom:4px}
+    .panel-detail-content blockquote{border-left:3px solid var(--pink);padding-left:12px;color:var(--text-dim);margin:10px 0}
+    /* Note textarea */
+    .note-edit-area{flex:1;display:flex;flex-direction:column;padding:14px}
+    #noteTextarea{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;padding:14px;resize:none;outline:none;font-family:inherit;line-height:1.65;min-height:180px;transition:border-color .15s}
+    #noteTextarea:focus{border-color:var(--pink)}
+    #noteTextarea::placeholder{color:var(--text-dim)}
+    /* File browser rows */
+    .file-entry-row{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--surface);transition:background .1s}
+    .file-entry-row:active{background:var(--surface2,#2a1a3a)}
+    .file-row-icon{font-size:20px;flex-shrink:0;width:26px;text-align:center}
+    .file-row-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+    .file-row-meta{font-size:11px;color:var(--text-dim);flex-shrink:0}
+    .file-up-row{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;color:var(--pink);font-size:14px;font-weight:600;background:var(--surface)}
+    .file-breadcrumb-bar{padding:8px 16px;font-size:12px;color:var(--text-dim);background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;white-space:nowrap;flex-shrink:0}
+    /* Empty / loading states */
+    .panel-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text-dim);padding:40px;text-align:center}
+    .panel-emoji{font-size:48px}
+    .panel-loading{padding:40px;text-align:center;color:var(--text-dim)}
+    /* Notes ask bar initially hidden */
+    #notesAskBar{display:none}
+    /* Toast inside panels */
+    #notesToast{position:absolute;bottom:calc(56px + 12px);left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:9px 20px;font-size:13px;font-weight:600;color:var(--text);opacity:0;transition:all .2s;pointer-events:none;z-index:100;white-space:nowrap}
+    #notesToast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    /* Blinking cursor for streaming */
+    .locus-cursor{display:inline-block;width:2px;height:1em;background:var(--pink);vertical-align:text-bottom;animation:blink .7s step-end infinite}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
     /* ── Right sidebar: working doc (Claude-style temp file), long paste, downloadable ── */
     #rightSidebar{position:fixed;top:0;right:0;bottom:0;width:min(400px,92vw);max-width:100%;background:var(--surface);border-left:2px solid rgba(255,122,217,.4);box-shadow:-4px 0 20px rgba(0,0,0,.3);z-index:35;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom));padding-left:12px;padding-right:12px;box-sizing:border-box}
     #app.right-sidebar-open #rightSidebar{transform:translateX(0)}
@@ -634,29 +695,14 @@
     #rightSidebar .working-doc-download:hover,#rightSidebar .working-doc-download:active{background:rgba(255,122,217,.4)}
     #workingDocBtn{flex-shrink:0;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,122,217,.35);background:rgba(255,122,217,.12);color:var(--pink,#ff7ad9);font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
     #workingDocBtn:hover,#workingDocBtn:active{background:rgba(255,122,217,.25)}
-    #bedroomScene{position:absolute;inset:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#1a1510}
-    #bedroomScene img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}
-    #bedroomScene .scene-inner{position:relative;width:100%;height:100%;max-width:100%;max-height:100%}
-    #bedroomScene .scene-inner img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
-    #bedroomScene .scene-inner{position:relative;width:100%;height:100%}
     #mainWrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding-bottom:calc(72px + max(28px,env(safe-area-inset-bottom)))}
-    #claudiaSprite{position:absolute;width:28px;height:36px;left:40%;top:55%;margin-left:-14px;margin-top:-18px;pointer-events:none;z-index:10;transition:left 2.5s linear, top 2.5s linear}
-    #claudiaSprite #activityBubble{left:50%;top:0;transform:translate(-50%,-100%);position:absolute;white-space:nowrap}
-    #claudiaSprite.walk{transition-duration:2.5s}
-    #claudiaSprite.idle{}
-    #claudiaSprite.sleep{opacity:.9}
-    #activityBubble{position:absolute;left:50%;top:0;transform:translate(-50%,-100%);padding:4px 10px;border-radius:12px;background:rgba(20,10,30,.92);border:1px solid var(--border);font-size:18px;white-space:nowrap;z-index:11;opacity:0;pointer-events:none;transition:opacity .2s}
-    #activityBubble.show{opacity:1;animation:activity-pop .4s ease-out}
-    @keyframes activity-pop{0%{transform:translate(-50%,-100%) scale(0.8)}60%{transform:translate(-50%,-100%) scale(1.05)}100%{transform:translate(-50%,-100%) scale(1)}}
-    #activityBubble.zzz{animation:zzz-float 1.5s ease-in-out infinite}
-    @keyframes zzz-float{0%,100%{transform:translate(-50%,-100%) translateY(0)}50%{transform:translate(-50%,-100%) translateY(-6px)}}
     .pwa-version{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 2px);right:8px;font-size:10px;color:var(--text-dim);opacity:.85;z-index:5;pointer-events:none;}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
   <script>/* Ensure chat list visible on desktop */ document.addEventListener('DOMContentLoaded',function(){var m=window.matchMedia&&window.matchMedia('(min-width: 768px)');if(m&&m.matches){var app=document.getElementById('app');if(app)app.classList.remove('sidebar-collapsed');}});</script>
 </head>
 <body>
-<div id="app" class="room-tab-disabled">
+<div id="app">
   <div id="sideOverlay"></div>
   <div id="sidebar">
     <div class="sb-head">
@@ -671,7 +717,7 @@
     </div>
     <div id="sbUserPanel" class="sb-user-panel" role="region" aria-label="User settings">
       <div class="sb-user-panel-inner">
-        <div id="sbWorkspace" class="sb-workspace"><strong>Claudia Core</strong> · same workspace as your PC.</div>
+        <div id="sbWorkspace" class="sb-workspace"><strong>Locus</strong> · same workspace as your PC.</div>
         <div class="sb-user-row" id="sbUserRow">
           <label for="userSelect" class="sb-user-label">Chat as:</label>
           <select id="userSelect" class="sb-user-select" aria-label="Who are you?">
@@ -717,7 +763,7 @@
           </div>
         </div>
         <div id="userProfileWrap" class="sb-user-profile-wrap" style="display:none">
-          <div class="sb-user-profile-label">Pronouns &amp; about you (for Claudia)</div>
+          <div class="sb-user-profile-label">Pronouns &amp; about you</div>
           <input type="text" id="userProfilePronouns" class="sb-user-profile-input" placeholder="e.g. she/her" maxlength="80" aria-label="Pronouns">
           <textarea id="userProfileAbout" class="sb-user-profile-textarea" placeholder="Short about you (e.g. Lynn, Ruby&#39;s mom, likes gardening)" rows="2" maxlength="500" aria-label="About you"></textarea>
           <button type="button" id="userProfileSave" class="sb-user-profile-save">Save</button>
@@ -736,21 +782,21 @@
   <div id="mainWrap">
   <div id="hdr">
     <button id="menuBtn">&#9776;</button>
-    <div id="hdrInfo"><div id="hdrName">Claudia &#9825;</div><div id="hdrSub">your ai bestie</div></div>
+    <div id="hdrInfo"><div id="hdrName">Locus &#9825;</div><div id="hdrSub">your workspace</div></div>
     <div class="hdr-actions">
       <button type="button" id="workingDocBtn" title="Working doc (paste long text or save replies here)">&#128196; Doc</button>
       <button type="button" class="sb-new" id="headerNewBtn" title="New chat">+ New</button>
     </div>
   </div>
   <div id="chatArea">
-    <div id="typing" role="status" aria-label="Claudia is typing">
-      <div class="typing-av"><img src="/claudia_avatar.svg" alt="" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;display:block" onerror="this.src='/chat_icon.png'; this.onerror=function(){this.src='/icon.svg';}"></div>
-      <div class="typing-bubble" title="Claudia is typing. To see her reasoning in a reply, try asking &quot;show your thinking&quot; or &quot;how did you get there?&quot;">
+    <div id="typing" role="status" aria-label="AI is typing">
+      <div class="typing-av"><img src="/locus_avatar.svg" alt="" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;display:block" onerror="this.src='/chat_icon.png'; this.onerror=function(){this.src='/icon.svg';}"></div>
+      <div class="typing-bubble" title="AI is typing. To see reasoning in a reply, try asking &quot;show your thinking&quot; or &quot;how did you get there?&quot;">
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
       </div>
     </div>
     <div id="generatingImage" aria-live="polite" aria-label="Image generating">
-      <div class="generating-av"><img src="/claudia_avatar.svg" alt="" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;display:block" onerror="this.src='/chat_icon.png'; this.onerror=function(){this.src='/icon.svg';}"></div>
+      <div class="generating-av"><img src="/locus_avatar.svg" alt="" style="width:40px;height:40px;max-width:40px;max-height:40px;object-fit:contain;display:block" onerror="this.src='/chat_icon.png'; this.onerror=function(){this.src='/icon.svg';}"></div>
       <div class="generating-placeholder">
         <div class="generating-wave-wrap"><div class="generating-wave"></div></div>
         <div class="generating-text">Still generating, almost there (expect to finish within 60s likely)</div>
@@ -794,7 +840,7 @@
       <input type="file" id="imgFile" accept="image/*" style="display:none">
       <input type="file" id="fileInput" accept=".pdf,.txt,.md,.json,.csv,.log,.html,.xml,.jsonl" style="display:none">
       <button type="button" id="attachImgBtn" title="Attach and options" aria-label="Attach and options" aria-haspopup="true" aria-expanded="false"><svg class="attach-btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-      <textarea id="msgInput" rows="1" placeholder="Message Claudia..." autocomplete="off" autocorrect="on" autocapitalize="sentences"></textarea>
+      <textarea id="msgInput" rows="1" placeholder="Message..." autocomplete="off" autocorrect="on" autocapitalize="sentences"></textarea>
       <div id="contextIndicator" class="context-indicator" aria-hidden="true" role="img" aria-label="Context length" title="Message length">
         <svg class="context-indicator-svg" viewBox="0 0 32 32" width="24" height="24">
           <circle class="context-indicator-track" cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -812,7 +858,7 @@
       <button type="button" class="working-doc-close" id="rightSidebarClose" aria-label="Close working doc">&times;</button>
     </div>
     <div class="working-doc-body">
-      <textarea id="workingDocContent" placeholder="Paste long text here, or open a reply from Claudia. Edits here are sent with your message."></textarea>
+      <textarea id="workingDocContent" placeholder="Paste long text here, or open a reply from AI. Edits here are sent with your message."></textarea>
       <div class="working-doc-actions">
         <button type="button" class="working-doc-download" id="workingDocDownload" style="display:none">Download</button>
       </div>
@@ -826,19 +872,83 @@
       <button type="button" class="activity-breakdown-close" aria-label="Close">×</button>
     </div>
   </div>
-  <div id="roomPanel" aria-hidden="true">
-    <div id="bedroomScene">
-      <div class="scene-inner">
-        <img id="bedroomBg" src="/bedroom_bg.png" alt="Claudia&#39;s Room">
-        <div id="claudiaSprite" class="idle"><svg viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg" width="28" height="36"><ellipse cx="14" cy="10" rx="8" ry="9" fill="#f5d0e0"/><path d="M8 20 L14 32 L20 20 Z" fill="#e8b8d0"/><circle cx="10" cy="9" r="1.5" fill="#333"/><circle cx="18" cy="9" r="1.5" fill="#333"/></svg><div id="activityBubble" aria-live="polite"></div></div>
+  <!-- ── Journal panel ── -->
+  <div id="journalPanel" class="side-panel" aria-label="Journal">
+    <div class="panel-hdr">
+      <span class="panel-hdr-title">🎙️ Journal</span>
+    </div>
+    <div class="panel-ask-bar">
+      <input id="journalAskInput" type="text" placeholder="Ask AI about your journal…" autocomplete="off">
+      <button class="journal-ask-btn">Ask</button>
+    </div>
+    <div id="journalAskResult" class="panel-ask-result">
+      <div class="panel-ask-result-hdr">
+        <span class="panel-ask-result-label">✦ AI</span>
+        <button id="journalAskClose" class="panel-ask-result-close">✕</button>
+      </div>
+      <div id="journalAskText" class="panel-ask-result-body"></div>
+    </div>
+    <div id="journalList" class="panel-list"></div>
+    <div id="journalDetail" class="panel-detail">
+      <div class="panel-detail-hdr">
+        <button id="journalDetailBack" class="panel-detail-back">← Back</button>
+        <span id="journalDetailTitle" class="panel-detail-title"></span>
+      </div>
+      <div id="journalDetailContent" class="panel-detail-content"></div>
+    </div>
+  </div>
+  <!-- ── Files panel ── -->
+  <div id="filesPanel" class="side-panel" aria-label="Files">
+    <div class="panel-hdr">
+      <span class="panel-hdr-title">📁 Files</span>
+    </div>
+    <div id="fileBreadcrumb" class="file-breadcrumb-bar">D:\</div>
+    <div id="fileList" class="panel-list"></div>
+    <div id="fileDetail" class="panel-detail">
+      <div class="panel-detail-hdr">
+        <button id="fileDetailBack" class="panel-detail-back">← Back</button>
+        <span id="fileDetailTitle" class="panel-detail-title"></span>
+      </div>
+      <div id="fileDetailContent" class="panel-detail-content"></div>
+    </div>
+  </div>
+  <!-- ── Notes panel ── -->
+  <div id="notesPanel" class="side-panel" aria-label="Notes">
+    <div class="panel-hdr">
+      <span class="panel-hdr-title">📝 Notes</span>
+      <button id="notesAskToggleBtn" class="panel-hdr-btn" title="Ask AI about your notes">🔍 Ask</button>
+      <button id="notesNewBtn" class="panel-hdr-btn primary">+ New</button>
+    </div>
+    <div id="notesAskBar" class="panel-ask-bar">
+      <input id="notesAskInput" type="text" placeholder="Ask AI about your notes…" autocomplete="off">
+      <button class="notes-ask-submit">Ask</button>
+    </div>
+    <div id="notesAskResult" class="panel-ask-result">
+      <div class="panel-ask-result-hdr">
+        <span class="panel-ask-result-label">✦ AI</span>
+        <button class="panel-ask-result-close" onclick="closeNotesAsk()">✕</button>
+      </div>
+      <div id="notesAskText" class="panel-ask-result-body"></div>
+    </div>
+    <div id="notesList" class="panel-list"></div>
+    <div id="noteDetail" class="panel-detail">
+      <div class="panel-detail-hdr">
+        <button id="noteDetailBack" class="panel-detail-back">← Back</button>
+        <span id="noteDetailTitle" class="panel-detail-title">New Note</span>
+        <button id="noteSaveBtn" class="panel-detail-action">Save</button>
+      </div>
+      <div class="note-edit-area">
+        <textarea id="noteTextarea" placeholder="Write your note…"></textarea>
       </div>
     </div>
+    <div id="notesToast"></div>
   </div>
   <div id="tabBar" role="tablist">
     <span id="tabIndicator" class="tab-indicator" aria-hidden="true"></span>
     <button type="button" class="tab active" data-tab="chat" role="tab" aria-selected="true">💬 Chat</button>
-    <button type="button" class="tab" data-tab="social" role="tab" aria-selected="false">👥 Social</button>
-    <button type="button" class="tab" data-tab="room" role="tab" aria-selected="false">🛏️ Room</button>
+    <button type="button" class="tab" data-tab="journal" role="tab" aria-selected="false">🎙️ Journal</button>
+    <button type="button" class="tab" data-tab="files" role="tab" aria-selected="false">📁 Files</button>
+    <button type="button" class="tab" data-tab="notes" role="tab" aria-selected="false">📝 Notes</button>
   </div>
   <div id="pwaVersion" class="pwa-version" aria-hidden="true">v39 __BUILD_ID__</div>
     <script src="/web_app.js?v=39__BUILD_ID__"></script>

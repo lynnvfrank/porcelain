@@ -1,4 +1,4 @@
-/* ── Fork (continue read-only chat with Claudia) ── */
+/* ── Fork (continue read-only chat) ── */
 async function forkConvoMobile(){
   if(!currentMessages||currentMessages.length===0)return;
   var btn=document.getElementById('forkBtn')||forkConvoBtn;
@@ -37,7 +37,7 @@ currentBranchIndex=nc.branch_index!==undefined?nc.branch_index:0;branchCount=nc.
 renderSidebar();renderMessages(currentMessages,false,'mobile',{cascade:true});updateThreadSwitcher();
 closeSidebar();msgInput.focus();
   }catch(e){
-if(btn){if(btn.id==='forkBtn')btn.textContent='\u25B6\uFE0F Continue with Claudia';else if(forkConvoBtn&&btn===forkConvoBtn)btn.innerHTML=ICON_FORK;btn.disabled=false;}
+if(btn){if(btn.id==='forkBtn')btn.textContent='\u25B6\uFE0F Continue';else if(forkConvoBtn&&btn===forkConvoBtn)btn.innerHTML=ICON_FORK;btn.disabled=false;}
 alert('Could not fork conversation: '+(e.message||e));
   }
 }

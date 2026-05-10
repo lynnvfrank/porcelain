@@ -12,11 +12,11 @@ var showArchive=false;
 var currentMessages=[],currentConvoTitle='';
 var currentBranchIndex=0,branchCount=1;
 var currentFeedback={};
-var CHAT_MODE_KEY='claudia_chat_mode';
+var CHAT_MODE_KEY='locus_chat_mode';
 var currentMode=(function(){try{var s=localStorage.getItem(CHAT_MODE_KEY);if(s==='therapist'||s==='learning'||s==='bestie')return s;}catch(e){}return 'bestie';})();
 var isGroupView=false;
 /* ── Chat input draft (localStorage) ── */
-var DRAFT_KEY='claudia_chat_draft';
+var DRAFT_KEY='locus_chat_draft';
 function getDrafts(){ try{ var s=localStorage.getItem(DRAFT_KEY); return s?JSON.parse(s):{}; }catch(e){ return {}; } }
 function draftKey(id,src){ return (src||'mobile')+'_'+(id||''); }
 function getDraft(id,src){ return getDrafts()[draftKey(id,src)]||''; }

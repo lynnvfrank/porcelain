@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="Code">
 <meta name="theme-color" content="#F6F1EE">
 <link rel="icon" href="/icon.svg">
-<title>✨ Code · Claudia</title>
+<title>✨ Code · Locus</title>
 <style>
 :root {
   --bg: #F6F1EE;
@@ -161,14 +161,14 @@ section.editor-wrap { position: relative; min-width: 0; min-height: 0; }
 
   <div class="chat-panel" id="chat-panel">
     <div class="chat-header" onclick="toggleChat()">
-      <span class="label">💬 ask claudia about this file</span>
+      <span class="label">💬 ask AI about this file</span>
       <span class="toggle" id="chat-toggle">▾</span>
     </div>
     <div class="chat-messages" id="chat-messages">
       <div class="chat-empty">open a file, then ask anything about it ✨</div>
     </div>
     <div class="chat-input-row">
-      <textarea id="chat-input" placeholder="ask claudia..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
+      <textarea id="chat-input" placeholder="ask AI..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
       <button class="send-btn" id="send-btn" onclick="sendChat()">→</button>
     </div>
   </div>
@@ -372,7 +372,7 @@ async function sendChat() {
 
   chatHistory.push({ role: "user", content: userContent });
 
-  const systemPrompt = "You are Claudia — Audrey's warm, supportive coding bestie. She's a vibe-coder (doesn't write code herself). When she asks about a file, explain in plain language what it does, what's broken, or what would change. Use small markdown for emphasis. Keep responses short and friendly.";
+  const systemPrompt = "You are Audrey's warm, supportive coding AI running in Locus. She's a vibe-coder (doesn't write code herself). When she asks about a file, explain in plain language what it does, what's broken, or what would change. Use small markdown for emphasis. Keep responses short and friendly.";
 
   let fullText = "";
   try {
@@ -416,7 +416,7 @@ async function sendChat() {
     }
     if (fullText) chatHistory.push({ role: "assistant", content: fullText });
   } catch (err) {
-    replyDiv.textContent = "⚠ couldn't reach claudia: " + err.message;
+    replyDiv.textContent = "⚠ couldn't reach AI: " + err.message;
   } finally {
     streaming = false;
     send.disabled = false;

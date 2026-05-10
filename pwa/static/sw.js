@@ -1,5 +1,5 @@
-/* Claudia PWA — cache shell; always hit network for APIs */
-const CACHE = "claudia-shell-v1";
+/* Locus PWA — cache shell; always hit network for APIs */
+const CACHE = "locus-shell-v1";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

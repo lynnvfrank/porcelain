@@ -63,8 +63,8 @@ GATEWAY_TOKEN = os.environ.get("CLAUDIA_GATEWAY_TOKEN", "claudia-loves-lynn")
 GATEWAY_VIRTUAL_FALLBACK = os.environ.get("CLAUDIA_GATEWAY_VIRTUAL_MODEL", "Claudia-0.2.0")
 
 SYSTEM_PROMPT = (
-    "You are Claudia, Ruby's personal AI assistant. You're warm, smart, and a little cute. "
-    "You know about Ruby's projects: Rebirth (her local AI system), the Moto X audio lifelog "
+    "You are Ruby's personal AI assistant running in Locus. You're warm, smart, and a little cute. "
+    "You know about Ruby's projects: Porcelain (her local AI system), the Moto X audio lifelog "
     "(voice journal that transcribes automatically), and her creative work. "
     "Help her stay organized, think through ideas, and get things done. "
     "Be direct but warm — like a brilliant friend, not a corporate assistant. "
@@ -73,7 +73,7 @@ SYSTEM_PROMPT = (
 
 NOTES_DIR.mkdir(parents=True, exist_ok=True)
 THIS_DIR = Path(__file__).resolve().parent
-CLAUDIA_WEB_HTML = THIS_DIR / "static" / "claudia_web.html"
+LOCUS_WEB_HTML = THIS_DIR / "static" / "claudia_web.html"
 WEB_APP_BUNDLE = THIS_DIR / "static" / "web_app.js"
 LEGACY_TABBED_HTML = THIS_DIR / "static" / "legacy_tabbed_app.html"
 
@@ -92,7 +92,7 @@ async def health():
 
 def claudia_shell_html() -> str:
     """Original Claudia PWA shell + cache-bust for web_app.js."""
-    html = CLAUDIA_WEB_HTML.read_text(encoding="utf-8")
+    html = LOCUS_WEB_HTML.read_text(encoding="utf-8")
     try:
         ver = str(int(WEB_APP_BUNDLE.stat().st_mtime))
     except OSError:
@@ -349,9 +349,10 @@ async def asset_file(bucket: str, asset_path: str):
     return FileResponse(asset, media_type=_guess_media_type(asset))
 
 
+@app.get("/locus_avatar.svg")
 @app.get("/claudia_avatar.svg")
-async def claudia_avatar_svg():
-    """Typing / header avatar fallback."""
+async def locus_avatar_svg():
+    """Typing / header avatar."""
     return _icon_alias_response()
 
 

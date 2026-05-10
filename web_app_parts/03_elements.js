@@ -22,9 +22,6 @@ var userProfileAbout=document.getElementById('userProfileAbout');
 var userProfileSave=document.getElementById('userProfileSave');
 var appEl=document.getElementById('app');
 var tabBar=document.getElementById('tabBar');
-var roomPanel=document.getElementById('roomPanel');
-var claudiaSprite=document.getElementById('claudiaSprite');
-var activityBubble=document.getElementById('activityBubble');
 function showInitErr(msg){ try{ var div=document.createElement('div'); div.style.cssText='padding:16px;color:#ff7ad9;font-size:14px;white-space:pre-wrap;background:#1a0a1a;'; div.textContent=msg; var el=document.getElementById('chatArea'); (el||document.body).insertBefore(div,(el&&el.firstChild)||document.body.firstChild); }catch(e){} }
 if(!sidebar||!sbList||!menuBtn||!chatArea||!msgInput||!sendBtn){ showInitErr('Missing element: sidebar='+!!sidebar+' sbList='+!!sbList+' menuBtn='+!!menuBtn+' chatArea='+!!chatArea+' msgInput='+!!msgInput+' sendBtn='+!!sendBtn); return; }
 var sbActionsOverlay=document.getElementById('sbActionsOverlay');
@@ -66,7 +63,7 @@ function openSbActionsOverlay(trigger,convId,pinned,important){
   trigger.classList.add('sparkle');setTimeout(function(){trigger.classList.remove('sparkle');},400);
   _sbActionsAutoCloseTimer=setTimeout(function(){_sbActionsAutoCloseTimer=null;closeSbActionsOverlay();},2500);
 }
-/* Chill "done thinking" sound — soft two-tone chime when Claudia finishes replying (Web Audio, no file) */
+/* Chill "done thinking" sound — soft two-tone chime on reply (Web Audio, no file) */
 var _doneThinkingCtx=null;
 function playDoneThinkingSound(){
   try{

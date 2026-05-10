@@ -32,7 +32,7 @@ document.addEventListener('click',function(e){
       if(action==='refresh'){closeAttachMenu();location.reload();return;}
       if(action==='photos'){closeAttachMenu();if(imgFile)imgFile.click();return;}
       if(action==='files'){closeAttachMenu();if(fileInput)fileInput.click();return;}
-      if(action==='screenshot'){closeAttachMenu();var el=document.getElementById('chatArea');if(!el)return;function capture(){if(typeof html2canvas!=='function'){alert('Screenshot not available. Try refreshing.');return;}html2canvas(el,{useCORS:true,logging:false,scale:window.devicePixelRatio||1}).then(function(canvas){canvas.toBlob(function(blob){if(!blob)return;var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='claudia-chat-'+Date.now()+'.png';a.click();URL.revokeObjectURL(a.href);},'image/png');}).catch(function(){alert('Could not capture chat.');});}if(typeof html2canvas!=='function'){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';s.onload=capture;s.onerror=function(){alert('Could not load screenshot tool.');};document.head.appendChild(s);}else{capture();}return;}
+      if(action==='screenshot'){closeAttachMenu();var el=document.getElementById('chatArea');if(!el)return;function capture(){if(typeof html2canvas!=='function'){alert('Screenshot not available. Try refreshing.');return;}html2canvas(el,{useCORS:true,logging:false,scale:window.devicePixelRatio||1}).then(function(canvas){canvas.toBlob(function(blob){if(!blob)return;var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='locus-chat-'+Date.now()+'.png';a.click();URL.revokeObjectURL(a.href);},'image/png');}).catch(function(){alert('Could not capture chat.');});}if(typeof html2canvas!=='function'){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';s.onload=capture;s.onerror=function(){alert('Could not load screenshot tool.');};document.head.appendChild(s);}else{capture();}return;}
     });
   });
   if(typeof updateChatModeUI==='function')updateChatModeUI();
@@ -59,7 +59,7 @@ function updateFileBubbles(){
   pendingAttachments.forEach(function(a,idx){
     var b=document.createElement('div');
     var rm=document.createElement('button');rm.type='button';rm.className='file-bubble-remove';rm.setAttribute('aria-label','Remove');rm.textContent='\u00D7';
-    rm.onclick=function(){pendingAttachments.splice(idx,1);if(msgInput)msgInput.placeholder=pendingAttachments.length?'Add a message or send.':'Message Claudia...';updateFileBubbles();};
+    rm.onclick=function(){pendingAttachments.splice(idx,1);if(msgInput)msgInput.placeholder=pendingAttachments.length?'Add a message or send.':'Message...';updateFileBubbles();};
     if(a.type==='image'){
       b.className='file-bubble file-bubble--image';
       var src=(a.imageBase64||'').indexOf('base64,')>=0?a.imageBase64:'data:image/jpeg;base64,'+a.imageBase64;
@@ -199,9 +199,9 @@ async function send(){
   }
   var text=msgInput.value.trim();
   try{
-    var fp=sessionStorage.getItem('claudia_pending_file_path');
-    var fc=sessionStorage.getItem('claudia_pending_file_content');
-    if(fp&&fc!==null){ var cap=25000; var excerpt=fc.length>cap?fc.slice(0,cap)+'\n...[truncated]':fc; text=(text?text+'\n\n':'')+'[File: '+fp+']\n\n'+excerpt; sessionStorage.removeItem('claudia_pending_file_path'); sessionStorage.removeItem('claudia_pending_file_content'); var b=document.getElementById('pendingFileBanner'); if(b)b.remove(); }
+    var fp=sessionStorage.getItem('locus_pending_file_path');
+    var fc=sessionStorage.getItem('locus_pending_file_content');
+    if(fp&&fc!==null){ var cap=25000; var excerpt=fc.length>cap?fc.slice(0,cap)+'\n...[truncated]':fc; text=(text?text+'\n\n':'')+'[File: '+fp+']\n\n'+excerpt; sessionStorage.removeItem('locus_pending_file_path'); sessionStorage.removeItem('locus_pending_file_content'); var b=document.getElementById('pendingFileBanner'); if(b)b.remove(); }
   }catch(e){}
   var hasAttach=pendingAttachments.length>0;
   if(!text&&!hasAttach)return;if(!currentId)return;
@@ -225,7 +225,7 @@ async function send(){
   var contentToSend=textParts.join('\n\n').trim()||'(no text)';
   pendingAttachments=[];
   hideAttachPreview();
-  msgInput.placeholder='Message Claudia... (or attach image/file, paste image)';autoResize();
+  msgInput.placeholder='Message... (or attach image/file, paste image)';autoResize();
   sendInProgress=true;
   var useGeneratingUI=isImageRequest(contentToSend);
   if(useGeneratingUI&&generatingImage){generatingImage.classList.add('show');typing.classList.remove('show');}else{typing.classList.add('show');if(generatingImage)generatingImage.classList.remove('show');}
