@@ -140,6 +140,29 @@ routing:
 
 This gives you hosted-first quality/availability, then local continuity when hosted providers fail or are unavailable.
 
+### Recommended profile for this project today (single user, one machine)
+
+If you are running a single-user local stack (no peer PCs), use:
+
+1. Hosted providers first (best quality/consistency).
+2. Local vLLM backup second.
+3. Local llama.cpp backup third.
+4. No peer backend routing yet.
+
+Why this is the best fit now:
+
+- Keeps Chimera as one interface with minimal operator overhead.
+- Avoids cross-machine networking/auth complexity until you actually need it.
+- Preserves local continuity when hosted providers are down or rate-limited.
+
+When to revisit peer/fleet later:
+
+- You want multiple machines sharing model capacity.
+- You want one machine to absorb overflow from another.
+- You are ready to manage cross-host auth, health checks, and observability.
+
+For now, treating peer/fleet as deferred is the intended low-risk path.
+
 **Per-key `models`:** In BiFrost, an **empty** or **omitted** `models` list means the key may be used for **any** model for that provider (minus `blacklisted_models` if set). **`"models": ["*"]` is not a wildcard** — it is treated as the literal model name `*`, so chat requests for real model ids will fail with *no keys found that support model*. Use no `models` field (or `[]`) when you want full catalog access without enumerating models.
 
 ## Logging semantics
