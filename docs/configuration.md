@@ -118,6 +118,10 @@ Operator-maintained allowlist of BiFrost `provider/model` ids (and optional `pat
 ## `config/bifrost.config.json`
 
 BiFrost bootstrap file. Provider keys use `env.VAR` for secrets.
+For local-backend templates (vLLM + llama.cpp), see:
+
+- [`config/bifrost.local-backends.example.json`](../config/bifrost.local-backends.example.json)
+- [`llama-cpp-import-notes.md`](llama-cpp-import-notes.md)
 
 ### Hosted-first with local backups (vLLM + llama.cpp)
 
