@@ -84,3 +84,21 @@ func supervisorBinSearchDirs(exeDir string) []string {
 	}
 	return []string{exeDir, filepath.Join(exeDir, "bin")}
 }
+
+// defaultSupervisorDataSubdir chooses a stable default data path for supervised
+// services even when launched from inside a bin/ folder via double-click.
+//
+// Priority:
+// 1) If executable has sibling ../config/gateway.yaml (bundle layout), use ../data/<subdir>.
+// 2) Otherwise fall back to data/<subdir> relative to current working directory.
+func defaultSupervisorDataSubdir(subdir string) string {
+	subdir = filepath.Clean(subdir)
+	exeDir := executableDir()
+	if exeDir != "" {
+		cfgNearExe := filepath.Join(exeDir, "..", "config", "gateway.yaml")
+		if st, err := os.Stat(cfgNearExe); err == nil && !st.IsDir() {
+			return filepath.Join(exeDir, "..", "data", subdir)
+		}
+	}
+	return filepath.Join("data", subdir)
+}

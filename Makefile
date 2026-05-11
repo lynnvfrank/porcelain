@@ -1,6 +1,6 @@
 # Claudia Gateway — see docs/plans/makefile-plan.md and README.md
 #
-# clean:      removes ./claudia[.exe], claudia-desktop[.exe], dist/ only.
+# clean:      removes launcher binaries + dist/ only.
 # clean-all:  also removes bin/, packaging/qdrant-bundles/, packages/, node_modules/, .deps/, run/, logs/ (requires CONFIRM=1; runs clean first).
 # clean-data: removes data/bifrost/, data/qdrant/, data/gateway/ — fresh BiFrost + Qdrant + gateway metrics state (requires CONFIRM=1).
 
@@ -22,7 +22,7 @@ ifeq ($(OS),Windows_NT)
   RACE_GATEWAY :=
   BIFROST_BIN := bin/bifrost-http.exe
   QDRANT_BIN := bin/qdrant.exe
-  DESKTOP_BIN := claudia-desktop.exe
+  DESKTOP_BIN := porcelain.exe
 else
   ifeq ($(origin GITBASH),undefined)
     GITBASH := bash
@@ -30,7 +30,7 @@ else
   RACE_GATEWAY := -race
   BIFROST_BIN := bin/bifrost-http
   QDRANT_BIN := bin/qdrant
-  DESKTOP_BIN := claudia-desktop
+  DESKTOP_BIN := porcelain
 endif
 
 # Desktop vet/test need CGO + WebKit (see desktop-install). Set SKIP_DESKTOP=1 to omit claudia desktop tag.
@@ -212,6 +212,6 @@ release-install:
 release-snapshot:
 	$(GITBASH) scripts/release-snapshot.sh
 
-# Desktop claudia + bifrost-http + qdrant + config → dist/personal/ (needs make install; CGO for desktop build).
+# Desktop porcelain + bifrost-http + qdrant + config -> dist/personal/ (needs make install; CGO for desktop build).
 package:
 	$(GITBASH) scripts/release-package.sh "$(DESKTOP_BIN)"

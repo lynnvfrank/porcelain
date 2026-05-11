@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -57,13 +56,15 @@ func panelURLFromListenAddr(ln net.Addr) string {
 	return gatewayPublicURL(ln) + "/ui/panel"
 }
 
-// webviewEntryURL is opened by the native desktop shell: setup (bootstrap) or login → /ui/desktop.
+// webviewEntryURL is opened by the native desktop shell.
+// Porcelain's desktop wrapper starts Locus before Chimera, so the main app
+// should land on the Locus workspace instead of the gateway admin shell.
 func webviewEntryURL(ln net.Addr, bootstrap bool) string {
 	base := gatewayPublicURL(ln)
 	if bootstrap {
 		return base + "/ui/setup"
 	}
-	return base + "/ui/login?next=" + url.PathEscape("/ui/desktop")
+	return "http://127.0.0.1:11435/web"
 }
 
 func waitForChildExit(name string, cmd *exec.Cmd, waitCh <-chan error, timeout time.Duration, log *slog.Logger) {
@@ -107,7 +108,7 @@ func runServe(args []string, openWebview bool) {
 
 	bifrostBin := fs.String("bifrost-bin", defaultSupervisorBifrostBin(), "BiFrost HTTP binary (PATH or path; defaults to bifrost-http next to this executable if present, else bifrost on PATH)")
 	bifrostConfig := fs.String("bifrost-config", "config/bifrost.config.json", "Source bifrost.config.json (copied to data dir as config.json)")
-	bifrostDataDir := fs.String("bifrost-data-dir", "data/bifrost", "BiFrost working directory (created; SQLite and config live here)")
+	bifrostDataDir := fs.String("bifrost-data-dir", defaultSupervisorDataSubdir("bifrost"), "BiFrost working directory (created; SQLite and config live here)")
 	bifrostBind := fs.String("bifrost-bind", "127.0.0.1", "BiFrost bind address (-host)")
 	bifrostPort := fs.Int("bifrost-port", 8080, "BiFrost listen port (-port)")
 	bifrostLogLevel := fs.String("bifrost-log-level", "info", "BiFrost -log-level (debug, info, warn, error)")
@@ -117,7 +118,7 @@ func runServe(args []string, openWebview bool) {
 	noWait := fs.Bool("no-wait-bifrost", false, "Skip readiness poll (not recommended)")
 
 	qdrantBin := fs.String("qdrant-bin", defaultSupervisorQdrantBin(), "Qdrant binary (PATH or path); empty skips Qdrant (defaults to qdrant next to this executable if present)")
-	qdrantStorage := fs.String("qdrant-storage", "data/qdrant", "Qdrant storage directory (created)")
+	qdrantStorage := fs.String("qdrant-storage", defaultSupervisorDataSubdir("qdrant"), "Qdrant storage directory (created)")
 	qdrantBind := fs.String("qdrant-bind", "127.0.0.1", "Qdrant QDRANT__SERVICE__HOST")
 	qdrantHTTPPort := fs.Int("qdrant-http-port", 6333, "Qdrant HTTP port")
 	qdrantGRPCPort := fs.Int("qdrant-grpc-port", 6334, "Qdrant gRPC port")

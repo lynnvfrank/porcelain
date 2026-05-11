@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # Printed by `make help` so Windows/PowerShell/cmd do not mangle quotes or `echo`/printf handling.
 set -euo pipefail
 echo "Claudia (Go) - README order (primary flow: make up = install -> build -> background stack)"
@@ -9,7 +9,7 @@ echo "  make configure          copy config/gateway.example.yaml -> config/gatew
 echo "  make install            claudia-install + desktop-install"
 echo "  make build              claudia-build + desktop-build"
 echo "  make run                Starts Claudia + BiFrost + Qdrant + Desktop"
-echo "  make package            packages all binaries to dist/personal/: desktop claudia + bifrost-http + qdrant + config"
+echo "  make package            packages all binaries to dist/personal/: desktop porcelain + bifrost-http + qdrant + config"
 echo
 echo "  make catalog-free                 fetch free tier models from pricing docs on web -> config/free-tier-catalog.snapshot.yaml"
 echo "  make catalog-available            GET BiFrost /v1/models -> config/catalog-available.snapshot.yaml"
@@ -20,8 +20,8 @@ echo "  make claudia-build      go build -o claudia ./cmd/claudia (headless; no 
 echo "  make claudia-run        go run ./cmd/claudia"
 echo
 echo "  make desktop-install    native deps for WebView + CGO (Debian/Ubuntu, macOS CLT, Windows hints)"
-echo "  make desktop-build      go build -tags desktop -> ./claudia-desktop[.exe] (CGO required)"
-echo "  make desktop-run        desktop-build if missing, then claudia-desktop (supervisor + UI; --headless for no window)"
+echo "  make desktop-build      go build -tags desktop -> ./porcelain[.exe] (CGO required)"
+echo "  make desktop-run        desktop-build if missing, then porcelain (supervisor + UI; --headless for no window)"
 echo
 echo "  make indexer-build      go build -o claudia-index[.exe] ./cmd/claudia-index (workspace file indexer; v0.2)"
 echo "  make indexer-run        go run ./cmd/claudia-index (pass flags via ARGS=...)"
@@ -49,10 +49,11 @@ echo "  make vet                vet-module + vet-desktop (omit desktop: SKIP_DES
 echo "  make vet-module         go vet ./..."
 echo "  make vet-desktop        go vet -tags desktop ./cmd/claudia (CGO)"
 echo
-echo "  make clean              remove claudia[.exe], claudia-desktop[.exe], dist/"
+echo "  make clean              remove launcher binaries + dist/"
 echo "  make clean-all          remove clean + bin/ + packaging/qdrant-bundles + packages + node_modules + .deps + run + logs (CONFIRM=1)"
 echo "  make clean-data         remove data/bifrost + data/qdrant + data/gateway (fresh BiFrost/Qdrant/metrics; needs CONFIRM=1)"
 echo
 echo "  make precommit          fmt-check, vet, test (SKIP_DESKTOP=1 skips desktop vet/test)"
 echo "  make bash               interactive bash (-il); Windows: Git for Windows bash"
 echo "  make tokencount-file    bytes + cl100k_base + o200k_base for FILE=path (go run tokencount -f)"
+

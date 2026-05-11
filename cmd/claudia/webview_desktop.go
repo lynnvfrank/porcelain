@@ -52,7 +52,7 @@ func runDesktopWebview(want bool, panelURL string, stopRoot context.CancelFunc, 
 		fmt.Fprintf(os.Stderr, "claudia desktop: claudiaRevealProjectPath bind: %v\n", err)
 	}
 
-	w.SetTitle("Claudia")
+	w.SetTitle("Porcelain")
 	w.SetSize(1024, 720, webview.HintNone)
 	w.Navigate(panelURL)
 	w.Dispatch(func() {

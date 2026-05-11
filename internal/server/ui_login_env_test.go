@@ -1,4 +1,4 @@
-package server
+﻿package server
 
 import (
 	"io"
@@ -92,7 +92,7 @@ func TestUILoginGET_badEnvTokenShowsLoginPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(b)
-	if !strings.Contains(s, "Claudia admin") {
+	if !strings.Contains(s, "Chimera admin") {
 		head := s
 		if len(head) > 200 {
 			head = head[:200]
@@ -190,3 +190,4 @@ func TestUILoginGET_unsetEnvDoesNotRedirect(t *testing.T) {
 		t.Fatalf("status %d", res.StatusCode)
 	}
 }
+
