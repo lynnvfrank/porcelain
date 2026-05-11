@@ -47,7 +47,7 @@ function copyConversationToClipboard(){
   currentMessages.forEach(function(m){
     var role=(m.role||'').toLowerCase();
     var content=(m.content||'').trim();
-    var label=role==='user'?getCurrentUserDisplayName():'Claudia';
+    var label=role==='user'?'You':'Claudia';
     lines.push(label+': '+content);
   });
   var text=lines.join('\n\n');
@@ -68,7 +68,7 @@ function exportConversationAsMarkdown(){
   currentMessages.forEach(function(m){
     var role=(m.role||'').toLowerCase();
     var content=(m.content||'').trim();
-    var label=role==='user'?getCurrentUserDisplayName():'Claudia';
+    var label=role==='user'?'You':'Claudia';
     lines.push('## '+label+'\n\n'+content+'\n');
   });
   var md=lines.join('\n');

@@ -1,12 +1,7 @@
 /* ── Elements ── */
 var sidebar=document.getElementById('sidebar'),sideOverlay=document.getElementById('sideOverlay');
 var sbList=document.getElementById('sbList'),sbSearch=document.getElementById('sbSearch'),sbNew=document.getElementById('sbNew');
-var userSelect=document.getElementById('userSelect');
-var avatarPicker=document.getElementById('avatarPicker');
-var avatarCustomUrl=document.getElementById('avatarCustomUrl');
-var avatarCustomBtn=document.getElementById('avatarCustomBtn');
 var currentUserAvatarUrl='/user_avatar.svg';
-var avatarCharacters=[];
 var menuBtn=document.getElementById('menuBtn');
 var chatArea=document.getElementById('chatArea'),typing=document.getElementById('typing'),generatingImage=document.getElementById('generatingImage');
 var roHint=document.getElementById('roHint'),msgInput=document.getElementById('msgInput'),sendBtn=document.getElementById('sendBtn');
@@ -16,10 +11,6 @@ var hdrName=document.getElementById('hdrName'),hdrSub=document.getElementById('h
 var hdrCopyExportWrap=document.getElementById('hdrCopyExportWrap'),hdrCopyExportBtn=document.getElementById('hdrCopyExportBtn'),hdrCopyExportDropdown=document.getElementById('hdrCopyExportDropdown');
 var copyConvoAction=document.getElementById('copyConvoAction'),exportConvoAction=document.getElementById('exportConvoAction');
 var forkConvoBtn=document.getElementById('forkConvoBtn');
-var userProfileWrap=document.getElementById('userProfileWrap');
-var userProfilePronouns=document.getElementById('userProfilePronouns');
-var userProfileAbout=document.getElementById('userProfileAbout');
-var userProfileSave=document.getElementById('userProfileSave');
 var appEl=document.getElementById('app');
 var tabBar=document.getElementById('tabBar');
 var roomPanel=document.getElementById('roomPanel');

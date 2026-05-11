@@ -189,7 +189,7 @@ function renderMessages(messages,ro,src,opts){
       var role=(m.role||'').toLowerCase();
       if(role!=='user'&&role!=='assistant')role='assistant';
       var sender=m.sender||(role==='assistant'?'claudia':'ruby');
-      var senderLabel=userDisplayNames[sender]||(sender==='claudia'?'Claudia':sender);
+      var senderLabel=sender==='claudia'?'Claudia':'You';
       var wrap=document.createElement('div');wrap.className='msg-wrap '+(role==='user'?'user':'assistant')+(isGroup?' group-msg':'')+(role==='assistant'&&m.style==='thinking'?' thinking-msg':'');
       if(isGroup){var senderRow=document.createElement('div');senderRow.className='msg-row msg-sender-row';senderRow.innerHTML='<span class="msg-sender-label">'+escapeHtml(senderLabel)+'</span>';wrap.appendChild(senderRow);}
       var row=document.createElement('div');row.className='msg-row';

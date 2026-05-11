@@ -672,56 +672,6 @@
     <div id="sbUserPanel" class="sb-user-panel" role="region" aria-label="User settings">
       <div class="sb-user-panel-inner">
         <div id="sbWorkspace" class="sb-workspace"><strong>Claudia Core</strong> · same workspace as your PC.</div>
-        <div class="sb-user-row" id="sbUserRow">
-          <label for="userSelect" class="sb-user-label">Chat as:</label>
-          <select id="userSelect" class="sb-user-select" aria-label="Who are you?">
-            <option value="ruby">Ruby</option>
-            <option value="lynn">Lynn</option>
-            <option value="raven">Raven</option>
-          </select>
-        </div>
-        <div class="sb-auth-row" id="sbAuthRow">
-          <button type="button" id="signInBtn" class="sb-auth-btn" style="display:none">Sign in</button>
-          <span id="signedInAs" class="sb-signed-in" style="display:none"></span>
-          <button type="button" id="signOutBtn" class="sb-auth-btn sb-auth-out" style="display:none">Sign out</button>
-        </div>
-        <div id="loginOverlay" class="login-overlay" aria-hidden="true" inert>
-          <div class="login-backdrop"></div>
-          <div class="login-card">
-            <h3 class="login-title">Sign in</h3>
-            <p class="login-hint">Use your name and password to load your workspace on this device.</p>
-            <form id="loginForm" class="login-form">
-              <input type="text" name="username" id="loginUsername" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;">
-              <label for="loginUser" class="login-label">Who are you?</label>
-              <select id="loginUser" class="login-select" required>
-                <option value="ruby">Ruby</option>
-                <option value="lynn">Lynn</option>
-                <option value="raven">Raven</option>
-              </select>
-              <label for="loginPassword" class="login-label">Password</label>
-              <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password" required>
-              <div class="login-actions">
-                <button type="button" id="loginCancel" class="login-btn login-cancel">Cancel</button>
-                <button type="submit" id="loginSubmit" class="login-btn login-submit">Sign in</button>
-              </div>
-            </form>
-            <p id="loginError" class="login-error" style="display:none"></p>
-          </div>
-        </div>
-        <div class="sb-avatar-picker-wrap" id="avatarPickerWrap">
-          <div class="sb-avatar-picker-label">Your look</div>
-          <div id="avatarPicker" class="sb-avatar-picker" role="listbox" aria-label="Pick your avatar"></div>
-          <div class="sb-avatar-custom-wrap" style="margin-top:6px">
-            <input type="url" id="avatarCustomUrl" class="sb-avatar-custom-input" placeholder="Or paste image URL..." autocomplete="off">
-            <button type="button" id="avatarCustomBtn" class="sb-avatar-custom-btn">Use</button>
-          </div>
-        </div>
-        <div id="userProfileWrap" class="sb-user-profile-wrap" style="display:none">
-          <div class="sb-user-profile-label">Pronouns &amp; about you (for Claudia)</div>
-          <input type="text" id="userProfilePronouns" class="sb-user-profile-input" placeholder="e.g. she/her" maxlength="80" aria-label="Pronouns">
-          <textarea id="userProfileAbout" class="sb-user-profile-textarea" placeholder="Short about you (e.g. Lynn, Ruby&#39;s mom, likes gardening)" rows="2" maxlength="500" aria-label="About you"></textarea>
-          <button type="button" id="userProfileSave" class="sb-user-profile-save">Save</button>
-        </div>
         <div class="sb-refresh-row" style="padding:10px 12px 8px;border-top:1px solid var(--border);flex-shrink:0">
           <button type="button" id="sbRefreshBtn" class="sb-refresh-btn" title="Refresh chat list" aria-label="Refresh chat list" style="width:100%;padding:8px 12px;font-size:13px;font-weight:600;color:var(--pink,#ff7ad9);background:rgba(255,122,217,.12);border:1px solid rgba(255,122,217,.3);border-radius:8px;cursor:pointer">Refresh chat list</button>
         </div>
