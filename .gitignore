@@ -41,3 +41,18 @@ temp/
 
 # Local agent/indexer state
 .claudia/
+
+# Local workspace tooling/state (developer machine only)
+.claude/
+.continue/
+.data/
+__pycache__/
+scripts/__pycache__/
+chat_indexer/
+chimera/
+Moto X/
+assets/bomb/
+assets/bucket tree flowers/
+assets/file/
+assets/horns/
+assets/pencil/
