@@ -148,8 +148,15 @@ func TestUILoginAndState(t *testing.T) {
 	if gw["virtual_model_id"] != "Claudia-0.1.0" {
 		t.Fatalf("gateway: %+v", gw)
 	}
-	if gw["continue_gateway_token"] != "gw-ui-secret" {
-		t.Fatalf("continue_gateway_token: %+v", gw["continue_gateway_token"])
+	ov, _ := gw["service_overview"].(map[string]any)
+	if ov == nil {
+		t.Fatalf("missing gateway.service_overview: %+v", gw)
+	}
+	if _, ok := ov["overall_state"].(string); !ok {
+		t.Fatalf("missing service_overview.overall_state: %+v", ov)
+	}
+	if _, ok := ov["refreshed_at"].(string); !ok {
+		t.Fatalf("missing service_overview.refreshed_at: %+v", ov)
 	}
 	prov, _ := st["providers"].(map[string]any)
 	groq, _ := prov["groq"].(map[string]any)
