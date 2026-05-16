@@ -158,6 +158,12 @@ func openPWAs() {
 		}
 	}
 
+	// Kill any existing Porcelain Edge app window so we always get a fresh load
+	exec.Command("powershell", "-Command",
+		`Get-Process msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like "*Porcelain*" } | Stop-Process -Force`,
+	).Run()
+	time.Sleep(500 * time.Millisecond)
+
 	// Poll Locus until ready (up to 30s), then open as frameless PWA window
 	locusURL := "http://127.0.0.1:11435/web"
 	deadline := time.Now().Add(30 * time.Second)
