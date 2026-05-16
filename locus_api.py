@@ -126,6 +126,12 @@ from pydantic import BaseModel
 # Single-person mode: no fixed user list, no auth
 DEFAULT_USER = ""
 
+# Multi-user session constants (Ruby, Lynn, Raven)
+ALLOWED_USERS = ("ruby", "lynn", "raven")
+SESSION_COOKIE_NAME = "locus_session"
+SESSION_SECRET = os.environ.get("LOCUS_SESSION_SECRET", "locus-default-secret-change-me")
+SESSION_MAX_AGE_DAYS = 30
+
 
 def _load_auth() -> dict:
     """Load { user_id: password_hash } from .data/user_auth.json."""
