@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -145,10 +146,16 @@ func startAllServices(repoRoot string) []Service {
 }
 
 func openLocusPWA() {
-	// Wait for Locus to be ready before opening
-	time.Sleep(4 * time.Second)
-
+	// Poll Locus until it responds (up to 30s)
 	locusURL := "http://127.0.0.1:11435/web"
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		if resp, err := http.Get(locusURL); err == nil {
+			resp.Body.Close()
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 
 	// Try Edge first (supports --app= mode for frameless PWA window)
 	edgePaths := []string{
