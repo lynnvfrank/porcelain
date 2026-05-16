@@ -426,10 +426,6 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 			"refreshed_at": time.Now().UTC().Format(time.RFC3339),
 		},
 	}
-	if c, err := r.Cookie(a.cookieName()); err == nil && c.Value != "" {
-		if tok := a.opts.Sessions.GatewayToken(c.Value); tok != "" {
-			gwOut["continue_gateway_token"] = tok
-		}
 	gwOut["indexer_supervised_config_path"] = res.IndexerSupervisedConfigPath
 	gwOut["indexer_supervised_enabled"] = res.IndexerSupervisedEnabled
 	gwOut["operator_sqlite_path"] = res.OperatorSQLitePath
