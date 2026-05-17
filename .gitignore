@@ -30,5 +30,11 @@ locus/bin/
 
 # Third-party binaries and sources (BiFrost, Qdrant)
 .deps/
+chimera/.deps/
+
+# Chimera and locus configuration and runtime state (launch lock/metadata, lifecycle events)
 /data/
 /run/
+locus/run/
+chimera/run/
+run/

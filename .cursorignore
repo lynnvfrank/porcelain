@@ -6,6 +6,11 @@
 .deps/
 chimera/.deps/
 
+# runtime state — same as .gitignore
+# locus/run/
+# chimera/run/
+# run/
+
 # Common secret file patterns
 **/*secret*
 **/*secrets*
