@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/lynn/porcelain/internal/platform/requestid"
 	"github.com/lynn/porcelain/chimera/internal/tokens"
+	"github.com/lynn/porcelain/internal/platform/requestid"
 )
 
 // NewBootstrapMux serves only the first-run setup surface (loopback-only in production).

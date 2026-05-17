@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lynn/porcelain/chimera/internal/operatorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 
 	_ "modernc.org/sqlite"
 )

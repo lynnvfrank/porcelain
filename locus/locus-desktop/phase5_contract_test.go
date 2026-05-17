@@ -148,4 +148,3 @@ func TestRecordLifecycleEvent_WritesJSONL(t *testing.T) {
 		t.Fatalf("expected launch state in event log: %s", s)
 	}
 }
-

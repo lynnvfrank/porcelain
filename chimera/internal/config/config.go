@@ -15,14 +15,14 @@ import (
 
 // Resolved matches TypeScript ResolvedGatewayConfig (src/config.ts).
 type Resolved struct {
-	Semver            string
-	VirtualModelID    string
-	ListenPort        int
-	ListenHost        string
-	LogLevel          string
-	ChimeraBrokerLogLevel   string // supervised chimera-broker-http -log-level (upstream.chimera_broker_log_level); `-chimera-broker-log-level` overrides when non-empty.
-	UpstreamBaseURL   string
-	UpstreamAPIKeyEnv string
+	Semver                string
+	VirtualModelID        string
+	ListenPort            int
+	ListenHost            string
+	LogLevel              string
+	ChimeraBrokerLogLevel string // supervised chimera-broker-http -log-level (upstream.chimera_broker_log_level); `-chimera-broker-log-level` overrides when non-empty.
+	UpstreamBaseURL       string
+	UpstreamAPIKeyEnv     string
 	// UpstreamAPIKey is the Bearer token from gateway.yaml (upstream.api_key). Non-empty process env named by UpstreamAPIKeyEnv overrides at runtime.
 	UpstreamAPIKey    string
 	HealthUpstreamURL string
@@ -111,9 +111,9 @@ func (r *Resolved) WitnessSampleMaxRunes() int {
 }
 
 type upstreamBlock struct {
-	BaseURL         string `yaml:"base_url"`
-	APIKeyEnv       string `yaml:"api_key_env"`
-	APIKey          string `yaml:"api_key"`
+	BaseURL               string `yaml:"base_url"`
+	APIKeyEnv             string `yaml:"api_key_env"`
+	APIKey                string `yaml:"api_key"`
 	ChimeraBrokerLogLevel string `yaml:"chimera_broker_log_level"`
 }
 
@@ -420,7 +420,7 @@ func LoadGatewayYAML(filePath string, log *slog.Logger) (*Resolved, error) {
 		ListenPort:                            listenPort,
 		ListenHost:                            listenHost,
 		LogLevel:                              logLevel,
-		ChimeraBrokerLogLevel:                       chimeraBrokerLogLevel,
+		ChimeraBrokerLogLevel:                 chimeraBrokerLogLevel,
 		UpstreamBaseURL:                       upBase,
 		UpstreamAPIKeyEnv:                     apiKeyEnv,
 		UpstreamAPIKey:                        apiKey,

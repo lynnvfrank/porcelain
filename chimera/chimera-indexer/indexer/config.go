@@ -1,7 +1,6 @@
 // Package indexer implements the workspace file indexer for Chimera.
 //
 // Scope per docs/plans/indexer.plan.md:
-//
 package indexer
 
 import (

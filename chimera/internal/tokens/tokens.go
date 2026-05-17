@@ -158,4 +158,3 @@ func rowIsValidSecret(secret, tenantID string) bool {
 func canonicalCredentialPath(path string) string {
 	return strings.TrimSpace(path)
 }
-

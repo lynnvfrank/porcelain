@@ -411,11 +411,13 @@ catalog-calculate: catalog-available
 # 	$(GITBASH) scripts/package.sh "$(LOCUS_DESKTOP_BIN)"
 
 # --- Quality gates ---
+FMT_DIRS := chimera locus internal
+
 fmt:
-	gofmt -w cmd internal
+	gofmt -w $(FMT_DIRS)
 
 fmt-check:
-	$(GITBASH) scripts/fmt-check.sh
+	$(GITBASH) scripts/fmt-check.sh $(FMT_DIRS)
 
 vet:
 	go vet ./...

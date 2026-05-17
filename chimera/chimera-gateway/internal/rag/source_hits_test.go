@@ -3,7 +3,7 @@ package rag
 import (
 	"testing"
 
-	"github.com/lynn/porcelain/chimera/internal/vectorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 )
 
 func TestHitsBySourceCount(t *testing.T) {

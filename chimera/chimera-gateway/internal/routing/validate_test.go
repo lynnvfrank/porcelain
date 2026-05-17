@@ -3,7 +3,7 @@ package routing
 import (
 	"testing"
 
-	"github.com/lynn/porcelain/chimera/internal/routinggen"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routinggen"
 )
 
 func TestValidatePolicyYAML_generated(t *testing.T) {

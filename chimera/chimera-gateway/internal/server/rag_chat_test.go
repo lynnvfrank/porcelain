@@ -12,9 +12,9 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 	"github.com/lynn/porcelain/internal/platform/requestid"
-	"github.com/lynn/porcelain/chimera/internal/rag"
-	"github.com/lynn/porcelain/chimera/internal/vectorstore"
 )
 
 // setupRAGChatServer wires a runtime where:

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lynn/porcelain/chimera/internal/vectorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 )
 
 func TestLastUserText_String(t *testing.T) {

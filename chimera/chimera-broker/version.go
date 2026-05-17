@@ -6,4 +6,3 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
-

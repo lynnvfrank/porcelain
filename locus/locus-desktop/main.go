@@ -53,19 +53,19 @@ type launchMetadata struct {
 type desktopLifecycleState string
 
 const (
-	desktopStateInit                desktopLifecycleState = "desktop.init"
-	desktopStateAttachAttempt       desktopLifecycleState = "desktop.attach.attempt"
-	desktopStateAttachSuccess       desktopLifecycleState = "desktop.attach.success"
-	desktopStateLaunchAttempt       desktopLifecycleState = "desktop.launch.attempt"
-	desktopStateLaunchSuccess       desktopLifecycleState = "desktop.launch.success"
-	desktopStateLivenessWait        desktopLifecycleState = "desktop.liveness.wait"
-	desktopStateLivenessTimeout     desktopLifecycleState = "desktop.liveness.timeout"
-	desktopStateReadinessWait       desktopLifecycleState = "desktop.readiness.wait"
-	desktopStateReadinessTimeout    desktopLifecycleState = "desktop.readiness.timeout"
-	desktopStateEntryResolved       desktopLifecycleState = "desktop.entry.resolved"
+	desktopStateInit                 desktopLifecycleState = "desktop.init"
+	desktopStateAttachAttempt        desktopLifecycleState = "desktop.attach.attempt"
+	desktopStateAttachSuccess        desktopLifecycleState = "desktop.attach.success"
+	desktopStateLaunchAttempt        desktopLifecycleState = "desktop.launch.attempt"
+	desktopStateLaunchSuccess        desktopLifecycleState = "desktop.launch.success"
+	desktopStateLivenessWait         desktopLifecycleState = "desktop.liveness.wait"
+	desktopStateLivenessTimeout      desktopLifecycleState = "desktop.liveness.timeout"
+	desktopStateReadinessWait        desktopLifecycleState = "desktop.readiness.wait"
+	desktopStateReadinessTimeout     desktopLifecycleState = "desktop.readiness.timeout"
+	desktopStateEntryResolved        desktopLifecycleState = "desktop.entry.resolved"
 	desktopStateUnreachableDisplayed desktopLifecycleState = "desktop.unreachable.displayed"
-	desktopStateRuntimeLost         desktopLifecycleState = "desktop.runtime.lost"
-	desktopStateShutdown            desktopLifecycleState = "desktop.shutdown"
+	desktopStateRuntimeLost          desktopLifecycleState = "desktop.runtime.lost"
+	desktopStateShutdown             desktopLifecycleState = "desktop.shutdown"
 )
 
 func main() {
@@ -143,94 +143,94 @@ func runDesktopLauncher(args []string, openWebview bool) {
 				SupervisorOwned: false,
 			})
 		} else {
-		bin, err := resolveLauncherSupervisorBinary()
-		if err != nil {
-			recordLaunchMetadata(runtimeRoot, launchMetadata{
-				TimestampUTC:    time.Now().UTC().Format(time.RFC3339Nano),
-				Mode:            launchModeLaunchFailed,
-				BaseURL:         baseURL,
-				SupervisorOwned: false,
-				Error:           "resolve chimera-supervisor: " + err.Error(),
+			bin, err := resolveLauncherSupervisorBinary()
+			if err != nil {
+				recordLaunchMetadata(runtimeRoot, launchMetadata{
+					TimestampUTC:    time.Now().UTC().Format(time.RFC3339Nano),
+					Mode:            launchModeLaunchFailed,
+					BaseURL:         baseURL,
+					SupervisorOwned: false,
+					Error:           "resolve chimera-supervisor: " + err.Error(),
+				})
+				fmt.Fprintf(os.Stderr, "locus-desktop: resolve chimera-supervisor: %v\n", err)
+				os.Exit(1)
+			}
+			recordLifecycleEvent(runtimeRoot, desktopStateLaunchAttempt, "starting owned supervisor", map[string]any{
+				"supervisor_bin": bin,
+				"log_dir":        logDir,
 			})
-			fmt.Fprintf(os.Stderr, "locus-desktop: resolve chimera-supervisor: %v\n", err)
-			os.Exit(1)
-		}
-		recordLifecycleEvent(runtimeRoot, desktopStateLaunchAttempt, "starting owned supervisor", map[string]any{
-			"supervisor_bin": bin,
-			"log_dir":        logDir,
-		})
-		supervisorLogFile, err = openSupervisorLogFile(logDir)
-		if err != nil {
+			supervisorLogFile, err = openSupervisorLogFile(logDir)
+			if err != nil {
+				recordLaunchMetadata(runtimeRoot, launchMetadata{
+					TimestampUTC:       time.Now().UTC().Format(time.RFC3339Nano),
+					Mode:               launchModeLaunchFailed,
+					BaseURL:            baseURL,
+					SupervisorBin:      bin,
+					SupervisorOwned:    false,
+					SupervisorWorkDir:  runtimeRoot,
+					LaunchArgsRedacted: redactLaunchArgs(launchArgs),
+					Error:              "open supervisor log file: " + err.Error(),
+				})
+				fmt.Fprintf(os.Stderr, "locus-desktop: open supervisor log file: %v\n", err)
+				os.Exit(1)
+			}
+			ownedSupervisor = exec.Command(bin, launchArgs...)
+			ownedSupervisor.Dir = runtimeRoot
+			ownedSupervisor.Stdout = supervisorLogFile
+			ownedSupervisor.Stderr = supervisorLogFile
+			if err := ownedSupervisor.Start(); err != nil {
+				recordLaunchMetadata(runtimeRoot, launchMetadata{
+					TimestampUTC:       time.Now().UTC().Format(time.RFC3339Nano),
+					Mode:               launchModeLaunchFailed,
+					BaseURL:            baseURL,
+					SupervisorBin:      bin,
+					SupervisorOwned:    false,
+					SupervisorWorkDir:  ownedSupervisor.Dir,
+					SupervisorLogPath:  supervisorLogFile.Name(),
+					LaunchArgsRedacted: redactLaunchArgs(launchArgs),
+					Error:              "start chimera-supervisor: " + err.Error(),
+				})
+				fmt.Fprintf(os.Stderr, "locus-desktop: start chimera-supervisor: %v\n", err)
+				os.Exit(1)
+			}
+			owned = true
+			recordLifecycleEvent(runtimeRoot, desktopStateLaunchSuccess, "owned supervisor started", map[string]any{
+				"supervisor_pid": ownedSupervisor.Process.Pid,
+			})
 			recordLaunchMetadata(runtimeRoot, launchMetadata{
 				TimestampUTC:       time.Now().UTC().Format(time.RFC3339Nano),
-				Mode:               launchModeLaunchFailed,
+				Mode:               launchModeLaunchOwned,
 				BaseURL:            baseURL,
 				SupervisorBin:      bin,
-				SupervisorOwned:    false,
-				SupervisorWorkDir:  runtimeRoot,
-				LaunchArgsRedacted: redactLaunchArgs(launchArgs),
-				Error:              "open supervisor log file: " + err.Error(),
-			})
-			fmt.Fprintf(os.Stderr, "locus-desktop: open supervisor log file: %v\n", err)
-			os.Exit(1)
-		}
-		ownedSupervisor = exec.Command(bin, launchArgs...)
-		ownedSupervisor.Dir = runtimeRoot
-		ownedSupervisor.Stdout = supervisorLogFile
-		ownedSupervisor.Stderr = supervisorLogFile
-		if err := ownedSupervisor.Start(); err != nil {
-			recordLaunchMetadata(runtimeRoot, launchMetadata{
-				TimestampUTC:       time.Now().UTC().Format(time.RFC3339Nano),
-				Mode:               launchModeLaunchFailed,
-				BaseURL:            baseURL,
-				SupervisorBin:      bin,
-				SupervisorOwned:    false,
+				SupervisorOwned:    true,
+				SupervisorPID:      ownedSupervisor.Process.Pid,
 				SupervisorWorkDir:  ownedSupervisor.Dir,
 				SupervisorLogPath:  supervisorLogFile.Name(),
 				LaunchArgsRedacted: redactLaunchArgs(launchArgs),
-				Error:              "start chimera-supervisor: " + err.Error(),
 			})
-			fmt.Fprintf(os.Stderr, "locus-desktop: start chimera-supervisor: %v\n", err)
-			os.Exit(1)
+			recordLifecycleEvent(runtimeRoot, desktopStateLivenessWait, "waiting for supervisor liveness", map[string]any{
+				"timeout_ms": desktopAttachStartupTimeout.Milliseconds(),
+			})
+			if !waitForSupervisorAttach(baseURL, desktopAttachStartupTimeout) {
+				_ = stopOwnedDesktopSupervisor(ownedSupervisor)
+				recordLifecycleEvent(runtimeRoot, desktopStateLivenessTimeout, "supervisor liveness timeout", map[string]any{
+					"base_url": baseURL,
+				})
+				recordLaunchMetadata(runtimeRoot, launchMetadata{
+					TimestampUTC:       time.Now().UTC().Format(time.RFC3339Nano),
+					Mode:               launchModeLaunchFailed,
+					BaseURL:            baseURL,
+					SupervisorBin:      bin,
+					SupervisorOwned:    false,
+					SupervisorWorkDir:  ownedSupervisor.Dir,
+					SupervisorLogPath:  supervisorLogFile.Name(),
+					LaunchArgsRedacted: redactLaunchArgs(launchArgs),
+					Error:              "timed out waiting for chimera-supervisor",
+				})
+				showUnreachableOrExit(openWebview, baseURL, true, "Timed out waiting for chimera-supervisor startup", rootCtx, stopRoot, runtimeRoot)
+				return
+			}
 		}
-		owned = true
-		recordLifecycleEvent(runtimeRoot, desktopStateLaunchSuccess, "owned supervisor started", map[string]any{
-			"supervisor_pid": ownedSupervisor.Process.Pid,
-		})
-		recordLaunchMetadata(runtimeRoot, launchMetadata{
-			TimestampUTC:       time.Now().UTC().Format(time.RFC3339Nano),
-			Mode:               launchModeLaunchOwned,
-			BaseURL:            baseURL,
-			SupervisorBin:      bin,
-			SupervisorOwned:    true,
-			SupervisorPID:      ownedSupervisor.Process.Pid,
-			SupervisorWorkDir:  ownedSupervisor.Dir,
-			SupervisorLogPath:  supervisorLogFile.Name(),
-			LaunchArgsRedacted: redactLaunchArgs(launchArgs),
-		})
-		recordLifecycleEvent(runtimeRoot, desktopStateLivenessWait, "waiting for supervisor liveness", map[string]any{
-			"timeout_ms": desktopAttachStartupTimeout.Milliseconds(),
-		})
-		if !waitForSupervisorAttach(baseURL, desktopAttachStartupTimeout) {
-			_ = stopOwnedDesktopSupervisor(ownedSupervisor)
-			recordLifecycleEvent(runtimeRoot, desktopStateLivenessTimeout, "supervisor liveness timeout", map[string]any{
-				"base_url": baseURL,
-			})
-			recordLaunchMetadata(runtimeRoot, launchMetadata{
-				TimestampUTC:       time.Now().UTC().Format(time.RFC3339Nano),
-				Mode:               launchModeLaunchFailed,
-				BaseURL:            baseURL,
-				SupervisorBin:      bin,
-				SupervisorOwned:    false,
-				SupervisorWorkDir:  ownedSupervisor.Dir,
-				SupervisorLogPath:  supervisorLogFile.Name(),
-				LaunchArgsRedacted: redactLaunchArgs(launchArgs),
-				Error:              "timed out waiting for chimera-supervisor",
-			})
-			showUnreachableOrExit(openWebview, baseURL, true, "Timed out waiting for chimera-supervisor startup", rootCtx, stopRoot, runtimeRoot)
-			return
-		}
-	}
 	}
 	if !owned {
 		recordLifecycleEvent(runtimeRoot, desktopStateAttachSuccess, "attached to existing supervisor", map[string]any{

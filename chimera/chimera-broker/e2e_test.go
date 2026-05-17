@@ -19,9 +19,9 @@ import (
 )
 
 var (
-	buildOnce          sync.Once
-	buildErr           error
-	brokerBinPath      string
+	buildOnce                sync.Once
+	buildErr                 error
+	brokerBinPath            string
 	fakeChimeraBrokerBinPath string
 )
 

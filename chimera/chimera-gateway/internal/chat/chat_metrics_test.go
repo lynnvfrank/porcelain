@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lynn/porcelain/chimera/chimera-gateway/gatewaymetrics"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gatewaymetrics"
 )
 
 func testMigrationsDir(t *testing.T) string {

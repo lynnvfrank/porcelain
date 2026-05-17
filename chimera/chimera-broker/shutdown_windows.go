@@ -10,4 +10,3 @@ func sendGracefulTerminate(p *os.Process) error {
 	}
 	return p.Kill()
 }
-

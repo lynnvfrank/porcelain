@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/internal/config"
-	"github.com/lynn/porcelain/chimera/internal/operatorstore"
 
 	_ "modernc.org/sqlite"
 )

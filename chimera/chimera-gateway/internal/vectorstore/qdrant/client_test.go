@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/lynn/porcelain/chimera/internal/vectorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 )
 
 // fakeQdrant is a tiny stub of the routes used by Client.

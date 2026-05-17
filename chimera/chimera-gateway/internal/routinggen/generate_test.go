@@ -3,8 +3,8 @@ package routinggen
 import (
 	"testing"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routing"
 	"github.com/lynn/porcelain/chimera/internal/providerlimits"
-	"github.com/lynn/porcelain/chimera/internal/routing"
 )
 
 func TestExtractCatalogModelIDs(t *testing.T) {

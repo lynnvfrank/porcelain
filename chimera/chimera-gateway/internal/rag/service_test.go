@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/lynn/porcelain/chimera/internal/vectorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 )
 
 // fakeStore is a minimal in-memory vectorstore.Store.

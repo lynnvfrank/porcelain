@@ -112,7 +112,7 @@ func TestUILogsPoll_returnsLinesAfterSince(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("status %d", res.StatusCode)
 	}
-	var body logsPollResponse
+	var body servicelogs.PollResponse
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestUILogsPoll_returnsLinesAfterSince(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer res2.Body.Close()
-	var body2 logsPollResponse
+	var body2 servicelogs.PollResponse
 	if err := json.NewDecoder(res2.Body).Decode(&body2); err != nil {
 		t.Fatal(err)
 	}
@@ -173,7 +173,7 @@ func TestUILogsPoll_limitReturnsTailWhenSinceZero(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("status %d", res.StatusCode)
 	}
-	var body logsPollResponse
+	var body servicelogs.PollResponse
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +221,7 @@ func TestUILogsPoll_beforeSeq_returnsOlderChunk(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Fatalf("status %d", res.StatusCode)
 	}
-	var body logsPollResponse
+	var body servicelogs.PollResponse
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}

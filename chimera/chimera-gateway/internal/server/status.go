@@ -44,12 +44,12 @@ func handleStatus(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	if overlay != nil && overlay.Supervisor != nil {
 		s := overlay.Supervisor
 		sup = map[string]any{
-			"active":              true,
-			"chimera_broker_listen":      s.BifrostListen,
-			"qdrant_supervised":   s.QdrantSupervised,
-			"qdrant_http":         s.QdrantHTTP,
-			"indexer_supervised":  s.IndexerSupervised,
-			"indexer_config_path": s.IndexerConfigPath,
+			"active":                true,
+			"chimera_broker_listen": s.BifrostListen,
+			"qdrant_supervised":     s.QdrantSupervised,
+			"qdrant_http":           s.QdrantHTTP,
+			"indexer_supervised":    s.IndexerSupervised,
+			"indexer_config_path":   s.IndexerConfigPath,
 		}
 	}
 

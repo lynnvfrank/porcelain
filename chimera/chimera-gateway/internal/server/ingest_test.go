@@ -20,8 +20,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/lynn/porcelain/chimera/internal/rag"
-	"github.com/lynn/porcelain/chimera/internal/vectorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 )
 
 // inMemoryStore is a minimal vectorstore.Store for handler integration tests.

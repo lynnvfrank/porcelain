@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lynn/porcelain/chimera/internal/rag"
-	"github.com/lynn/porcelain/chimera/internal/vectorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 )
 
 func TestIndexerConfig_HappyPath(t *testing.T) {

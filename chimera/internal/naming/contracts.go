@@ -14,11 +14,11 @@ const (
 	TargetHeaderPrefix = "X-Chimera"
 
 	// Environment-variable contracts.
-	EnvGatewayConfigTarget  = "CHIMERA_GATEWAY_CONFIG"
-	EnvUpstreamAPIKeyTarget = "CHIMERA_UPSTREAM_API_KEY"
-	EnvGatewayURLTarget     = "CHIMERA_GATEWAY_URL"
-	EnvGatewayTokenTarget          = "CHIMERA_GATEWAY_TOKEN"
-	EnvSupervisorControlURLTarget  = "CHIMERA_SUPERVISOR_CONTROL_URL"
+	EnvGatewayConfigTarget        = "CHIMERA_GATEWAY_CONFIG"
+	EnvUpstreamAPIKeyTarget       = "CHIMERA_UPSTREAM_API_KEY"
+	EnvGatewayURLTarget           = "CHIMERA_GATEWAY_URL"
+	EnvGatewayTokenTarget         = "CHIMERA_GATEWAY_TOKEN"
+	EnvSupervisorControlURLTarget = "CHIMERA_SUPERVISOR_CONTROL_URL"
 
 	// Header contracts.
 	HeaderProjectTarget                 = "X-Chimera-Project"
