@@ -38,7 +38,7 @@ except ImportError:
 RELAY_PORT = int(os.environ.get("LOCUS_RELAY_PORT", "9999"))
 RELAY_TOKEN = os.environ.get("LOCUS_RELAY_TOKEN", "")  # Generated at startup
 LOCUS_HOST = "127.0.0.1"
-LOCUS_PORT = int(os.environ.get("CLAUDIA_PWA_PORT", "11435"))
+LOCUS_PORT = int(os.environ.get("LOCUS_PORT", "11435"))
 
 # Track active relay sessions
 ACTIVE_SESSIONS: Dict[str, asyncio.StreamWriter] = {}

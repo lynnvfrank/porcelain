@@ -1,51 +1,21 @@
 ﻿"""
-Locus: creative workspace server (part of Porcelain). HTTP API so mobile clients can talk with memory search â€” not raw Ollama.
-Run from project root:
+Locus: creative workspace API (part of Porcelain). Runs on port 11435.
+Start from project root: python locus_api.py
 
-  python locus_api.py
+All AI chat goes through Chimera (gateway on port 3000) → BiFrost (port 8080) → local/cloud model.
+Set LOCUS_GATEWAY_URL, LOCUS_GATEWAY_TOKEN, LOCUS_GATEWAY_VIRTUAL_MODEL in .env to configure.
 
-When port 11435 is forwarded, set CHIMERA_ACCESS_TOKEN (or LOCUS_ACCESS_TOKEN) so the server requires X-Vibe-Token (or Bearer).
-Put the token in (1) a .env file in project root: CHIMERA_ACCESS_TOKEN=your-long-random-token (pip install python-dotenv),
-or (2) set it in the environment before running.
-Share the same value with friends; they enter it once in the PWA.
-
-Set your phone app's server URL to http://<this-PC-IP>:11435 or https://... (e.g. your PC's local IP on same Wi-Fi, or tunnel URL when away).
-Port 11435 is for Locus; 11434 is still raw Ollama.
-
-Endpoints:
-  Ollama-compatible:
-    GET  /api/tags              -> list "models" (one: locus)
-    POST /api/chat              -> messages[] -> orchestrator (search + Ollama) -> assistant reply
-
-  OpenAI-compatible (for apps that hit /v1/...):
-    GET  /v1/models             -> list models (locus)
-    POST /v1/chat/completions   -> OpenAI-style chat completion API
-
-  Conversation store (tabs + persistent history for /web; see Documentation/Claudia/MOBILE_APP_SYNC.md):
-    GET  /conversations         -> list conversations (id, title, created_at, updated_at)
-    GET  /conversations/{id}    -> get one conversation with messages
-    POST /conversations         -> create new conversation
-    POST /conversations/{id}/messages -> send message, get reply, append both; body: { "content": "..." }
-
-  Continue (VS Code) read-only â€” show VS Code chats on phone:
-    GET  /continue/conversations     -> list Continue sessions (id, title, updated_at, source: "continue")
-    GET  /continue/conversations/{id}  -> get one session's messages (read-only)
-  Grok + Cursor read-only â€” show Grok export and Cursor chats on phone:
-    GET  /grok/conversations         -> list Grok conversations (from Data_Sources/Grok_Export/conversations)
-    GET  /grok/conversations/{id}    -> get one Grok conversation (read-only)
-    GET  /cursor/conversations       -> list Cursor sidebar + composer chats (this workspace)
-    GET  /cursor/conversations/{id}  -> get one Cursor conversation (read-only; id = tab_* or composer_*)
-
-  Mobile/PWA tools: calendar (today, upcoming, search events), Gmail search, journal by date, weather, web search, fetch_url, SVGâ†’PNG.
-  (e.g. "what's on today?", "check my email", "journal for March 5", "Winona weather?", pasted URL). Same tools as Continue where applicable; results injected into the prompt. Set LOCUS_MODEL=qwen3:30b-a3b for same model as Continue.
-  POST /api/convert/svg-to-png  -> body {"path": "assets/girl/icon.svg"} for explicit convert (e.g. from Files "Convert to PNG").
-  POST /plan/append             -> body {"target": "project_plan_recent"|"backlog", "text": "...", "section": "optional"} â€” add one line to PROJECT_PLAN Recent Updates or webapp backlog.
-
-  Room view (Minecraft bedroom + Claudia Johnny Castawayâ€“style, for Moto X / PWA):
-    GET  /room           -> room view page (2D bedroom, Claudia sprite, touch zones)
-    GET  /room/state     -> room state (canonical or from GDMC when available)
-    GET  /room/locus   -> current Claudia state (animation, position, optional idle line)
-    POST /room/interact  -> touch/gesture: boop, comb_hair, pet, tap_to_wake, wave, fist_bump, hug
+Key endpoints:
+  GET  /                         -> service info
+  GET  /web                      -> Locus PWA (the main UI)
+  POST /conversations/{id}/messages -> send a message, get an AI reply
+  GET  /conversations            -> list all saved conversations
+  POST /v1/chat/completions      -> OpenAI-compatible chat API
+  POST /api/chat                 -> Ollama-compatible chat API
+  GET  /continue/conversations   -> VS Code Continue chat history (read-only)
+  GET  /grok/conversations       -> Grok export history (read-only)
+  GET  /cursor/conversations     -> Cursor chat history (read-only)
+  POST /plan/append              -> append to project plan
 """
 import asyncio
 import os
@@ -126,12 +96,10 @@ DEFAULT_USER = ""
 
 
 def get_current_user(
-    request: Request,
     x_user: str | None = Header(None, alias="X-User"),
 ) -> str:
-    """Resolve current user from X-User header; fallback to DEFAULT_USER."""
-    raw = (x_user or request.query_params.get("user", "")).strip()
-    return raw if raw else DEFAULT_USER
+    """Single-user mode: always returns DEFAULT_USER (empty string). X-User header accepted for future multi-user support."""
+    return (x_user or "").strip() or DEFAULT_USER
 
 
 def get_user_display_name(user_id: str) -> str:
@@ -142,14 +110,13 @@ from export_conversation_log import append_exchange_to_log
 from paths_config import GROK_CONVERSATIONS
 from plan_tools import add_to_project_plan_recent as _add_to_project_plan_recent, add_to_backlog as _add_to_backlog
 
-# Conversation store for /web tabs and persistent history (see Documentation/Claudia/MOBILE_APP_SYNC.md)
+# Conversation store for /web tabs and persistent history
 STORE_DIR = PROJECT_ROOT / ".data"
 STORE_FILE = STORE_DIR / "mobile_conversations.json"
 ENGAGEMENT_FILE = STORE_DIR / "engagement.json"
-GROUP_CHAT_FILE = STORE_DIR / "group_chat.json"  # Single shared group: Ruby, Lynn, Raven, Claudia
-GROUP_CHAT_ARCHIVE_FILE = STORE_DIR / "group_chat_archive.json"  # list of archived threads when everyone votes for fresh start
-GROUP_CHAT_VOTERS = ("ruby", "lynn", "raven", "locus")  # all four must vote to start a new group chat
-AUTH_FILE = STORE_DIR / "user_auth.json"
+GROUP_CHAT_FILE = STORE_DIR / "group_chat.json"
+GROUP_CHAT_ARCHIVE_FILE = STORE_DIR / "group_chat_archive.json"
+GROUP_CHAT_VOTERS = ("ruby", "lynn", "raven", "locus")  # everyone in the chat must vote to start a new thread
 _engagement_lock = threading.Lock()  # serialize read/write on Windows to avoid PermissionError on replace
 RETURN_THRESHOLD = 4  # suggest "Mark as important?" after this many opens (less sensitive; was 2)
 
@@ -158,9 +125,9 @@ PHONE_PHOTOS_DIR = PROJECT_ROOT / "Journal_Database" / "Phone_Photos"
 
 # Dashboard (journal, quick facts, reminders) hidden from webapp for now; angel/demon game is a separate tab.
 DASHBOARD_OFF = os.environ.get("DASHBOARD_OFF", "1").strip().lower() in ("1", "true", "yes", "on")
-# Games (angel/demon + Minecraft Room) â€” set True to hide from webapp so Ruby can work on them separately. Default ON = hidden.
+# Games (angel/demon + Minecraft Room) — set True to hide from webapp so Ruby can work on them separately. Default ON = hidden.
 GAMES_OFF = os.environ.get("GAMES_OFF", "1").strip().lower() in ("1", "true", "yes", "on")
-# Discord bot â€” set True to skip loading (everyone uses PWA)
+# Discord bot — set True to skip loading (everyone uses PWA)
 DISCORD_OFF = True
 JOURNALS_DIR = PROJECT_ROOT / "Journal_Database" / "Journals"
 QUICK_FACTS_PATH = STORE_DIR / "locus_quick_facts.md"
@@ -181,7 +148,7 @@ AVATAR_STORE_FILE = STORE_DIR / "user_avatars.json"
 # Per-user pronouns and optional "about me" for Lynn/Raven (injected into system prompt when they chat)
 USER_PROFILES_FILE = STORE_DIR / "user_profiles.json"
 DICEBEAR_BASE = "https://api.dicebear.com/9.x"
-# Canonical Ruby & Hahli (user avatar) â€” first so it's the default when nothing is set
+# Canonical Ruby & Hahli (user avatar) — first so it's the default when nothing is set
 RUBY_HAHLI_CHARACTER = {"id": "ruby_hahli", "name": "Ruby & Hahli", "avatarUrl": "/user_avatar.svg"}
 DEFAULT_CHARACTERS = [
     {"id": "blossom", "name": "Blossom", "avatarUrl": f"{DICEBEAR_BASE}/lorelei/svg?seed=blossom"},
@@ -349,7 +316,7 @@ def _get_user_profile(user_id: str) -> dict:
 
 
 def _sparkline_from_messages(messages: list, num_buckets: int = 10, max_messages: int = 100) -> list[int]:
-    """Bucket last N messages by position into num_buckets counts; normalize to 0â€“10 for bar height."""
+    """Bucket last N messages by position into num_buckets counts; normalize to 0—10 for bar height."""
     if not messages:
         return [0] * num_buckets
     recent = messages[-max_messages:]
@@ -597,7 +564,7 @@ def _run_mobile_tools(message: str) -> str | None:
             results.append(f"[web_search]\n{web_search(query, num=6)}")
         except Exception as e:
             results.append(f"[web_search failed] {e}")
-    # --- SVG â†’ PNG via Inkscape ---
+    # --- SVG â†' PNG via Inkscape ---
     convert_triggers = ("convert", "export", "turn .svg into", "svg to png")
     if any(t in msg for t in convert_triggers) and ".svg" in message:
         path_match = re.search(r"[\w./\\\-]+\.svg", message, re.IGNORECASE)
@@ -757,7 +724,7 @@ def _generate_followup_suggestions(assistant_reply: str, mode: str | None) -> li
     system = (
         "You output exactly 4 short follow-up options that a user could tap to reply to the assistant's message. "
         "Each option must be a direct, specific response to what the assistant just said (e.g. a question they asked, a topic they mentioned). "
-        "Keep each to 2â€“6 words; no quotes or numbering. Output only the 4 lines, one per line, nothing else."
+        "Keep each to 2-6 words; no quotes or numbering. Output only the 4 lines, one per line, nothing else."
     )
     user = f"Assistant just said:\n\n{text}\n\nOutput exactly 4 short follow-up options (one per line):"
     raw = _gateway_complete(system, user, timeout=15)
@@ -828,7 +795,7 @@ def _mobile_chat_reply(
 ) -> str:
     """Pass the conversation to Chimera (gateway). Chimera owns personality, memory, and model routing.
 
-    messages: list of {"role": "user"|"assistant", "content": "..."} â€” latest user message is last.
+    messages: list of {"role": "user"|"assistant", "content": "..."} — latest user message is last.
     tool_results: factual output from Locus-local tools (calendar/journal/etc); prepended as system context.
     current_user / mode: forwarded as headers so Chimera can route and personalize.
     _system_override: optional system prompt (group-chat framing); prepended before tool_results.
@@ -836,7 +803,7 @@ def _mobile_chat_reply(
     try:
         import requests as _req
     except ImportError:
-        return "Locus needs the `requests` package â€” run: py -m pip install requests"
+        return "Locus needs the `requests` package — run: py -m pip install requests"
 
     user_msgs = [m for m in messages if m.get("role") == "user"]
     if not user_msgs or not user_msgs[-1].get("content", "").strip():
@@ -1097,7 +1064,7 @@ def list_conversations(
     q: str | None = None,
     current_user: str = Depends(get_current_user),
 ):
-    """List conversations â€” pinned first, then by updated_at desc. If q is set, only return convos where title or any message content contains q (case-insensitive). Special: q=star, q=starred, or a star emoji (â­ â˜… â˜† ðŸŒŸ) returns only starred (important) convos. When signed in and q is set, Grok/Cursor/Continue are included: search matches title plus a content index (first/last message snippet) so search finds text inside messages. Grok/Cursor/Continue are only included in search when signed in."""
+    """List conversations — pinned first, then by updated_at desc. If q is set, only return convos where title or any message content contains q (case-insensitive). Special: q=star, q=starred, or a star emoji (â­ â˜… â˜† ðŸŒŸ) returns only starred (important) convos. When signed in and q is set, Grok/Cursor/Continue are included: search matches title plus a content index (first/last message snippet) so search finds text inside messages. Grok/Cursor/Continue are only included in search when signed in."""
     data = _load_store()
     convos = list(_conversations_for_user(data, current_user))
     eng = _load_engagement()
@@ -1537,7 +1504,7 @@ class SendMessageBody(BaseModel):
     file_name: str | None = None
     file_mime: str | None = None
     files: list[FileAttachmentItem] | None = None  # optional: multiple files (e.g. PDFs); max 6 total with image
-    mode: str | None = None  # "bestie" | "therapist" | "learning" â€” affects system prompt tone
+    mode: str | None = None  # "bestie" | "therapist" | "learning" — affects system prompt tone
     branch_index: int | None = None  # for threaded convos: which branch (0, 1, ...) to append to; default 0
     batch: list[str] | None = None  # optional: multiple user messages in one go (quadruple-text); no image/file; one reply
 
@@ -1736,7 +1703,7 @@ def send_message(conv_id: str, body: SendMessageBody, current_user: str = Depend
         except Exception:
             import logging
             logging.getLogger(__name__).exception("mobile chat reply failed (batch)")
-            reply = "Locus couldn't reply right now â€” try again."
+            reply = "Locus couldn't reply right now — try again."
         replies = _parse_thinking_reply(reply)
         last_reply_content = replies[-1]["content"] if replies else reply
         learning_abstract, learning_summary = None, None
@@ -1860,10 +1827,10 @@ def send_message(conv_id: str, body: SendMessageBody, current_user: str = Depend
     except Exception:
         import logging
         logging.getLogger(__name__).exception("mobile chat reply failed")
-        reply = "Locus couldn't reply right now â€” is Ollama running? Try again."
+        reply = "Locus couldn't reply right now — is Ollama running? Try again."
 
     if _is_echoed_file_content(reply, display_content, tool_results):
-        reply = "I've got those files â€” what would you like me to do with them? Summarize, compare, or something else?"
+        reply = "I've got those files — what would you like me to do with them? Summarize, compare, or something else?"
     if generated_image_path and not reply.strip():
         reply = "Here's your image \u2665"
     replies = _parse_thinking_reply(reply)
@@ -1955,7 +1922,7 @@ def regenerate_last_reply(conv_id: str, body: RegenerateBody | None = None, curr
     except Exception:
         import logging
         logging.getLogger(__name__).exception("regenerate failed")
-        reply = "Locus couldn't reply right now â€” try again."
+        reply = "Locus couldn't reply right now — try again."
     now = datetime.now(timezone.utc).isoformat()
     c["messages"].append({"role": "assistant", "content": reply})
     c["updated_at"] = now
@@ -2028,14 +1995,14 @@ def edit_and_continue(conv_id: str, body: EditAndContinueBody, current_user: str
         history = _flatten_messages_for_history(messages[: idx + 1][-28:])
         history.append({"role": "user", "content": new_content})
     else:
-        # No assistant after this user message (e.g. quick-reply choice just sent, or reply not saved yet) â€” generate first reply
+        # No assistant after this user message (e.g. quick-reply choice just sent, or reply not saved yet) — generate first reply
         history = _flatten_messages_for_history(messages[: idx + 1][-28:])
     try:
         reply = _mobile_chat_reply(history, tool_results=None, current_user=current_user)
     except Exception:
         import logging
         logging.getLogger(__name__).exception("edit_and_continue failed")
-        reply = "Locus couldn't reply right now â€” try again."
+        reply = "Locus couldn't reply right now — try again."
     if has_asst_after:
         # Add new variant to existing assistant message
         variants = asst.get("variants")
@@ -2122,7 +2089,7 @@ def fork_branch(conv_id: str, body: ForkBranchBody, current_user: str = Depends(
     except Exception:
         import logging
         logging.getLogger(__name__).exception("fork_branch reply failed")
-        reply = "Locus couldn't reply right now â€” try again."
+        reply = "Locus couldn't reply right now — try again."
     now = datetime.now(timezone.utc).isoformat()
     edited_user_msg = {"role": "user", "content": new_content}
     assistant_msg = {"role": "assistant", "content": reply}
@@ -2454,9 +2421,8 @@ def post_group_chat_message(body: GroupChatMessageBody, current_user: str = Depe
                 name = GROUP_CHAT_SENDER_DISPLAY.get(sender, sender)
                 hist_for_llm.append({"role": "user", "content": f"{name}: {content}"})
         group_system = (
-            "You're Claudia in a group chat with Ruby, Lynn, and Raven. They can all see your messages. "
-            "Reply naturally as yourself â€” warm, supportive, a bit funny. You're part of the group, not a bot. "
-            "Keep replies concise enough for a chat; use markdown if it helps."
+            "You're Locus in a group chat. Reply naturally — warm, supportive, a bit funny. "
+            "You're part of the group, not a bot. Keep replies concise enough for a chat; use markdown if it helps."
         )
         try:
             reply_content = _mobile_chat_reply(
@@ -2469,7 +2435,7 @@ def post_group_chat_message(body: GroupChatMessageBody, current_user: str = Depe
         except Exception:
             import logging
             logging.getLogger(__name__).exception("group chat reply failed")
-            reply_content = "Locus couldn't reply right now â€” try again."
+            reply_content = "Locus couldn't reply right now — try again."
         messages.append({
             "role": "assistant",
             "sender": "locus",
@@ -2885,7 +2851,7 @@ def update_user_profile(body: UserProfileBody, current_user: str = Depends(get_c
 
 
 
-# --- Creative draft documents (tweets, lyrics) â€” inline in chat, versioned ---
+# --- Creative draft documents (tweets, lyrics) — inline in chat, versioned ---
 
 CREATIVE_DRAFTS_DIR = PROJECT_ROOT / "Journal_Database" / "Creative_Drafts"
 CREATIVE_DRAFTS_VERSIONS_DIR = CREATIVE_DRAFTS_DIR / "versions"
@@ -3267,7 +3233,7 @@ def api_plan_append(body: PlanAppendBody, current_user: str = Depends(get_curren
     return {"ok": True, "message": msg}
 
 
-# --- Continue (VS Code) sessions â€” read-only for phone ---
+# --- Continue (VS Code) sessions — read-only for phone ---
 
 WORKSPACE_FILTER_CANDIDATES = (
     "Locus",
@@ -3408,14 +3374,14 @@ def _get_continue_session_messages(session_id: str):
 
 @app.get("/continue/conversations")
 def list_continue_conversations():
-    """List Continue (VS Code) sessions for this project â€” read-only on phone. Requires sign-in."""
+    """List Continue (VS Code) sessions for this project — read-only on phone. Requires sign-in."""
     sessions = _list_continue_sessions()
     return {"conversations": sessions}
 
 
 @app.get("/continue/conversations/{session_id}")
 def get_continue_conversation(session_id: str):
-    """Get one Continue session with messages â€” read-only."""
+    """Get one Continue session with messages — read-only."""
     messages = _get_continue_session_messages(session_id)
     if messages is None:
         raise HTTPException(status_code=404, detail="Continue session not found")
@@ -3433,7 +3399,7 @@ def get_continue_conversation(session_id: str):
 # --- Grok conversations (read-only from Data_Sources/Grok_Export/conversations) ---
 
 _grok_cache: dict = {"ts": 0.0, "data": []}
-_GROK_CACHE_TTL = 300  # seconds â€” re-scan files at most every 5 minutes
+_GROK_CACHE_TTL = 300  # seconds — re-scan files at most every 5 minutes
 
 def _list_grok_conversations():
     """List Grok export conversations: id, title, created_at, updated_at, source."""
@@ -3560,7 +3526,7 @@ def _get_grok_conversation_with_branches(conv_id: str) -> dict | None:
 
 @app.get("/grok/conversations")
 def list_grok_conversations():
-    """List Grok export conversations â€” read-only on phone. Requires sign-in."""
+    """List Grok export conversations — read-only on phone. Requires sign-in."""
     return {"conversations": _list_grok_conversations()}
 
 
@@ -3569,7 +3535,7 @@ def get_grok_conversation(
     conv_id: str,
     branch: int = 0,
 ):
-    """Get one Grok conversation with messages â€” read-only. Optional ?branch=0|1|... for threaded exports."""
+    """Get one Grok conversation with messages — read-only. Optional ?branch=0|1|... for threaded exports."""
     out = _get_grok_conversation_with_branches(conv_id)
     if out is None:
         raise HTTPException(status_code=404, detail="Grok conversation not found")
@@ -3813,13 +3779,13 @@ def _get_cursor_messages(conv_id: str):
 
 @app.get("/cursor/conversations")
 def list_cursor_conversations():
-    """List Cursor sidebar chats + composers for this project â€” read-only on phone. Requires sign-in."""
+    """List Cursor sidebar chats + composers for this project — read-only on phone. Requires sign-in."""
     return {"conversations": _list_cursor_conversations()}
 
 
 @app.get("/cursor/conversations/{conv_id}")
 def get_cursor_conversation(conv_id: str):
-    """Get one Cursor conversation (tab or composer) â€” read-only."""
+    """Get one Cursor conversation (tab or composer) — read-only."""
     messages = _get_cursor_messages(conv_id)
     if messages is None:
         raise HTTPException(status_code=404, detail="Cursor conversation not found")
@@ -3841,7 +3807,7 @@ def bedroom_data():
     try:
         import nbtlib  # pip install nbtlib
     except ImportError:
-        return JSONResponse({"error": "nbtlib not installed â€” run: pip install nbtlib"}, status_code=500)
+        return JSONResponse({"error": "nbtlib not installed — run: pip install nbtlib"}, status_code=500)
     if not _SCHEMATIC_PATH.exists():
         return JSONResponse({"error": f"Schematic not found: {_SCHEMATIC_PATH}"}, status_code=404)
     try:
@@ -3861,7 +3827,7 @@ def bedroom_data():
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-# --- Room view (Minecraft bedroom + Claudia Johnny Castawayâ€“style) ---
+# --- Room view (Minecraft bedroom + Claudia Johnny Castaway—style) ---
 try:
     from locus_room_state_machine import get_state as _room_get_state, apply_interaction as _room_apply_interaction
 except ImportError:
@@ -3869,7 +3835,7 @@ except ImportError:
 
 
 def _ollama_idle_line(state_id: str) -> str | None:
-    """One short idle line for the room sprite â€” asks the Chimera gateway, no Ollama fallback."""
+    """One short idle line for the room sprite — asks the Chimera gateway, no Ollama fallback."""
     try:
         import requests as _req
         r = _req.post(
@@ -3930,7 +3896,7 @@ def room_interact(body: RoomInteractBody):
         raise HTTPException(status_code=500, detail="room state machine not available")
     action = (body.action or "").strip().lower() or "pet"
     reaction = _room_apply_interaction(action, gesture=body.gesture)
-    return JSONResponse({"reaction": reaction or "ðŸ’œ"})
+    return JSONResponse({"reaction": reaction or "ðŸ'œ"})
 
 
 @app.get("/room", response_class=HTMLResponse)
@@ -4045,7 +4011,7 @@ def _room_view_html() -> str:
 @app.get("/")
 def root():
     return {
-        "service": "Claudia Mobile Orchestrator API",
+        "service": "Locus API",
         "ollama_compatible": True,
         "docs": "/docs",
         "web_chat": "/web",
@@ -4062,14 +4028,14 @@ def _html_esc(s: str) -> str:
 
 @app.get("/files", response_class=HTMLResponse)
 def files_page():
-    """Project file browser + viewer/editor for phone â€” browse, view, edit, save; send file to chat to discuss with Claudia."""
+    """Project file browser + viewer/editor for phone — browse, view, edit, save; send file to chat to discuss with Claudia."""
     html = """<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>Project files â€“ Claudia</title>
+  <title>Project files — Claudia</title>
   <style>
     :root { --bg:#0f0b18; --surface:#1a1228; --border:rgba(255,122,217,.25); --text:#f0eaff; --text-dim:#a89cc8; --pink:#ff7ad9; }
     * { box-sizing: border-box; }
@@ -4130,7 +4096,7 @@ def files_page():
       <button type="button" id="fileBtnSave" style="display:none">Save</button>
       <button type="button" id="fileBtnSendToChat" title="Open chat and ask Claudia about this file">Send to chat</button>
     </div>
-    <p class="files-ai-hint" style="font-size:12px;color:var(--text-dim);margin-top:8px;">Use <strong>Send to chat</strong> to open Claudia with this file â€” ask her to summarize, explain, or edit.</p>
+    <p class="files-ai-hint" style="font-size:12px;color:var(--text-dim);margin-top:8px;">Use <strong>Send to chat</strong> to open Claudia with this file — ask her to summarize, explain, or edit.</p>
   </div>
   <script src="/files.js?v=2"></script>
 </body>
@@ -4183,7 +4149,7 @@ LOCUS_ICON_SVG = '''<?xml version="1.0" encoding="UTF-8"?>
   <!-- Glass layer 3: soft edge highlight -->
   <rect x="52" y="52" width="408" height="408" rx="40" ry="40" fill="url(#glassEdge)" mask="url(#screenMask)"/>
   <rect x="52" y="52" width="408" height="408" rx="40" ry="40" fill="url(#scanlines)"/>
-  <!-- Strong specular (glass hot-spot, Apple Glassâ€“style) -->
+  <!-- Strong specular (glass hot-spot, Apple Glass—style) -->
   <ellipse cx="140" cy="100" rx="140" ry="70" fill="rgba(255,255,255,0.22)" mask="url(#screenMask)"/>
   <ellipse cx="180" cy="120" rx="100" ry="50" fill="rgba(255,255,255,0.14)" mask="url(#screenMask)"/>
   <!-- Beauty-style face (beauty.png): round face, big eyes with shine, eyebrows, smile, bangs, top bun -->
@@ -4283,13 +4249,13 @@ HEADER_TV_ICON_SVG = '''<?xml version="1.0" encoding="UTF-8"?>
     <!-- Hair fringe line (dark sweep across forehead) -->
     <path d="M134,268 Q158,206 200,212 Q224,217 244,248 Q256,262 268,248 Q288,217 312,212 Q354,206 378,268 Q352,228 316,224 Q292,220 274,250 Q256,264 238,250 Q220,220 196,224 Q160,228 134,268 Z" fill="#1c0940"/>
 
-    <!-- Blush cheeks (obvious pink â€” always visible) -->
+    <!-- Blush cheeks (obvious pink — always visible) -->
     <ellipse cx="176" cy="322" rx="42" ry="26" fill="url(#hBlushL)"/>
     <ellipse cx="336" cy="322" rx="42" ry="26" fill="url(#hBlushR)"/>
 
     <!-- â•â•â• FACE STATES â•â•â• -->
 
-    <!-- DEFAULT: cute wide eyes, obvious smile, visible â™¡ â€” "trapped but adorable" -->
+    <!-- DEFAULT: cute wide eyes, obvious smile, visible â™¡ — "trapped but adorable" -->
     <g id="face-default">
       <!-- Left eye: bright sclera + vivid purple iris + dark pupil + big sparkles -->
       <ellipse cx="206" cy="284" rx="30" ry="34" fill="#fff"/>
@@ -4318,7 +4284,7 @@ HEADER_TV_ICON_SVG = '''<?xml version="1.0" encoding="UTF-8"?>
 
     <!-- THINKING: obvious half-lidded eyes, wavy "hmm" mouth, big dots -->
     <g id="face-thinking" style="display:none">
-      <!-- Left eye (half-lidded â€” lid covers more) -->
+      <!-- Left eye (half-lidded — lid covers more) -->
       <ellipse cx="206" cy="284" rx="30" ry="34" fill="#fff"/>
       <ellipse cx="206" cy="289" rx="21" ry="25" fill="#6b3cd0"/>
       <ellipse cx="206" cy="291" rx="13" ry="16" fill="#0d0420"/>
@@ -4370,7 +4336,7 @@ HEADER_TV_ICON_SVG = '''<?xml version="1.0" encoding="UTF-8"?>
       <circle cx="218" cy="278" r="8" fill="#fff"/>
       <!-- Left brow: clearly flat/furrowed -->
       <path d="M178,264 L234,264" fill="none" stroke="#0d0420" stroke-width="14" stroke-linecap="round"/>
-      <!-- Right eye (skeptical squint â€” obvious half lid) -->
+      <!-- Right eye (skeptical squint — obvious half lid) -->
       <ellipse cx="306" cy="284" rx="30" ry="34" fill="#fff"/>
       <ellipse cx="302" cy="289" rx="21" ry="25" fill="#6b3cd0"/>
       <ellipse cx="300" cy="291" rx="14" ry="17" fill="#0d0420"/>
@@ -4705,10 +4671,10 @@ def web_chat():
     body{position:relative;height:100%;height:100dvh;min-height:100dvh;min-height:-webkit-fill-available;max-height:100dvh;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',sans-serif;background:transparent;color:var(--text);overflow:hidden;overscroll-behavior:none}
     body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:#0a0614;background:var(--bg);z-index:-2;pointer-events:none}
     #app{height:100dvh;min-height:100dvh;min-height:-webkit-fill-available;max-height:100dvh;padding-top:max(env(safe-area-inset-top),8px);padding-bottom:0;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
-    /* â”€â”€ Sidebar overlay â”€â”€ */
+    /* â"€â"€ Sidebar overlay â"€â"€ */
     #sideOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:40;opacity:0;pointer-events:none;transition:opacity .22s}
     #sideOverlay.open{opacity:1;pointer-events:auto}
-    /* â”€â”€ Sidebar â”€â”€ */
+    /* â"€â"€ Sidebar â"€â"€ */
     #sidebar{position:fixed;top:env(safe-area-inset-top);left:0;bottom:env(safe-area-inset-bottom);width:min(288px,85vw);background:var(--surface);z-index:50;display:flex;flex-direction:column;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);border-right:1px solid var(--border)}
     #sidebar.open{transform:translateX(0)}
     .sb-head{padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -4788,7 +4754,7 @@ def web_chat():
     .sb-item.pinned .mini-sparkline-wrapper{filter:drop-shadow(0 0 5px rgba(188,19,254,.6))}
     .mini-sparkline-wrapper{cursor:pointer;border-radius:4px;padding:2px}
     @keyframes spark-pulse{0%,100%{filter:brightness(1);opacity:1}50%{filter:brightness(1.35);opacity:.95}}
-    /* Activity Breakdown overlay (tap sparkline) â€” Gemini concept */
+    /* Activity Breakdown overlay (tap sparkline) — Gemini concept */
     .activity-breakdown-overlay{display:none;position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:16px}
     .activity-breakdown-overlay.show{display:flex}
     .activity-breakdown-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6);cursor:pointer}
@@ -4804,7 +4770,7 @@ def web_chat():
     .activity-bucket.expanded{background:rgba(40,20,60,.8)}
     .activity-bucket-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim)}
     .activity-bucket-count{font-size:18px;font-weight:700;color:var(--text)}
-    /* Tree branch (bucket tree) + flower petals (pedals) â€” branches as mask, random petals as nodes */
+    /* Tree branch (bucket tree) + flower petals (pedals) — branches as mask, random petals as nodes */
     .activity-tree-wrap{position:relative;margin:8px 0 4px;padding:6px 0;min-height:56px}
     .activity-branch-wrap .activity-branch-bg{position:absolute;left:0;right:0;top:0;bottom:0;width:100%;height:100%;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;opacity:.75;filter:drop-shadow(0 0 6px var(--tree-color))}
     .activity-branch-wrap .activity-branch-nodes{position:absolute;left:0;right:0;top:0;bottom:0;z-index:1;pointer-events:none}
@@ -4824,7 +4790,7 @@ def web_chat():
     .activity-breakdown-close:hover{background:var(--border);color:var(--pink)}
     /* Pin left, title center, delete right; .acts kept for archive restore layout */
     .sb-item .acts{display:flex;gap:8px;flex-shrink:0;align-items:center}
-    /* â”€â”€ Expandable 4-way actions: one button (four-round icon) expands into Pin, Star, Rename, Delete â”€â”€ */
+    /* â"€â"€ Expandable 4-way actions: one button (four-round icon) expands into Pin, Star, Rename, Delete â"€â"€ */
     .sb-item-actions-wrap{position:relative;width:32px;height:32px;flex-shrink:0}
     .sb-actions-trigger{position:absolute;top:0;left:0;width:32px;height:32px;min-width:32px;min-height:32px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:8px;border:2px solid transparent;background:linear-gradient(#06000f,#06000f) padding-box,linear-gradient(135deg,#ff44e0,#c030e8,#e050ff,#ff88f0,#9020d0,#ff44e0) border-box;background-origin:padding-box,border-box;background-clip:padding-box,border-box;cursor:pointer;box-shadow:0 0 8px rgba(255,68,224,.4),0 0 16px rgba(200,50,240,.35),0 0 24px rgba(160,40,220,.25),inset 0 0 10px rgba(180,30,220,.1);transition:opacity .2s,transform .2s,box-shadow .25s}
     .sb-actions-trigger:hover{box-shadow:0 0 12px rgba(255,136,240,.5),0 0 22px rgba(255,100,238,.45)}
@@ -4848,7 +4814,7 @@ def web_chat():
     .sb-actions-four .act{width:32px;height:32px;min-width:32px;min-height:32px;max-width:32px;max-height:32px}
     .sb-item .act.rename-btn{color:transparent;padding:0}
     .sb-item .act.rename-btn .sb-actions-rename-icon{width:18px;height:18px;object-fit:contain;display:block;pointer-events:none;filter:drop-shadow(0 0 4px rgba(255,136,230,.8))}
-    /* â”€â”€ Neon card buttons: small, ends of row; gradient/shimmer border + glow â”€â”€ */
+    /* â"€â"€ Neon card buttons: small, ends of row; gradient/shimmer border + glow â"€â"€ */
     .sb-item .act{
       -webkit-appearance:none;appearance:none;
       position:relative;
@@ -4894,7 +4860,7 @@ def web_chat():
     .badge.vscode{background:#0d2035;color:#69c}
     .badge.grok{background:#0d2010;color:#6d6}
     .badge.cursor{background:#251510;color:#c96}
-    /* â”€â”€ Header (TV girl avatar removed for now) â”€â”€ */
+    /* â"€â"€ Header (TV girl avatar removed for now) â"€â"€ */
     /* Header: respect iOS notch/status bar so no empty black at top */
     #hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:6px 12px;padding-top:max(10px,env(safe-area-inset-top));display:flex;align-items:center;gap:10px;flex-shrink:0}
     #menuBtn{background:none;border:none;color:var(--text);cursor:pointer;font-size:20px;padding:6px;line-height:1;flex-shrink:0;border-radius:8px;-webkit-appearance:none;appearance:none;transition:background .15s,color .15s}
@@ -4929,7 +4895,7 @@ def web_chat():
     .hdr-icon-btn:hover svg,.hdr-icon-btn:hover .hdr-fork-icon,.hdr-icon-btn:active svg,.hdr-icon-btn:active .hdr-fork-icon{filter:brightness(0) saturate(100%);}
     .hdr-icon-btn[data-copied="1"]::after{content:"Copied!";position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;padding:4px 8px;font-size:11px;font-weight:700;background:var(--pink);color:#111;border-radius:6px;white-space:nowrap;pointer-events:none;animation:fade-out-up .2s ease .8s forwards}
     @keyframes fade-out-up{to{opacity:0;transform:translateX(-50%) translateY(-4px)}}
-    /* â”€â”€ Chat area â”€â”€ (extra bottom padding so last message isn't clipped above input/tab bar on iPhone) */
+    /* â"€â"€ Chat area â"€â"€ (extra bottom padding so last message isn't clipped above input/tab bar on iPhone) */
     #chatArea{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding:14px max(16px,env(safe-area-inset-right)) calc(24px + max(16px,env(safe-area-inset-bottom))) max(16px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:2px}
     body.bubble-no-wrap #chatArea{overflow-x:auto}
     .msg-wrap{display:flex;flex-direction:column;margin-bottom:4px}
@@ -4975,7 +4941,7 @@ def web_chat():
     .msg-wrap.cascade-in{opacity:0;transform:translateY(-8px);animation:msg-cascade-in .28s ease-out forwards}
     @keyframes msg-cascade-in{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:translateY(0)}}
     .msg-time{font-size:11px;color:var(--text-dim);padding:1px 6px}
-    /* â”€â”€ In-chat quick replies (multiple choice on iPhone) â”€â”€ */
+    /* â"€â"€ In-chat quick replies (multiple choice on iPhone) â"€â"€ */
     .msg-row.quick-replies{align-items:center;margin-top:4px}
     .quick-reply-wrap{display:flex;flex-wrap:wrap;gap:8px;max-width:82%}
     .quick-reply-btn{font-size:14px;padding:8px 14px;border-radius:14px;border:1px solid var(--locus-border);background:var(--locus-bg);color:var(--locus-text);cursor:pointer;transition:opacity .15s}
@@ -5011,7 +4977,7 @@ def web_chat():
     .quick-reply-wrap.quick-replies-used .quick-reply-btn{opacity:.55;cursor:default;pointer-events:none;filter:grayscale(.4)}
     .quick-reply-wrap.quick-replies-used .quick-reply-btn.chosen{opacity:.75;filter:grayscale(0);border-color:rgba(255,122,217,.4)}
     .msg-wrap.quick-reply-choice .bubble{opacity:.95;border-left:3px solid rgba(255,122,217,.5)}
-    /* â”€â”€ Floating thoughts (2â€“3 lightweight options) â”€â”€ */
+    /* â"€â"€ Floating thoughts (2—3 lightweight options) â"€â"€ */
     .floating-thoughts-row{margin-top:2px}
     .floating-thoughts{font-size:13px;color:var(--locus-text);opacity:.85;max-width:82%;display:flex;flex-wrap:wrap;align-items:center;gap:0}
     .floating-thought-sep{opacity:.6;user-select:none;pointer-events:none}
@@ -5020,7 +4986,7 @@ def web_chat():
     .floating-thought-link:focus{outline:1px solid rgba(255,122,217,.5);outline-offset:2px}
     .floating-thoughts-used .floating-thought-link{cursor:default;pointer-events:none;opacity:.5}
     .floating-thoughts-used .floating-thought-link.chosen{opacity:1;color:var(--pink);font-weight:500}
-    /* â”€â”€ Edit message & fork (start new thread from here, Grok/Cursor-style) â”€â”€ */
+    /* â"€â"€ Edit message & fork (start new thread from here, Grok/Cursor-style) â"€â"€ */
     .msg-actions{margin-top:2px}
     .msg-wrap.user .msg-actions{flex-direction:row-reverse}
     .bubble-actions{max-width:82%;display:flex;justify-content:flex-end;gap:8px}
@@ -5048,7 +5014,7 @@ def web_chat():
     .pop-sparkles{position:absolute;inset:-8px;pointer-events:none}
     .pop-sparkle-dot{position:absolute;width:4px;height:4px;border-radius:50%;background:var(--pink);box-shadow:0 0 6px var(--pink);opacity:0;animation:pop-sparkle-burst .5s ease-out forwards}
     @keyframes pop-sparkle-burst{0%{opacity:0;transform:scale(0) translate(0,0)}40%{opacity:1;transform:scale(1.2) translate(0,0)}100%{opacity:0;transform:scale(0.6) translate(var(--sparkle-dx,0),var(--sparkle-dy,0))}}
-    /* â”€â”€ Poof dismiss: cloud + pink/yellow sparkles where something disappears â”€â”€ */
+    /* â"€â"€ Poof dismiss: cloud + pink/yellow sparkles where something disappears â"€â"€ */
     .poof-dismissing{opacity:0;pointer-events:none;transform:scale(0.97);transition:opacity .22s ease-out,transform .22s ease-out}
     .poof-overlay{position:fixed;pointer-events:none;z-index:99999;overflow:visible}
     .poof-cloud{position:absolute;border-radius:50%;background:radial-gradient(circle at center,rgba(255,200,230,.7) 0%,rgba(255,150,220,.4) 25%,rgba(255,200,120,.25) 45%,transparent 70%);opacity:0;animation:poof-cloud .55s ease-out forwards}
@@ -5078,7 +5044,7 @@ def web_chat():
     .edit-msg-fork:hover:not(:disabled){box-shadow:0 0 14px rgba(255,122,217,.55)}
     .edit-msg-fork:disabled{opacity:.7;cursor:wait}
     .edit-msg-fork:disabled svg{opacity:.9}
-    /* â”€â”€ Typing indicator â”€â”€ */
+    /* â"€â"€ Typing indicator â"€â"€ */
     #typing{display:none;align-items:flex-end;gap:8px;margin-bottom:4px}
     #typing.show{display:flex}
     .typing-av{width:40px;height:40px;min-width:40px;max-width:40px !important;min-height:40px;max-height:40px !important;border-radius:0;overflow:visible;flex-shrink:0;position:relative;background:transparent}
@@ -5093,7 +5059,7 @@ def web_chat():
     .context-indicator-arc{color:var(--pink);stroke:currentColor;transition:stroke-dashoffset .25s ease}
     .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
     @keyframes boing{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-7px)}}
-    /* â”€â”€ Generating image (Cursor-style: gray box + dark wave loading bar) â”€â”€ */
+    /* â"€â"€ Generating image (Cursor-style: gray box + dark wave loading bar) â"€â"€ */
     #generatingImage{display:none;align-items:flex-end;gap:8px;margin-bottom:4px}
     #generatingImage.show{display:flex}
     #generatingImage .generating-av{width:40px;height:40px;min-width:40px;max-width:40px !important;min-height:40px;max-height:40px !important;border-radius:0;overflow:visible;flex-shrink:0;background:transparent}
@@ -5104,12 +5070,12 @@ def web_chat():
     @keyframes generating-wave{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
     .generating-text{font-size:13px;padding:12px 14px;line-height:1.4;text-align:center;color:var(--text-dim);background:linear-gradient(90deg,var(--text-dim) 0%,var(--text-dim) 35%,var(--pink) 50%,var(--text-dim) 65%,var(--text-dim) 100%);background-size:200% 100%;background-position:100% 0;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:generating-text-shimmer 2s ease-in-out infinite}
     @keyframes generating-text-shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
-    /* â”€â”€ Empty state â”€â”€ */
+    /* â"€â"€ Empty state â"€â"€ */
     .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text-dim);padding:32px;text-align:center}
     .empty-state .em-icon{font-size:52px}
     .empty-state .em-title{font-size:19px;font-weight:700;color:var(--text)}
     .empty-state .em-sub{font-size:14px;line-height:1.5;max-width:280px}
-    /* â”€â”€ Engagement: "Mark as important?" when you return to a chat â”€â”€ */
+    /* â"€â"€ Engagement: "Mark as important?" when you return to a chat â"€â"€ */
     .engagement-banner{display:none;flex-shrink:0;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:10px 16px;background:rgba(50,20,80,.6);border-top:1px solid var(--border);border-bottom:1px solid rgba(255,122,217,.2);font-size:13px;color:var(--text)}
     .engagement-banner.show{display:flex}
     .engagement-banner-text{flex:1;min-width:0}
@@ -5119,7 +5085,7 @@ def web_chat():
     .engagement-banner-yes:focus-visible,.engagement-banner-no:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
     .engagement-banner-no{background:transparent;border:1px solid var(--border);color:var(--text-dim)}
     .engagement-banner-no:hover{color:var(--text);border-color:var(--text-dim)}
-    /* â”€â”€ Read-only hint â”€â”€ */
+    /* â"€â"€ Read-only hint â"€â"€ */
     #roHint{background:var(--surface2);border-top:1px solid var(--border);padding:10px 16px;font-size:13px;color:var(--text-dim);text-align:center;flex-shrink:0;display:none;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
     #forkBtn{background:var(--pink);color:#111;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0}
     #forkBtn:active{opacity:.8}
@@ -5135,7 +5101,7 @@ def web_chat():
     .ro-fork-cancel{background:transparent;color:var(--text-dim);border:1px solid var(--border)}
     .ro-fork-cancel:hover{color:var(--text);border-color:var(--text-dim)}
     .ro-fork-label{font-weight:600;color:var(--pink);white-space:nowrap}
-    /* â”€â”€ Thread switcher (1/2, 2/2 when conversation has branches) â”€â”€ */
+    /* â"€â"€ Thread switcher (1/2, 2/2 when conversation has branches) â"€â"€ */
     .thread-switcher{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 16px;background:rgba(40,20,50,.5);border-top:1px solid var(--border);flex-shrink:0}
     .thread-switcher-inline{display:flex;align-items:center;justify-content:center;gap:10px;padding:6px 12px;margin-top:8px;margin-left:0;background:rgba(40,20,50,.4);border-radius:10px;border:1px solid var(--border);flex-shrink:0}
     .thread-switcher-prev,.thread-switcher-next{width:36px;height:36px;border-radius:10px;border:1px solid var(--pink);background:transparent;color:var(--pink);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-appearance:none;appearance:none;transition:background .15s,color .15s}
@@ -5143,7 +5109,7 @@ def web_chat():
     .thread-switcher-prev:hover,.thread-switcher-next:hover,.thread-switcher-prev:active,.thread-switcher-next:active{background:var(--pink);color:#111}
     .thread-switcher-prev:disabled,.thread-switcher-next:disabled{opacity:.5;cursor:not-allowed}
     .thread-switcher-label{font-size:14px;font-weight:700;color:var(--text);min-width:2.5em;text-align:center}
-    /* â”€â”€ Input area â”€â”€ (extend surface below so no black bar between input and tab bar) */
+    /* â"€â"€ Input area â"€â"€ (extend surface below so no black bar between input and tab bar) */
     #inputArea{position:relative;background:var(--surface);border-top:3px solid rgba(255,122,217,.6);padding:10px 16px;padding-bottom:max(18px,env(safe-area-inset-bottom));padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));display:flex;flex-direction:column;flex-shrink:0;min-height:52px;transition:border-color .2s,box-shadow .2s}
     #inputArea::after{content:'';position:absolute;top:100%;left:0;right:0;height:100px;background:var(--surface);z-index:-1}
     #inputArea.mode-bestie{border-top-color:rgba(255,122,217,.7);box-shadow:0 -2px 12px rgba(255,122,217,.15)}
@@ -5203,7 +5169,7 @@ def web_chat():
     .voice-input-btn:hover,#voiceInputBtn:hover{opacity:.9;background:rgba(255,122,217,.12)}
     .voice-input-btn.listening,#voiceInputBtn.listening{background:rgba(255,122,217,.3);box-shadow:0 0 12px rgba(255,122,217,.4)}
     #attachImgBtn:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
-    /* Screenshot: PC only (hidden on iPhone/narrow viewport) â€” used inside attach menu */
+    /* Screenshot: PC only (hidden on iPhone/narrow viewport) — used inside attach menu */
     .screenshot-pc-only{display:none !important}
     @media (min-width: 768px){.screenshot-pc-only{display:flex !important}}
     /* Paperclip menu popover: Bestie/Therapist/Learning + Photos + Files + Screenshot (PC only) */
@@ -5218,7 +5184,7 @@ def web_chat():
     #rolesSubmenuPopover{position:absolute;left:100%;top:0;margin-left:6px;background:var(--surface2);border:2px solid var(--border);border-radius:12px;padding:8px;min-width:140px;box-shadow:0 0 20px rgba(0,0,0,.4),0 0 40px rgba(255,68,224,.15);z-index:41;display:none;flex-direction:column;gap:2px}
     #rolesSubmenuPopover.open{display:flex}
     @media (max-width: 380px){#rolesSubmenuPopover{left:auto;right:100%;margin-left:0;margin-right:6px}}
-    /* â”€â”€ Markdown in bubbles â”€â”€ */
+    /* â"€â"€ Markdown in bubbles â"€â"€ */
     .bubble h2,.bubble h3,.bubble h4{font-weight:700;margin:.5em 0 .25em;line-height:1.25}
     .bubble h2{font-size:1.1em}.bubble h3{font-size:1em}.bubble h4{font-size:.92em;opacity:.85}
     .bubble strong{font-weight:700}
@@ -5262,7 +5228,7 @@ def web_chat():
     }
     #app.sidebar-collapsed #sidebar{transform:translateX(-100%)}
     #app.sidebar-collapsed #mainWrap{margin-left:0}
-    /* â”€â”€ Tab bar (Chat / Room): fill to screen edge so no black (PWA/home screen safe area) â”€â”€ */
+    /* â"€â"€ Tab bar (Chat / Room): fill to screen edge so no black (PWA/home screen safe area) â"€â"€ */
     #tabBar{position:fixed;bottom:0;left:0;right:0;min-height:calc(56px + max(24px,env(safe-area-inset-bottom)));padding-bottom:max(24px,env(safe-area-inset-bottom));padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:stretch;z-index:30;box-sizing:border-box;-webkit-background-clip:padding-box;background-clip:padding-box}
     #tabBar::before{content:'';position:absolute;left:0;right:0;bottom:0;height:max(34px,env(safe-area-inset-bottom));background:var(--surface);z-index:-1;pointer-events:none}
     #tabBar::after{content:'';position:absolute;top:100%;left:0;right:0;height:80px;background:var(--surface);z-index:-1;pointer-events:none}
@@ -5270,16 +5236,16 @@ def web_chat():
     #tabBar .tab:hover,#tabBar .tab:active{color:var(--text)}
     #tabBar .tab.active{color:var(--pink)}
     #tabBar .tab-indicator{position:absolute;bottom:0;left:0;height:3px;background:var(--pink);border-radius:3px 3px 0 0;transition:left .25s cubic-bezier(.4,0,.2,1),width .25s cubic-bezier(.4,0,.2,1);pointer-events:none}
-    /* â”€â”€ Room tab disabled: hide only Room tab and room panel; keep Chat and Social visible â”€â”€ */
+    /* â"€â"€ Room tab disabled: hide only Room tab and room panel; keep Chat and Social visible â"€â"€ */
     #app.room-tab-disabled #tabBar .tab[data-tab="room"]{display:none}
     #app.room-tab-disabled #roomPanel{display:none !important}
     #app.room-tab-disabled #mainWrap{padding-bottom:calc(72px + max(28px,env(safe-area-inset-bottom)))}
-    /* â”€â”€ Room panel (Claudia bedroom) â”€â”€ */
+    /* â"€â"€ Room panel (Claudia bedroom) â"€â"€ */
     #roomPanel{display:none;position:fixed;top:0;left:0;right:0;bottom:calc(56px + max(20px,env(safe-area-inset-bottom)));z-index:25;background:var(--bg)}
     #roomPanel.visible{display:block}
     #app.show-room #mainWrap{display:none}
     #app.show-room #roomPanel{display:block}
-    /* â”€â”€ Right sidebar: working doc (Claude-style temp file), long paste, downloadable â”€â”€ */
+    /* â"€â"€ Right sidebar: working doc (Claude-style temp file), long paste, downloadable â"€â"€ */
     #rightSidebar{position:fixed;top:0;right:0;bottom:0;width:min(400px,92vw);max-width:100%;background:var(--surface);border-left:2px solid rgba(255,122,217,.4);box-shadow:-4px 0 20px rgba(0,0,0,.3);z-index:35;display:flex;flex-direction:column;overflow:hidden;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);padding-top:max(12px,env(safe-area-inset-top));padding-bottom:max(12px,env(safe-area-inset-bottom));padding-left:12px;padding-right:12px;box-sizing:border-box}
     #app.right-sidebar-open #rightSidebar{transform:translateX(0)}
     #rightSidebar .working-doc-hdr{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding:8px 0 10px;border-bottom:1px solid var(--border);margin-bottom:10px}
@@ -5528,7 +5494,7 @@ if __name__ == "__main__":
     print("Locus online (creative workspace server)" + ("" if DISCORD_OFF else " + Discord"))
     print(f"  PWA HTML + JS from: {_WEB_APP_JS_PATH.resolve()}")
     if use_ssl:
-        print(f"  HTTPS: {ssl_certfile} (self-signed â€” browser will show warning once)")
+        print(f"  HTTPS: {ssl_certfile} (self-signed — browser will show warning once)")
     _ensure_ollama()
     _start_discord_bot_in_background()
     print(f"  {scheme}://localhost:{port}/web      -> PWA chat (iPhone: Add to Home Screen)")
