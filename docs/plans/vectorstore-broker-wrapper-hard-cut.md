@@ -13,13 +13,14 @@
 
 This plan hard-cuts operator-facing naming from upstream product names to Chimera wrapper names. The supervisor will manage standalone `chimera-vectorstore` and `chimera-broker` binaries, while wrappers own translation into upstream-specific flags, env, lifecycle, and debug visibility. v1 scope is binary-only with a pluggable driver interface designed from day one, so container/remote drivers can be added later without changing operator-facing contracts. Operators see Chimera names across UI, docs, logs, and CLI; upstream names are implementation details shown only in architecture/debug/error contexts.
 
-Execution sequencing relative to the in-flight v0.3 plan:
+Execution sequencing relative to v0.3 product naming:
 
-- Phase 1 of this plan (contract lock) may proceed now in parallel.
-- Phases 2-7 are gated until [`v0-3-naming-hard-cut-execution.md`](v0-3-naming-hard-cut-execution.md) reaches Phase 9 validation/closeout.
+- Prerequisite [`v0-3-naming-migration.md`](v0-3-naming-migration.md) (hard-cut naming closeout) is **done** — Phases 2–7 below are unblocked.
+- Phase 1 of this plan (contract lock) may proceed in parallel with naming closeout; later phases assume naming contracts are stable.
 
-| Phase | Outcome | Status |
-|-------|---------|--------|
+| Step / phase | Outcome | Status |
+|--------------|---------|--------|
+| [Prerequisite — v0.3 product naming migration](v0-3-naming-migration.md) | Hard-cut naming contracts closed per [version-v0.3.md](../version-v0.3.md#product-naming); unblocks wrapper implementation | `done` |
 | [Phase 1 — Wrapper contract lock](#phase-1--wrapper-contract-lock) | Stable wrapper CLI, health, logging, and lifecycle contracts are frozen | `done` |
 | [Phase 2 — Standalone wrapper binaries](#phase-2--standalone-wrapper-binaries) | `chimera-vectorstore` and `chimera-broker` run as first-class managed processes | `done` |
 | [Phase 3 — Wrapper E2E contract matrix](#phase-3--wrapper-e2e-contract-matrix) | Executable end-to-end tests validate wrapper process lifecycle and all contract endpoints | `done` |
@@ -34,9 +35,9 @@ Execution sequencing relative to the in-flight v0.3 plan:
 
 The current stack directly exposes `qdrant` and `bifrost` names in supervision, UI, logs, scripts, and docs. That makes product messaging inconsistent and increases migration cost when backend components change. The chosen direction is a hard cut now: wrappers become the public operational surface, with upstreams treated as implementation details. Design assumes backend swaps in the near future, but implementation scope for milestone one is binary mode only.
 
-**Related docs:** [`v0-3-naming-hard-cut-execution.md`](v0-3-naming-hard-cut-execution.md), [`../supervisor.md`](../supervisor.md), [`../configuration.md`](../configuration.md), [`../packaging.md`](../packaging.md).
+**Related docs:** [`v0-3-naming-migration.md`](v0-3-naming-migration.md), [`../supervisor.md`](../supervisor.md), [`../configuration.md`](../configuration.md), [`../packaging.md`](../packaging.md).
 
-**Execution gate:** This plan's implementation phases are intentionally sequenced after v0.3 naming closeout:
+**Execution gate:** Prerequisite [`v0-3-naming-migration.md`](v0-3-naming-migration.md) is **done** (see [Product naming](../version-v0.3.md#product-naming)). Wrapper Phases 2–7 are unblocked.
 
 ---
 
@@ -422,4 +423,4 @@ Deterministic gated targets for this matrix:
 ## References
 
 - Code: `cmd/chimera`, `cmd/chimera-supervisor`, `internal/supervisor`, `internal/servicelogs`, `internal/server/embedui`
-- Docs: [`../supervisor.md`](../supervisor.md), [`../configuration.md`](../configuration.md), [`../packaging.md`](../packaging.md), [`v0-3-naming-hard-cut-execution.md`](v0-3-naming-hard-cut-execution.md)
+- Docs: [`../supervisor.md`](../supervisor.md), [`../configuration.md`](../configuration.md), [`../packaging.md`](../packaging.md), [`v0-3-naming-migration.md`](v0-3-naming-migration.md)

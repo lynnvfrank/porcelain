@@ -75,7 +75,16 @@ else
   LOCUS_DESKTOP_STAGE_OUT := $(BIN_STAGE_DIR)/locus-desktop
 endif
 
-.PHONY: help bash up configure install chimera-install chimera-test chimera-run clean clean-all clean-data \
+.PHONY: help bash up configure install chimera-install chimera-test chimera-run \
+	clean clean-install clean-build clean-configure clean-data clean-run clean-all \
+	chimera-clean chimera-clean-install chimera-clean-build chimera-clean-configure chimera-clean-run \
+	chimera-gateway-clean chimera-gateway-clean-install chimera-gateway-clean-build chimera-gateway-clean-configure chimera-gateway-clean-run \
+	chimera-supervisor-clean chimera-supervisor-clean-install chimera-supervisor-clean-build chimera-supervisor-clean-configure chimera-supervisor-clean-run \
+	chimera-broker-clean chimera-broker-clean-install chimera-broker-clean-build chimera-broker-clean-configure chimera-broker-clean-run \
+	chimera-vectorstore-clean chimera-vectorstore-clean-install chimera-vectorstore-clean-build chimera-vectorstore-clean-configure chimera-vectorstore-clean-run \
+	chimera-indexer-clean chimera-indexer-clean-install chimera-indexer-clean-build chimera-indexer-clean-configure chimera-indexer-clean-run \
+	locus-clean locus-clean-install locus-clean-build locus-clean-configure locus-clean-run \
+	locus-desktop-clean locus-desktop-clean-install locus-desktop-clean-build locus-desktop-clean-configure locus-desktop-clean-run \
 	build bin-stage stage-bin-dir chimera-build run \
 	chimera-gateway-build chimera-gateway-install chimera-gateway-run chimera-gateway-test chimera-gateway-test-unit chimera-gateway-test-e2e \
 	chimera-supervisor-build chimera-supervisor-run chimera-supervisor-test \
@@ -124,24 +133,24 @@ test: chimera-test locus-test
 test-unit: chimera-test-unit locus-test-unit
 test-e2e: chimera-test-e2e locus-test-e2e
 
-clean: chimera-clean locus-clean
+clean:
+	$(GITBASH) scripts/clean.sh
 
 clean-install: chimera-clean-install locus-clean-install
 
 clean-build: chimera-clean-build locus-clean-build
 
-clean-data: clean-configure
 clean-configure: chimera-clean-configure locus-clean-configure
+
+clean-data:
+	$(GITBASH) scripts/clean-data.sh $(CONFIRM)
 
 clean-run: chimera-clean-run locus-clean-run
 
-# TODO: remove task and split script
 clean-all:
 	$(GITBASH) scripts/clean-all-confirm.sh $(CONFIRM)
 	$(MAKE) clean
 	$(GITBASH) scripts/clean-all.sh
-
-# TODO: create clean tasks for each component (chimera-gateway, chimera-supervisor, chimera-broker, chimera-vectorstore, chimera-indexer, locus-desktop)
 
 chimera-install:
 	@echo [STEP] Installing Chimera products (broker, gateway, indexer, vectorstore)
@@ -185,7 +194,17 @@ chimera-test-e2e:
 	@$(MAKE) --no-print-directory chimera-broker-test-e2e
 	@$(MAKE) --no-print-directory chimera-vectorstore-test-e2e
 	@$(MAKE) --no-print-directory chimera-indexer-test-e2e
-# TODO chimera-clean task
+
+chimera-clean: chimera-gateway-clean chimera-supervisor-clean chimera-broker-clean chimera-vectorstore-clean chimera-indexer-clean
+	@$(GITBASH) -lc 'rm -rf dist'
+
+chimera-clean-install: chimera-gateway-clean-install chimera-supervisor-clean-install chimera-broker-clean-install chimera-vectorstore-clean-install chimera-indexer-clean-install
+
+chimera-clean-build: chimera-gateway-clean-build chimera-supervisor-clean-build chimera-broker-clean-build chimera-vectorstore-clean-build chimera-indexer-clean-build
+
+chimera-clean-configure: chimera-gateway-clean-configure chimera-broker-clean-configure chimera-vectorstore-clean-configure chimera-indexer-clean-configure
+
+chimera-clean-run: chimera-gateway-clean-run chimera-supervisor-clean-run chimera-broker-clean-run chimera-vectorstore-clean-run chimera-indexer-clean-run
 
 # --- Chimera broker ---
 chimera-broker-install:
@@ -218,7 +237,19 @@ chimera-broker-test-e2e:
 	@echo [STEP] Running Chimera broker end-to-end tests
 	@go test $(CHIMERA_CMD_BROKER) $(RACE_GATEWAY) -run E2E -count=1
 
-# TODO: chimera-broker-clean tasks
+chimera-broker-clean: chimera-broker-clean-build chimera-broker-clean-install chimera-broker-clean-configure chimera-broker-clean-run
+
+chimera-broker-clean-install:
+	$(GITBASH) scripts/clean-product.sh broker install
+
+chimera-broker-clean-build:
+	$(GITBASH) scripts/clean-product.sh broker build
+
+chimera-broker-clean-configure:
+	$(GITBASH) scripts/clean-product.sh broker configure
+
+chimera-broker-clean-run:
+	$(GITBASH) scripts/clean-product.sh broker run
 
 # --- Chimera gateway ---
 chimera-gateway-install:
@@ -246,7 +277,19 @@ chimera-gateway-test-e2e:
 	@echo [STEP] Running Chimera gateway end-to-end tests
 	@go test $(CHIMERA_CMD_GATEWAY) $(RACE_GATEWAY) -run E2E -count=1
 
-# TODO: chimera-gateway-clean tasks
+chimera-gateway-clean: chimera-gateway-clean-build chimera-gateway-clean-install chimera-gateway-clean-configure chimera-gateway-clean-run
+
+chimera-gateway-clean-install:
+	$(GITBASH) scripts/clean-product.sh gateway install
+
+chimera-gateway-clean-build:
+	$(GITBASH) scripts/clean-product.sh gateway build
+
+chimera-gateway-clean-configure:
+	$(GITBASH) scripts/clean-product.sh gateway configure
+
+chimera-gateway-clean-run:
+	$(GITBASH) scripts/clean-product.sh gateway run
 
 # --- Chimera indexer ---
 chimera-indexer-install:
@@ -274,7 +317,19 @@ chimera-indexer-test-e2e:
 	@echo [STEP] Running Chimera indexer end-to-end tests
 	@go test $(CHIMERA_CMD_INDEXER) $(RACE_GATEWAY) -run E2E_Indexer -count=1
 
-# TODO: chimera-indexer-clean tasks
+chimera-indexer-clean: chimera-indexer-clean-build chimera-indexer-clean-install chimera-indexer-clean-configure chimera-indexer-clean-run
+
+chimera-indexer-clean-install:
+	$(GITBASH) scripts/clean-product.sh indexer install
+
+chimera-indexer-clean-build:
+	$(GITBASH) scripts/clean-product.sh indexer build
+
+chimera-indexer-clean-configure:
+	$(GITBASH) scripts/clean-product.sh indexer configure
+
+chimera-indexer-clean-run:
+	$(GITBASH) scripts/clean-product.sh indexer run
 
 # --- Chimera supervisor ---
 # TODO: add chimera-supervisor-install
@@ -300,7 +355,19 @@ chimera-supervisor-test-e2e:
 	@echo [STEP] Running Chimera supervisor end-to-end tests
 	@go test $(CHIMERA_CMD_SUPERVISOR) $(RACE_GATEWAY) -run E2E_Supervisor -count=1
 
-# TODO: chimera-supervisor-clean tasks
+chimera-supervisor-clean: chimera-supervisor-clean-build chimera-supervisor-clean-install chimera-supervisor-clean-configure chimera-supervisor-clean-run
+
+chimera-supervisor-clean-install:
+	$(GITBASH) scripts/clean-product.sh supervisor install
+
+chimera-supervisor-clean-build:
+	$(GITBASH) scripts/clean-product.sh supervisor build
+
+chimera-supervisor-clean-configure:
+	$(GITBASH) scripts/clean-product.sh supervisor configure
+
+chimera-supervisor-clean-run:
+	$(GITBASH) scripts/clean-product.sh supervisor run
 
 # --- Chimera vectorstore ---
 chimera-vectorstore-install:
@@ -332,7 +399,19 @@ chimera-vectorstore-test-e2e:
 	@echo [STEP] Running Chimera vectorstore end-to-end tests
 	@go test $(CHIMERA_CMD_VECTORSTORE) $(RACE_GATEWAY) -run E2E -count=1
 
-# TODO: chimera-vectorstore-clean tasks
+chimera-vectorstore-clean: chimera-vectorstore-clean-build chimera-vectorstore-clean-install chimera-vectorstore-clean-configure chimera-vectorstore-clean-run
+
+chimera-vectorstore-clean-install:
+	$(GITBASH) scripts/clean-product.sh vectorstore install
+
+chimera-vectorstore-clean-build:
+	$(GITBASH) scripts/clean-product.sh vectorstore build
+
+chimera-vectorstore-clean-configure:
+	$(GITBASH) scripts/clean-product.sh vectorstore configure
+
+chimera-vectorstore-clean-run:
+	$(GITBASH) scripts/clean-product.sh vectorstore run
 
 # --- Locus ---
 locus-install:
@@ -367,6 +446,20 @@ locus-clean-configure: locus-desktop-clean-configure
 
 locus-clean-run: locus-desktop-clean-run
 
+locus-desktop-clean: locus-desktop-clean-build locus-desktop-clean-install locus-desktop-clean-configure locus-desktop-clean-run
+
+locus-desktop-clean-install:
+	$(GITBASH) scripts/clean-product.sh desktop install
+
+locus-desktop-clean-build:
+	$(GITBASH) scripts/clean-product.sh desktop build
+
+locus-desktop-clean-configure:
+	$(GITBASH) scripts/clean-product.sh desktop configure
+
+locus-desktop-clean-run:
+	$(GITBASH) scripts/clean-product.sh desktop run
+
 # --- Locus desktop ---
 locus-desktop-install:
 	@echo [STEP] Installing Locus desktop prerequisites
@@ -397,8 +490,6 @@ locus-desktop-test-e2e: export CGO_ENABLED := 1
 locus-desktop-test-e2e:
 	@echo [STEP] Running Locus desktop end-to-end tests (desktop/CGO)
 	@go test -tags desktop $(LOCUS_CMD_DESKTOP) $(RACE_GATEWAY) -run E2E -count=1
-
-# TODO: locus-desktop-clean tasks
 
 # --- Tools ---
 bash:

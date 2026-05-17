@@ -27,7 +27,7 @@ This plan defines a stable contract between `locus-desktop` and `chimera-supervi
 
 The current desktop path still performs supervisor-style startup work in the same runtime path, which blurs ownership between UI shell and service orchestration. Naming and build targets already distinguish `locus-desktop` and `chimera-supervisor`, but runtime boundaries are not yet fully enforced as a contract. This plan formalizes the split so desktop can remain a client of supervisor instead of carrying orchestration logic.
 
-**Related docs:** [`v0-3-naming-hard-cut-execution.md`](v0-3-naming-hard-cut-execution.md), [`vectorstore-broker-wrapper-hard-cut.md`](vectorstore-broker-wrapper-hard-cut.md), [`desktop-ui.md`](desktop-ui.md), [`../supervisor.md`](../supervisor.md), [`../packaging.md`](../packaging.md).
+**Related docs:** [`v0-3-naming-migration.md`](v0-3-naming-migration.md), [`vectorstore-broker-wrapper-hard-cut.md`](vectorstore-broker-wrapper-hard-cut.md), [`desktop-ui.md`](desktop-ui.md), [`../supervisor.md`](../supervisor.md), [`../packaging.md`](../packaging.md).
 
 ---
 
@@ -251,4 +251,4 @@ This section is the implementation contract for Phase 2+ work. Changes to these 
 ## References
 
 - Code: `porcelain/locus/locus-desktop`, `cmd/chimera-supervisor`, `internal/supervisor`, `internal/server`, `porcelain/Makefile`, `porcelain/scripts/desktop-run.sh`, `porcelain/locus/bin`
-- Docs: [`v0-3-naming-hard-cut-execution.md`](v0-3-naming-hard-cut-execution.md), [`vectorstore-broker-wrapper-hard-cut.md`](vectorstore-broker-wrapper-hard-cut.md), [`desktop-ui.md`](desktop-ui.md), [`../supervisor.md`](../supervisor.md), [`../packaging.md`](../packaging.md), [`../installation.md`](../installation.md)
+- Docs: [`v0-3-naming-migration.md`](v0-3-naming-migration.md), [`vectorstore-broker-wrapper-hard-cut.md`](vectorstore-broker-wrapper-hard-cut.md), [`desktop-ui.md`](desktop-ui.md), [`../supervisor.md`](../supervisor.md), [`../packaging.md`](../packaging.md), [`../installation.md`](../installation.md)

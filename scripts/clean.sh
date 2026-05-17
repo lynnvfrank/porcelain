@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
-# Remove local build artifacts only (see Makefile clean).
+# Remove local build artifacts for all products (see Makefile clean).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-# shellcheck source=scripts/chimera-names.sh
-source "$ROOT/scripts/chimera-names.sh"
 
-rm -f \
-	"chimera/bin/${CHIMERA_GATEWAY_BIN_BASE}" "chimera/bin/${CHIMERA_GATEWAY_BIN_BASE}.exe" \
-	"chimera/bin/${CHIMERA_SUPERVISOR_BIN_BASE}" "chimera/bin/${CHIMERA_SUPERVISOR_BIN_BASE}.exe" \
-	"chimera/bin/${CHIMERA_INDEX_BIN_BASE}" "chimera/bin/${CHIMERA_INDEX_BIN_BASE}.exe"
-rm -f \
-	"locus/bin/${LOCUS_DESKTOP_BIN_BASE}" "locus/bin/${LOCUS_DESKTOP_BIN_BASE}.exe"
+for product in gateway supervisor broker vectorstore indexer desktop; do
+	bash "$ROOT/scripts/clean-product.sh" "$product" build
+done
 rm -rf dist
-echo "clean: removed chimera/bin/${CHIMERA_GATEWAY_BIN_BASE}[.exe], chimera/bin/${CHIMERA_SUPERVISOR_BIN_BASE}[.exe], chimera/bin/${CHIMERA_INDEX_BIN_BASE}[.exe], locus/bin/${LOCUS_DESKTOP_BIN_BASE}[.exe], dist/"
+echo "clean: removed product build outputs under chimera/bin/, locus/bin/, bin/, and dist/"

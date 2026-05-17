@@ -18,7 +18,7 @@ Make the gateway easier to set up, friendlier to share between operators, and cl
 
 | Theme                                                                                      | Outcome                                                                                                                                  | Status        |
 | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| [Product naming](#product-naming)                                                          | Layered names in docs, UI, and startup logs with hard-cut naming contracts                                                                | `done`        |
+| [Product naming](#product-naming)                                                          | Layered names in docs, UI, and startup logs with hard-cut naming contracts ([`plans/v0-3-naming-migration.md`](plans/v0-3-naming-migration.md)) | `done`        |
 | [Credential file naming](#credential-file-naming)                                          | `api-keys.yaml` / `api_keys` / `secret`; reserve "token" for tokenizer counts                                                            | `done`        |
 | [Internal embedding provider (exploration)](#internal-embedding-provider-exploration)      | Optional in-repo or first-install embedding runtime to reduce reliance on Ollama for `/embeddings`                                       | `exploration` |
 | [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor) | Ingestion keys `(user, project, flavor)`; project-only = base corpus; flavored queries union base + flavor; multi-workspace request pool | `todo`        |
@@ -34,13 +34,15 @@ Make the gateway easier to set up, friendlier to share between operators, and cl
 
 This document is the **working plan for v0.3** for this repository (**Chimera**: intelligent routing and memory layer; see [Product naming](#product-naming)). Body **sections are ordered** for delivery narrative: [Product naming](#product-naming) and [Credential file naming](#credential-file-naming) first; then [Internal embedding provider (exploration)](#internal-embedding-provider-exploration) and [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor); then [First-run token handoff](#first-run-token-handoff) and [Setup wizard](#setup-wizard); then [IDE integration (VS Code Cline)](#ide-integration-vs-code-cline) (operator samples and wizard step 7 target **Cline** instead of **Continue**); then [Peer backends](#peer-backends) from the master product plan (`[porcelain.plan.md](porcelain.plan.md)`). **v0.3** targets **layered product naming** (**Porcelain**, **Chimera**, **Locus**), **api-keys** language, optional **in-repo / first-install** embedding weights **within license**, and **RAG** rules for **project + flavor** unions and **multi-workspace** pools. Naming and README wording in line with branch `origin/feat/chimera-branding` should be folded into this release unless superseded by a written decision.
 
-**Companion docs:** `[porcelain.plan.md](porcelain.plan.md)`, `[configuration.md](configuration.md)`, `[plans/indexer.md](plans/indexer.md)`.
+**Companion docs:** `[porcelain.plan.md](porcelain.plan.md)`, `[configuration.md](configuration.md)`, `[plans/indexer.md](plans/indexer.md)`, `[plans/v0-3-naming-migration.md](plans/v0-3-naming-migration.md)` (product naming execution).
 
 Authoritative **architecture and numbered requirements** remain in `[porcelain.plan.md](porcelain.plan.md)` unless this plan explicitly revises them. **Indexer** milestones labeled “v0.3” in `[plans/indexer.md](plans/indexer.md)` (e.g. scoped overrides, headers) are **indexer product versions**, not necessarily the same shipping train as **gateway desktop v0.3**; cross-link when both touch the same API.
 
 ---
 
 ## Product naming
+
+**Execution plan:** [`plans/v0-3-naming-migration.md`](plans/v0-3-naming-migration.md) — consolidated discovery-through-closeout train for hard-cut naming (env, headers, binaries, paths, make namespace, layout, operator docs).
 
 **Goal:** Align operator-visible language and implementation logging with the **layered architecture** introduced on `origin/feat/chimera-branding`, while retiring ambiguous “chimera-gateway” wording where it meant “this binary / service.”
 
@@ -567,7 +569,7 @@ From the master **Release roadmap** table:
 
 | Area                             | Quick check                                                                                                                                                        |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Product naming                   | README, onboarding, UI copy, and startup logs reflect Porcelain / Chimera / Locus decisions.                                                                       |
+| Product naming                   | README, onboarding, UI copy, and startup logs reflect Porcelain / Chimera / Locus decisions; [`plans/v0-3-naming-migration.md`](plans/v0-3-naming-migration.md) closed. |
 | Credential naming                | `api-keys.yaml`, `api_keys`, `secret`, and `paths.api_keys` are implemented or migration behavior is documented.                                                   |
 | Internal embedding (exploration) | Spike or design note, per-model legal/distribution checklist, and ship / pilot / defer decision; config sketch matches indexer-style opt-in start.                 |
 | Workspace embedding scope        | Ingestion keys `(user, project, flavor?)`; flavored chat unions base + flavor; multi-workspace requests pool all valid scopes; wizard step 5–6 matches production. |
@@ -587,5 +589,6 @@ When this plan is implemented, update `[porcelain.plan.md](porcelain.plan.md)` *
 - `[porcelain.plan.md](porcelain.plan.md)` - product roadmap and requirements
 - `[configuration.md](configuration.md)` - configuration reference
 - `[plans/indexer.md](plans/indexer.md)` - indexer milestones that may cross-link with this release
+- `[plans/v0-3-naming-migration.md](plans/v0-3-naming-migration.md)` - product naming hard-cut execution (done)
 - `[plans/_template.md](plans/_template.md)` - phase-level plan template
 
