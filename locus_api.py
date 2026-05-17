@@ -78,7 +78,7 @@ if _env_file.exists():
         pass  # python-dotenv not installed; use system env or batch file instead
 
 GATEWAY_URL = os.environ.get("LOCUS_GATEWAY_URL", "http://localhost:3000").rstrip("/")
-GATEWAY_TOKEN = os.environ.get("LOCUS_GATEWAY_TOKEN", "claudia-loves-lynn")
+GATEWAY_TOKEN = os.environ.get("LOCUS_GATEWAY_TOKEN", "porcelain-loves-lynn")
 GATEWAY_VIRTUAL_MODEL = os.environ.get("LOCUS_GATEWAY_VIRTUAL_MODEL", "Locus-0.2.0")
 
 # Optional: ensure UTF-8 on Windows for responses
