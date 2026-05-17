@@ -968,7 +968,7 @@ def _mobile_chat_reply(
         r.raise_for_status()
         return ((r.json().get("choices") or [{}])[0].get("message", {}) or {}).get("content", "").strip()
     except Exception as e:
-        return f"Chimera gateway didn't respond â€” is it running at {GATEWAY_URL}? ({e})"
+        return f"Chimera gateway didn't respond — is it running at {GATEWAY_URL}? ({e})"
 
 
 app = FastAPI(title="Locus API", version="0.1.0")
