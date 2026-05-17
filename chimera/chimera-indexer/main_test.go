@@ -38,12 +38,12 @@ func TestParseConfigVersion(t *testing.T) {
 
 func TestWrapIndexerLineNormalizes(t *testing.T) {
 	t.Parallel()
-	raw := `{"msg":"indexer.run.start","service":"indexer"}`
+	raw := `{"msg":"chimera-indexer.run.start","service":"chimera-indexer"}`
 	out := wrapIndexerLine(raw)
 	if strings.TrimSpace(out) == "" {
 		t.Fatal("expected wrapped output")
 	}
-	if !strings.Contains(out, `"service":"indexer"`) {
-		t.Fatalf("missing indexer service in wrapped line: %s", out)
+	if !strings.Contains(out, `"service":"chimera-indexer"`) {
+		t.Fatalf("missing chimera-indexer service in wrapped line: %s", out)
 	}
 }

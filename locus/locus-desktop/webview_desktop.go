@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/gen2brain/dlgs"
-	"github.com/lynn/porcelain/internal/platform"
+	"github.com/lynn/porcelain/locus/locus-desktop/internal"
 	webview "github.com/webview/webview_go"
 )
 

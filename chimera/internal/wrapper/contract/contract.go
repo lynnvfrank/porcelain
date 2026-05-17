@@ -24,12 +24,13 @@ var AllowedComponents = map[string]struct{}{
 }
 
 var AllowedBackendNames = map[string]struct{}{
-	"qdrant":       {},
-	"bifrost":      {},
-	"milvus":       {},
-	"weaviate":     {},
-	"redis_vector": {},
-	"custom":       {},
+	"qdrant":         {},
+	"bifrost":        {}, // legacy alias; new broker wrapper reports chimera-broker
+	"chimera-broker": {},
+	"milvus":         {},
+	"weaviate":       {},
+	"redis_vector":   {},
+	"custom":         {},
 }
 
 var AllowedBackendModes = map[string]struct{}{

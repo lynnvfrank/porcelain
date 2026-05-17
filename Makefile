@@ -12,7 +12,8 @@ CHIMERA_CMD_GATEWAY := ./chimera/chimera-gateway
 CHIMERA_CMD_SUPERVISOR := ./chimera/chimera-supervisor
 CHIMERA_CMD_BROKER := ./chimera/chimera-broker
 CHIMERA_CMD_VECTORSTORE := ./chimera/chimera-vectorstore
-CHIMERA_CMD_DESKTOP := ./locus/locus-desktop
+LOCUS_CMD_DESKTOP := ./locus/locus-desktop
+CHIMERA_CMD_DESKTOP := $(LOCUS_CMD_DESKTOP)
 CHIMERA_CMD_TOKENCOUNT := ./chimera/cmd/tokencount
 CHIMERA_CMD_INDEXER := ./chimera/chimera-indexer
 
@@ -20,7 +21,7 @@ LOCUS_RUNTIME_DIR := locus
 LOCUS_RUNTIME_BIN_DIR := $(LOCUS_RUNTIME_DIR)/bin
 
 BIN_STAGE_DIR := bin
-FMT_DIRS := chimera locus internal
+FMT_DIRS := chimera locus
 
 
 ifeq ($(OS),Windows_NT)
@@ -82,7 +83,7 @@ endif
 	chimera-vectorstore-configure chimera-vectorstore-install chimera-vectorstore-build chimera-vectorstore-run chimera-vectorstore-test chimera-vectorstore-test-unit chimera-vectorstore-test-e2e \
 	chimera-indexer-build chimera-indexer-run chimera-indexer-install chimera-indexer-test \
 	locus-install locus-build locus-run locus-test \
-	locus-desktop-install locus-desktop-build locus-desktop-run locus-desktop-test \
+	locus-desktop-install locus-desktop-build locus-desktop-run locus-desktop-test locus-desktop-test-unit locus-desktop-test-e2e \
 	tokencount-file catalog-free catalog-available config-provider-free-tier \
 	release-install release-snapshot package \
 	fmt fmt-check vet test precommit
@@ -118,6 +119,10 @@ run:
 	@echo [STEP] Running full stack (Locus)
 	@$(MAKE) --no-print-directory build
 	@$(MAKE) --no-print-directory locus-run
+
+test: chimera-test locus-test
+test-unit: chimera-test-unit locus-test-unit
+test-e2e: chimera-test-e2e locus-test-e2e
 
 clean: chimera-clean locus-clean
 
@@ -165,6 +170,21 @@ chimera-test:
 	@$(MAKE) --no-print-directory chimera-vectorstore-test
 	@$(MAKE) --no-print-directory chimera-indexer-test
 
+chimera-test-unit:
+	@echo [STEP] Running Chimera unit tests
+	@$(MAKE) --no-print-directory chimera-gateway-test-unit
+	@$(MAKE) --no-print-directory chimera-supervisor-test-unit
+	@$(MAKE) --no-print-directory chimera-broker-test-unit
+	@$(MAKE) --no-print-directory chimera-vectorstore-test-unit
+	@$(MAKE) --no-print-directory chimera-indexer-test-unit
+
+chimera-test-e2e:
+	@echo [STEP] Running Chimera end-to-end tests
+	@$(MAKE) --no-print-directory chimera-gateway-test-e2e
+	@$(MAKE) --no-print-directory chimera-supervisor-test-e2e
+	@$(MAKE) --no-print-directory chimera-broker-test-e2e
+	@$(MAKE) --no-print-directory chimera-vectorstore-test-e2e
+	@$(MAKE) --no-print-directory chimera-indexer-test-e2e
 # TODO chimera-clean task
 
 # --- Chimera broker ---
@@ -254,7 +274,6 @@ chimera-indexer-test-e2e:
 	@echo [STEP] Running Chimera indexer end-to-end tests
 	@go test $(CHIMERA_CMD_INDEXER) $(RACE_GATEWAY) -run E2E_Indexer -count=1
 
-# TODO: add chimera-indexer-test-unit and chimera-indexer-test-e2e
 # TODO: chimera-indexer-clean tasks
 
 # --- Chimera supervisor ---
@@ -332,6 +351,12 @@ locus-test:
 	@echo [STEP] Testing Locus products
 	@$(MAKE) --no-print-directory locus-desktop-test
 
+locus-test-unit:
+	@$(MAKE) --no-print-directory locus-desktop-test-unit
+
+locus-test-e2e:
+	@$(MAKE) --no-print-directory locus-desktop-test-e2e
+
 locus-clean: locus-desktop-clean
 
 locus-clean-install: locus-desktop-clean-install
@@ -361,10 +386,17 @@ locus-desktop-run:
 		-vectorstore-bin "$(CHIMERA_VECTORSTORE_STAGE_OUT)" \
 		$(ARGS)'
 
-locus-desktop-test: export CGO_ENABLED := 1
-locus-desktop-test:
-	@echo [STEP] Running Locus desktop tests (desktop/CGO)
-	@go test -tags desktop $(CHIMERA_CMD_DESKTOP) $(RACE_GATEWAY) -count=1
+locus-desktop-test: locus-desktop-test-unit locus-desktop-test-e2e
+
+locus-desktop-test-unit: export CGO_ENABLED := 1
+locus-desktop-test-unit:
+	@echo [STEP] Running Locus desktop unit tests (desktop/CGO)
+	@go test -tags desktop $(LOCUS_CMD_DESKTOP) $(RACE_GATEWAY) -run Test -skip E2E -count=1
+
+locus-desktop-test-e2e: export CGO_ENABLED := 1
+locus-desktop-test-e2e:
+	@echo [STEP] Running Locus desktop end-to-end tests (desktop/CGO)
+	@go test -tags desktop $(LOCUS_CMD_DESKTOP) $(RACE_GATEWAY) -run E2E -count=1
 
 # TODO: locus-desktop-clean tasks
 

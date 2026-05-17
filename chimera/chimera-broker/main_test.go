@@ -112,8 +112,8 @@ func TestWrapBrokerLineNormalizesToBrokerPrefixes(t *testing.T) {
 	if strings.TrimSpace(out) == "" {
 		t.Fatal("expected wrapped output")
 	}
-	if !strings.Contains(out, `"service":"broker"`) {
-		t.Fatalf("missing broker service: %s", out)
+	if !strings.Contains(out, `"service":"chimera-broker"`) {
+		t.Fatalf("missing chimera-broker service: %s", out)
 	}
 	if !strings.Contains(out, `"msg":"broker.ready"`) {
 		t.Fatalf("missing broker msg: %s", out)

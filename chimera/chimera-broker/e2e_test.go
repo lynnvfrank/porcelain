@@ -318,7 +318,7 @@ func TestE2E_Broker_005_DebugEnabledRedaction(t *testing.T) {
 	foundWrapped := false
 	for _, line := range lines {
 		s := fmt.Sprint(line)
-		if strings.Contains(s, `"service":"broker"`) && strings.Contains(s, `"msg":"broker.`) {
+		if strings.Contains(s, `"service":"chimera-broker"`) && strings.Contains(s, `"msg":"broker.`) {
 			foundWrapped = true
 			break
 		}

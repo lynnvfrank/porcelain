@@ -14,7 +14,7 @@ import (
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
-	"github.com/lynn/porcelain/internal/platform/requestid"
+	"github.com/lynn/porcelain/chimera/internal/platform/requestid"
 )
 
 // setupRAGChatServer wires a runtime where:

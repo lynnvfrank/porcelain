@@ -20,6 +20,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/gatewayline"
+	platform "github.com/lynn/porcelain/chimera/chimera-gateway/internal/platform"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server"
 	"github.com/lynn/porcelain/chimera/internal/config"
 	"github.com/lynn/porcelain/chimera/internal/logfmt"
@@ -30,7 +31,6 @@ import (
 	"github.com/lynn/porcelain/chimera/internal/upstream"
 	"github.com/lynn/porcelain/chimera/internal/wrapper/contract"
 	wruntime "github.com/lynn/porcelain/chimera/internal/wrapper/runtime"
-	"github.com/lynn/porcelain/internal/platform"
 )
 
 func main() {

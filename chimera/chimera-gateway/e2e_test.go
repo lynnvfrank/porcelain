@@ -334,7 +334,7 @@ func TestE2E_Gateway_005_DebugEnabledRedaction(t *testing.T) {
 	foundWrapped := false
 	for _, line := range lines {
 		s := fmt.Sprint(line)
-		if strings.Contains(s, `"service":"gateway"`) && strings.Contains(s, `"msg":"gateway.`) {
+		if strings.Contains(s, `"service":"chimera-gateway"`) && strings.Contains(s, `"msg":"gateway.`) {
 			foundWrapped = true
 			break
 		}

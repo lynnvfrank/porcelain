@@ -112,8 +112,8 @@ func TestWrapVectorstoreLineNormalizesToVectorstorePrefixes(t *testing.T) {
 	if strings.TrimSpace(out) == "" {
 		t.Fatal("expected wrapped output")
 	}
-	if !strings.Contains(out, `"service":"vectorstore"`) {
-		t.Fatalf("missing vectorstore service: %s", out)
+	if !strings.Contains(out, `"service":"chimera-vectorstore"`) {
+		t.Fatalf("missing chimera-vectorstore service: %s", out)
 	}
 	if !strings.Contains(out, `"msg":"vectorstore.cluster.single_node"`) {
 		t.Fatalf("missing vectorstore msg: %s", out)

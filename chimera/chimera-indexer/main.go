@@ -47,9 +47,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/lynn/porcelain/chimera/chimera-indexer/indexer"
 	"github.com/lynn/porcelain/chimera/chimera-indexer/indexerline"
+	"github.com/lynn/porcelain/chimera/chimera-indexer/internal/platform"
 	"github.com/lynn/porcelain/chimera/internal/wrapper/contract"
 	wruntime "github.com/lynn/porcelain/chimera/internal/wrapper/runtime"
-	"github.com/lynn/porcelain/internal/platform"
 )
 
 // errSupervisedReload is a cancel-cause marker: the supervised --config file

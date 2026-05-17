@@ -315,7 +315,7 @@ func TestE2E_Vectorstore_005_DebugEnabledRedaction(t *testing.T) {
 	foundWrapped := false
 	for _, line := range lines {
 		s := fmt.Sprint(line)
-		if strings.Contains(s, `"service":"vectorstore"`) && strings.Contains(s, `"msg":"vectorstore.`) {
+		if strings.Contains(s, `"service":"chimera-vectorstore"`) && strings.Contains(s, `"msg":"vectorstore.`) {
 			foundWrapped = true
 			break
 		}

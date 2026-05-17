@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
+	platform "github.com/lynn/porcelain/chimera/chimera-gateway/internal/platform"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/chunk"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/embed"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
-	"github.com/lynn/porcelain/internal/platform"
 )
 
 // queryPreviewMax bounds the query/text excerpt included in DEBUG logs so we

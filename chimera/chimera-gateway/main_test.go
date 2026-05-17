@@ -90,8 +90,8 @@ func TestWrapGatewayLineNormalizes(t *testing.T) {
 	if strings.TrimSpace(out) == "" {
 		t.Fatal("expected wrapped output")
 	}
-	if !strings.Contains(out, `"service":"gateway"`) {
-		t.Fatalf("missing gateway service: %s", out)
+	if !strings.Contains(out, `"service":"chimera-gateway"`) {
+		t.Fatalf("missing chimera-gateway service: %s", out)
 	}
 	if !strings.Contains(out, `"msg":"gateway.http.access"`) {
 		t.Fatalf("missing gateway msg: %s", out)

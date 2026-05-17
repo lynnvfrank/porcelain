@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lynn/porcelain/internal/platform/requestid"
+	"github.com/lynn/porcelain/chimera/internal/platform/requestid"
 )
 
 func TestHTTPAccessLogLevel_probesAndErrors(t *testing.T) {
