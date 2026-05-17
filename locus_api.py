@@ -23,10 +23,8 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-# Assets live at D:\Porcelain\assets if they exist, otherwise try parent directory
-ASSETS_ROOT = PROJECT_ROOT / "assets"
-if not ASSETS_ROOT.exists():
-    ASSETS_ROOT = PROJECT_ROOT.parent / "assets"
+# ASSETS_ROOT is the repo root so that ASSETS_ROOT / "assets" / <name> resolves correctly.
+ASSETS_ROOT = PROJECT_ROOT
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 # Add scripts directory (might be called 'scripts' or 'Scripts')
@@ -49,7 +47,7 @@ if _env_file.exists():
 
 GATEWAY_URL = os.environ.get("LOCUS_GATEWAY_URL", "http://localhost:3000").rstrip("/")
 GATEWAY_TOKEN = os.environ.get("LOCUS_GATEWAY_TOKEN", "porcelain-loves-lynn")
-GATEWAY_VIRTUAL_MODEL = os.environ.get("LOCUS_GATEWAY_VIRTUAL_MODEL", "ollama/qwen3-vl:8b")
+GATEWAY_VIRTUAL_MODEL = os.environ.get("LOCUS_GATEWAY_VIRTUAL_MODEL", "ollama/chat")
 
 # Optional: ensure UTF-8 on Windows for responses
 if sys.platform == "win32":
@@ -736,7 +734,7 @@ def _generate_followup_suggestions(assistant_reply: str, mode: str | None) -> li
         if not ln or ln.lower().startswith("output") or ln.lower().startswith("here are"):
             continue
         if len(ln) > 45:
-            ln = ln[:42].rstrip() + "â€¦"
+            ln = ln[:42].rstrip() + "…"
         out.append(ln)
     if len(out) >= 3:
         return out[:4]
@@ -1785,7 +1783,7 @@ def send_message(conv_id: str, body: SendMessageBody, current_user: str = Depend
     if image_desc and image_desc.startswith("[") and "failed" in image_desc:
         display_content = (display_content + "\n[Image: could not describe]").strip() if display_content else "[Image: could not describe]"
     elif image_desc:
-        display_content = (display_content + "\n[Image: " + image_desc[:200] + ("â€¦" if len(image_desc) > 200 else "") + "]").strip() if display_content else f"[Image: {image_desc[:300]}{'â€¦' if len(image_desc) > 300 else ''}]"
+        display_content = (display_content + "\n[Image: " + image_desc[:200] + ("…" if len(image_desc) > 200 else "") + "]").strip() if display_content else f"[Image: {image_desc[:300]}{'…' if len(image_desc) > 300 else ''}]"
 
     # Optional: try image generation when user asks for an image (e.g. "draw a cat")
     generated_image_path = None
@@ -1873,7 +1871,7 @@ def send_message(conv_id: str, body: SendMessageBody, current_user: str = Depend
         if generated:
             c["title"] = generated[:60]
         else:
-            c["title"] = (display_content[:50] + "â€¦") if len(display_content) > 50 else (display_content or "Image")
+            c["title"] = (display_content[:50] + "…") if len(display_content) > 50 else (display_content or "Image")
     _save_store(data)
     try:
         append_exchange_to_log(
@@ -2038,14 +2036,14 @@ def edit_and_continue(conv_id: str, body: EditAndContinueBody, current_user: str
     return {"reply": reply, "title": c.get("title") or "New chat", "updated_at": now, "messages": messages}
 
 
-MAX_BRANCHES = 10  # max threads per conversation (1/10 â€¦ 10/10)
+MAX_BRANCHES = 10  # max threads per conversation (1/10 … 10/10)
 
 
 class ForkBranchBody(BaseModel):
     message_index: int  # index of the user message we're editing (start new thread from here)
     content: str  # edited text; that branch is trimmed to here, new branch = prefix + this + reply
     mode: str | None = None  # bestie | therapist | learning
-    branch_index: int = 0  # which thread we're forking from (0 â€¦ branch_count-1)
+    branch_index: int = 0  # which thread we're forking from (0 … branch_count-1)
 
 
 @app.post("/conversations/{conv_id}/fork_branch")
@@ -3915,7 +3913,7 @@ def files_page():
     <div id="fileBreadcrumb">Project</div>
   </div>
   <div class="files-search-wrap">
-    <input type="search" id="fileSearch" placeholder="Search files and foldersâ€¦" autocomplete="off" aria-label="Search files">
+    <input type="search" id="fileSearch" placeholder="Search files and folders…" autocomplete="off" aria-label="Search files">
   </div>
   <div id="fileList"></div>
   <div id="fileViewerWrap">
@@ -4311,7 +4309,8 @@ def chat_icon_svg():
 def user_avatar_svg():
     """User (Ruby) in-chat avatar: Ruby and Hahli.svg, full icon (no circle)."""
     if not USER_AVATAR_PATH.exists():
-        raise HTTPException(status_code=404, detail="User avatar not found")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/icon.svg", status_code=302)
     return Response(content=USER_AVATAR_PATH.read_text(encoding="utf-8"), media_type="image/svg+xml")
 
 
@@ -4319,7 +4318,8 @@ def user_avatar_svg():
 def locus_avatar_svg():
     """Claudia in-chat avatar: ClaudiaPNGVSGicon.svg, full icon (no circle), skin already filled."""
     if not LOCUS_AVATAR_SVG_PATH.exists():
-        raise HTTPException(status_code=404, detail="Claudia avatar SVG not found")
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/icon.svg", status_code=302)
     return Response(content=LOCUS_AVATAR_SVG_PATH.read_text(encoding="utf-8"), media_type="image/svg+xml")
 
 
@@ -5133,7 +5133,7 @@ def web_chat():
         <div id="sbWorkspace" class="sb-workspace"><strong>Locus</strong> Â· same workspace as your PC.</div>
         <div class="sb-user-row" id="sbUserRow">
           <label for="userSelect" class="sb-user-label">Your name:</label>
-          <input type="text" id="userSelect" class="sb-user-select" placeholder="enter your nameâ€¦" autocomplete="off" maxlength="40" spellcheck="false">
+          <input type="text" id="userSelect" class="sb-user-select" placeholder="enter your name…" autocomplete="off" maxlength="40" spellcheck="false">
         </div>
         <div class="sb-avatar-picker-wrap" id="avatarPickerWrap">
           <div class="sb-avatar-picker-label">Your look</div>
@@ -5156,7 +5156,7 @@ def web_chat():
     </div>
     <div class="sb-search-row" style="display:flex;align-items:center;gap:6px;padding:4px 8px 0">
       <div class="sb-search" style="flex:1"><input type="text" id="sbSearch" placeholder="Search or ⭐ for starred" autocomplete="off"></div>
-      <button type="button" id="semanticToggle" title="Semantic search via Chimera (vector search)" onclick="toggleSemanticSearch(this)" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:8px;color:#888;font-size:14px;padding:4px 7px;cursor:pointer;transition:all .2s;line-height:1">âœ¨</button>
+      <button type="button" id="semanticToggle" title="Semantic search via Chimera (vector search)" onclick="toggleSemanticSearch(this)" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:8px;color:#888;font-size:14px;padding:4px 7px;cursor:pointer;transition:all .2s;line-height:1">✨</button>
     </div>
     <div class="sb-list" id="sbList"></div>
     <div id="sbActionsOverlay" class="sb-actions-overlay" aria-hidden="true"><div class="sb-actions-overlay-backdrop" aria-hidden="true"></div><div class="sb-actions-four-float"></div></div>

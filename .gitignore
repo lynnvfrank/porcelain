@@ -99,3 +99,7 @@ chimera/cmd/porcelain/resource.rc
 # Porcelain root binaries
 /porcelain.exe
 /porcelain
+
+# Model files (GGUF — too large for git, drop into models/ locally)
+models/*.gguf
+models/*.bin
