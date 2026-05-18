@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/lynn/porcelain/internal/naming"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -94,7 +95,7 @@ func TestClassifyBifrostProviderResult_states(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := classifyBifrostProviderResult(tc.provider, tc.body, tc.status, tc.err, nil)
+			got := ClassifyBifrostProviderResult(tc.provider, tc.body, tc.status, tc.err, nil)
 			if got.State != tc.wantState {
 				t.Fatalf("state=%q want %q (entry=%+v)", got.State, tc.wantState, got)
 			}
@@ -113,7 +114,7 @@ func TestClassifyBifrostProviderResult_states(t *testing.T) {
 
 func TestFetchBifrostProviderHealth_emptyBaseURL(t *testing.T) {
 	t.Parallel()
-	resp := fetchBifrostProviderHealth(context.Background(), nil, []string{"groq", "ollama"}, nil)
+	resp := FetchBifrostProviderHealth(context.Background(), nil, []string{"groq", "ollama"}, nil)
 	if resp.BifrostUp {
 		t.Fatalf("chimera_broker_up should be false with nil client")
 	}
@@ -131,7 +132,7 @@ func TestFetchBifrostProviderHealth_emptyBaseURL(t *testing.T) {
 }
 
 func TestUIBifrostProviderHealth_endToEnd(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -153,8 +154,8 @@ func TestUIBifrostProviderHealth_endToEnd(t *testing.T) {
 	t.Cleanup(chimeraBroker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-chimera-broker-health", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -192,7 +193,7 @@ func TestUIBifrostProviderHealth_endToEnd(t *testing.T) {
 		b, _ := io.ReadAll(res.Body)
 		t.Fatalf("provider health %d %s", res.StatusCode, b)
 	}
-	var doc chimeraBrokerProviderHealthResponse
+	var doc ProviderHealthResponse
 	if err := json.NewDecoder(res.Body).Decode(&doc); err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +206,7 @@ func TestUIBifrostProviderHealth_endToEnd(t *testing.T) {
 	if len(doc.Providers) != 3 {
 		t.Fatalf("providers len=%d want 3: %+v", len(doc.Providers), doc.Providers)
 	}
-	byID := map[string]chimeraBrokerProviderHealthEntry{}
+	byID := map[string]ProviderHealthEntry{}
 	for _, p := range doc.Providers {
 		byID[p.ID] = p
 	}
@@ -221,7 +222,7 @@ func TestUIBifrostProviderHealth_endToEnd(t *testing.T) {
 }
 
 func TestUIChimeraBrokerProviderHealth_chimeraBrokerDown(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	// Allocate a server only to capture an unused port, then close it so dialing fails.
 	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
@@ -229,8 +230,8 @@ func TestUIChimeraBrokerProviderHealth_chimeraBrokerDown(t *testing.T) {
 	dead.Close()
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, deadURL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, deadURL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-chimera-broker-down", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -264,7 +265,7 @@ func TestUIChimeraBrokerProviderHealth_chimeraBrokerDown(t *testing.T) {
 		b, _ := io.ReadAll(res.Body)
 		t.Fatalf("provider health %d %s", res.StatusCode, b)
 	}
-	var doc chimeraBrokerProviderHealthResponse
+	var doc ProviderHealthResponse
 	if err := json.NewDecoder(res.Body).Decode(&doc); err != nil {
 		t.Fatal(err)
 	}
@@ -282,15 +283,15 @@ func TestUIChimeraBrokerProviderHealth_chimeraBrokerDown(t *testing.T) {
 }
 
 func TestUIBifrostProviderHealth_requiresAuth(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}))
 	t.Cleanup(chimeraBroker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-chimera-broker-auth", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")

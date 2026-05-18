@@ -1,8 +1,8 @@
-// Package embed wraps an OpenAI-compatible POST /v1/embeddings endpoint.
+// Package ragembed wraps an OpenAI-compatible POST /v1/embeddings endpoint.
 //
 // The same client is used by ingest (chunks) and query-time retrieval. It is
 // intentionally minimal: one HTTP call, one model, batched input array.
-package embed
+package ragembed
 
 import (
 	"bytes"

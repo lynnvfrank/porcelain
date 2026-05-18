@@ -21,7 +21,7 @@ func logsUIPath(t *testing.T, rel ...string) string {
 		t.Fatal("runtime.Caller failed")
 	}
 	// thisFile = .../internal/server/logs_components_test.go
-	base := filepath.Join(filepath.Dir(thisFile), "embedui", "logs")
+	base := filepath.Join(filepath.Dir(thisFile), "adminui", "embedui", "logs")
 	return filepath.Join(append([]string{base}, rel...)...)
 }
 
@@ -98,13 +98,13 @@ func TestLogsComponents_Badge_rendersClassAndTitle(t *testing.T) {
 
 	badge := getFn(t, vm, "Badge")
 
-	model := map[string]any{"text": "chimera-vectorstore", "variant": "svc-qdrant", "title": "vector store"}
+	model := map[string]any{"text": "chimera-vectorstore", "variant": "svc-chimera-vectorstore", "title": "vector store"}
 	v, err := badge(goja.Undefined(), vm.ToValue(model))
 	if err != nil {
 		t.Fatal(err)
 	}
 	html := v.String()
-	if !strings.Contains(html, `sum-svc-qdrant`) {
+	if !strings.Contains(html, `sum-svc-chimera-vectorstore`) {
 		t.Fatalf("expected svc class, got %q", html)
 	}
 	if !strings.Contains(html, `title="vector store"`) {
@@ -1188,8 +1188,8 @@ func TestLogsDerive_gatewayCardModel_kvCountersHideRow(t *testing.T) {
 			"rawFlat": map[string]any{"msg": "gateway.http.access", "path": "/v1/chat", "statusCode": 200, "method": "POST"},
 		}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{
-			"msg": "gateway.startup.listening", "addr": ":8080", "upstream": "http://bifrost", "bifrost_data": "/data/b",
-			"qdrant_supervised": true, "indexer_supervised": false, "config": "/x/gateway.yaml",
+			"msg": "gateway.startup.listening", "addr": ":8080", "upstream": "http://bifrost", "chimera_broker_data": "/data/b",
+			"qdrant_supervised": true, "indexer_supervised": true, "config": "/x/gateway.yaml",
 		}}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{"msg": "gateway.auth.reloaded", "count": 2}}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{"msg": "routing.policy.reloaded", "rules": 5}}},

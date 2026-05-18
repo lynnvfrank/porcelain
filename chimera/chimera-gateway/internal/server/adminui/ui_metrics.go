@@ -1,4 +1,4 @@
-package server
+package adminui
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gatewaymetrics"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 func (a *adminUI) handleMetricsGET(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +52,7 @@ func (a *adminUI) handleMetricsGET(w http.ResponseWriter, r *http.Request) {
 		out["minute_rollups"] = []gatewaymetrics.UsageRollup{}
 		out["day_rollups"] = []gatewaymetrics.UsageRollup{}
 		out["recent_events"] = []gatewaymetrics.CallEvent{}
-		out["message"] = "Metrics SQLite is not open (disabled in gateway.yaml, init failure, or metrics.enabled: false). Check gateway startup logs."
+		out["message"] = "Metrics SQLite is not open (disabled in " + naming.GatewayConfigFileTarget + ", init failure, or metrics.enabled: false). Check gateway startup logs."
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(out)
 		return

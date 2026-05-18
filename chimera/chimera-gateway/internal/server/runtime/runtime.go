@@ -1,4 +1,4 @@
-package server
+package runtime
 
 import (
 	"context"
@@ -12,12 +12,14 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gatewaymetrics"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/embed"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/ragembed"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routing"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/catalog"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore/qdrant"
 	"github.com/lynn/porcelain/chimera/internal/config"
 	"github.com/lynn/porcelain/chimera/internal/providerlimits"
 	"github.com/lynn/porcelain/chimera/internal/tokens"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 // Runtime mirrors src/runtime.ts RuntimeState.
@@ -54,7 +56,7 @@ type Runtime struct {
 	// poller in cmd/chimera/serve.go. nil until the first refresh completes. See
 	// availablemodels.go for the snapshot type and consumers (provider-health classifier and
 	// future routing/embedding/router-model auditors).
-	catalogSnapshot atomic.Pointer[CatalogSnapshot]
+	catalogSnapshot atomic.Pointer[catalog.CatalogSnapshot]
 
 	indexerStatusMu sync.Mutex
 	indexerStatus   IndexerSupervisorStatus
@@ -76,7 +78,7 @@ func NewRuntime(gatewayPath string, log *slog.Logger) (*Runtime, error) {
 	return NewRuntimeWithUpstreamOverride(gatewayPath, log, "")
 }
 
-// NewRuntimeWithUpstreamOverride loads gateway.yaml; if upstreamOverride is set (e.g. http://127.0.0.1:8080),
+// NewRuntimeWithUpstreamOverride loads gateway config; if upstreamOverride is set (e.g. http://127.0.0.1:8080),
 // it replaces upstream.base_url and health probe URL on every reload (supervised BiFrost).
 func NewRuntimeWithUpstreamOverride(gatewayPath string, log *slog.Logger, upstreamOverride string) (*Runtime, error) {
 	res, err := config.LoadGatewayYAML(gatewayPath, log)
@@ -175,7 +177,7 @@ func (rt *Runtime) Sync() {
 	next, err := config.LoadGatewayYAML(rt.gatewayPath, rt.log)
 	if err != nil {
 		if rt.log != nil {
-			rt.log.Error("failed to reload gateway.yaml", "msg", "gateway.config.reload_failed", "path", rt.gatewayPath, "err", err)
+			rt.log.Error("failed to reload gateway config", "msg", "gateway.config.reload_failed", "path", rt.gatewayPath, "config_file", naming.GatewayConfigFileTarget, "err", err)
 		}
 		return
 	}
@@ -195,7 +197,7 @@ func (rt *Runtime) Sync() {
 		rt.routing = routing.NewPolicy(next.RoutingPolicyPath, rt.log)
 	}
 	if rt.log != nil {
-		rt.log.Info("reloaded gateway.yaml", "msg", "gateway.config.reloaded", "path", rt.gatewayPath)
+		rt.log.Info("reloaded gateway config", "msg", "gateway.config.reloaded", "path", rt.gatewayPath, "config_file", naming.GatewayConfigFileTarget)
 	}
 }
 
@@ -401,7 +403,7 @@ func buildRAGService(res *config.Resolved, log *slog.Logger) (*rag.Service, erro
 	if apiKey == "" {
 		apiKey = strings.TrimSpace(res.UpstreamAPIKey)
 	}
-	emb := embed.New(res.RAG.EmbeddingURL(res.UpstreamBaseURL), apiKey, res.RAG.EmbeddingModel)
+	emb := ragembed.New(res.RAG.EmbeddingURL(res.UpstreamBaseURL), apiKey, res.RAG.EmbeddingModel)
 	store := qdrant.New(res.RAG.QdrantURL, res.RAG.QdrantAPIKey)
 	return rag.New(rag.Options{
 		Store:          store,
@@ -418,13 +420,13 @@ func buildRAGService(res *config.Resolved, log *slog.Logger) (*rag.Service, erro
 // CatalogSnapshot returns the most recent BiFrost `/v1/models` snapshot, or nil when no poll
 // has succeeded yet. The returned pointer aliases the runtime's cached value — callers MUST
 // treat it as read-only.
-func (rt *Runtime) CatalogSnapshot() *CatalogSnapshot {
+func (rt *Runtime) CatalogSnapshot() *catalog.CatalogSnapshot {
 	return rt.catalogSnapshot.Load()
 }
 
 // SetCatalogSnapshot publishes a new snapshot atomically. Used by [RefreshAvailableModels];
 // tests may call it directly to seed a known-good state.
-func (rt *Runtime) SetCatalogSnapshot(snap *CatalogSnapshot) {
+func (rt *Runtime) SetCatalogSnapshot(snap *catalog.CatalogSnapshot) {
 	rt.catalogSnapshot.Store(snap)
 }
 

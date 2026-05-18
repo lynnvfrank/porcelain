@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/embed"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/ragembed"
 	"github.com/lynn/porcelain/chimera/internal/config"
 )
 
@@ -34,7 +34,7 @@ func mergeCorrelationAttrs(in ResolveInput, conversationID string) []any {
 type Service struct {
 	cfg    config.ConversationMerge
 	store  *Store
-	embed  *embed.Client
+	embed  *ragembed.Client
 	expDim int
 	log    *slog.Logger
 }
@@ -59,7 +59,7 @@ func NewService(cfg config.ConversationMerge, db *sql.DB, upstreamBaseURL, upstr
 		}
 		return nil
 	}
-	ec := embed.New(url, upstreamAPIKey, model)
+	ec := ragembed.New(url, upstreamAPIKey, model)
 	st := NewStore(db)
 	if st == nil {
 		return nil
@@ -80,7 +80,7 @@ type ResolveInput struct {
 	FlavorID             string
 	LastUserText         string
 	IncomingFingerprint  string
-	ClientConversationID string // from X-Chimera-Conversation-Id when present (already validated)
+	ClientConversationID string // from naming.HeaderConversationIDTarget when present (already validated)
 	// RequestID is the gateway HTTP request id (Phase 2 correlation for merge logs).
 	RequestID string
 	// NextTurnIndex, when set, supplies turn_index for lifecycle logs (dedup_hit, merged) and

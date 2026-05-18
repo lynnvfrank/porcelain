@@ -87,8 +87,8 @@ function extractConversationQdrantJoinAnchors(events, getFlat) {
     }
     if (msg === "conversation.rag.span") {
       if (!isFinite(t)) continue;
-      var wm = f.window_ms != null ? Number(f.window_ms) : DEFAULT_QDRANT_SPAN_WINDOW_MS;
-      if (isNaN(wm) || wm < 0) wm = DEFAULT_QDRANT_SPAN_WINDOW_MS;
+      var wm = f.window_ms != null ? Number(f.window_ms) : DEFAULT_VECTORSTORE_SPAN_WINDOW_MS;
+      if (isNaN(wm) || wm < 0) wm = DEFAULT_VECTORSTORE_SPAN_WINDOW_MS;
       var spanID = f.span_id != null ? String(f.span_id).trim() : "";
       var turnIndex = f.turn_index != null && !isNaN(Number(f.turn_index)) ? Math.round(Number(f.turn_index)) : null;
       spans.push({ coll: coll, t0: t, t1: t + wm, span_id: spanID, turn_index: turnIndex });
@@ -124,7 +124,7 @@ function joinQdrantLineConversationMatch(events, getFlat, qFlat, qTimeMs) {
   for (j = 0; j < anchors.legacy.length; j++) {
     var leg = anchors.legacy[j];
     if (leg.coll !== collQ) continue;
-    if (Math.abs(qTimeMs - leg.t) <= LEGACY_QDRANT_WINDOW_MS) return { tier: "inferred" };
+    if (Math.abs(qTimeMs - leg.t) <= LEGACY_VECTORSTORE_WINDOW_MS) return { tier: "inferred" };
   }
   return null;
 }

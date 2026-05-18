@@ -36,7 +36,7 @@ function brokerShortTailModel(model) {
   return tail.length > 48 ? tail.slice(0, 46) + "…" : tail;
 }
 
-function brokerTrimDetail(flat, maxLen) {
+function chimeraBrokerTrimDetail(flat, maxLen) {
   maxLen = maxLen > 0 ? maxLen : 220;
   var pd = flat.progress_detail != null ? String(flat.progress_detail) : "";
   if (!pd) return "";
@@ -200,7 +200,7 @@ function chimeraBrokerOperatorLine(flat, opts) {
     case "chimera-broker.mcp.persistence.disabled":
       return "MCP disabled · no config store";
     case "chimera-broker.jwt.startup": {
-      var authH = brokerTrimDetail(flat, 80).toLowerCase();
+      var authH = chimeraBrokerTrimDetail(flat, 80).toLowerCase();
       if (authH.indexOf("jwt") >= 0) return "Auth · JWT";
       if (authH.indexOf("api") >= 0) return "Auth · API key";
       if (authH.indexOf("disabled") >= 0) return "Auth · disabled";

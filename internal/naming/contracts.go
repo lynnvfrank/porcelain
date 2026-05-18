@@ -14,8 +14,21 @@ const (
 	ProductBifrostHTTPBinName  = "bifrost-http"        // BiFrost build artifact basename (install scripts)
 	ProductVectorstoreName     = "chimera-vectorstore"
 	ProductQdrantBinName       = "qdrant"
-	ProductGatewayBinName      = "chimera-gateway"
-	ProductIndexerBinName      = "chimera-indexer"
+	ProductGatewayBinName        = "chimera-gateway"
+	ProductGatewayBackendBinName = "chimera-gateway-backend"
+	ProductIndexerBinName        = "chimera-indexer"
+
+	// chimera-gateway wrapper environment (GATEWAY__*).
+	EnvGatewayListen              = "GATEWAY__LISTEN"
+	EnvGatewayBin                 = "GATEWAY__BIN"
+	EnvGatewayBackendListen       = "GATEWAY__BACKEND_LISTEN"
+	EnvGatewayUpstreamOverride    = "GATEWAY__UPSTREAM_OVERRIDE"
+	EnvGatewayTimeoutsStartup     = "GATEWAY__TIMEOUTS__STARTUP"
+	EnvGatewayTimeoutsShutdown    = "GATEWAY__TIMEOUTS__SHUTDOWN"
+	EnvGatewayBackendBinDefault   = "GATEWAY__BACKEND_BIN_DEFAULT"
+
+	// chimera-gateway wrapper defaults.
+	DefaultGatewayListen = "127.0.0.1:7720"
 
 	// chimera-broker wrapper environment (BROKER__*).
 	EnvBrokerListen              = "BROKER__LISTEN"
@@ -82,8 +95,12 @@ const (
 	HeaderToolConfidenceThresholdTarget = "X-Chimera-Tool-Confidence-Threshold"
 
 	// Config/file naming contracts.
-	PathsAPIKeysKeyTarget = "api_keys"
-	APIKeysFileTarget     = "api-keys.yaml"
+	PathsAPIKeysKeyTarget       = "api_keys"
+	APIKeysFileTarget           = "api-keys.yaml"
+	GatewayConfigFileTarget     = "gateway.yaml"
+	GatewayConfigDirTarget      = "config"
+	RoutingPolicyFileTarget     = "routing-policy.yaml"
+	DefaultGatewayConfigRelPath = "config/gateway.yaml"
 
 	// Local hidden state directories.
 	IndexerHiddenStateDirTarget = ".locus"

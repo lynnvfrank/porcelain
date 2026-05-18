@@ -3,19 +3,16 @@ package gatewaymetrics
 import (
 	"database/sql"
 	"path/filepath"
-	"runtime"
 	"testing"
+
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/testsupport"
 
 	_ "modernc.org/sqlite"
 )
 
 func testMigrationsDir(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "migrations", "chimera-gateway", "metrics"))
+	return testsupport.GatewayMetricsMigrationsDir(t)
 }
 
 func TestApplyMigrations_idempotent(t *testing.T) {

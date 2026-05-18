@@ -1,4 +1,4 @@
-package server
+package adminui
 
 import (
 	"context"
@@ -13,10 +13,14 @@ import (
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routing"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routinggen"
+	gruntime "github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/runtime"
 	"github.com/lynn/porcelain/chimera/internal/config"
 	"github.com/lynn/porcelain/chimera/internal/upstream"
+	"github.com/lynn/porcelain/internal/naming"
 	"gopkg.in/yaml.v3"
 )
+
+func gatewayConfigLabel() string { return naming.GatewayConfigFileTarget }
 
 type routingDraft struct {
 	IDs                []string
@@ -67,7 +71,7 @@ func (a *adminUI) computeRoutingDraft(ctx context.Context, res *config.Resolved)
 			"error": map[string]any{"message": "missing upstream API key", "type": "gateway_config"},
 		}
 	}
-	timeout := healthTimeout(res)
+	timeout := gruntime.HealthTimeout(res)
 	ctx, cancel := context.WithTimeout(ctx, timeout+2*time.Second)
 	defer cancel()
 	st, body, ok := upstream.FetchOpenAIModels(ctx, res.UpstreamBaseURL, apiKey, timeout, a.log)
@@ -186,17 +190,17 @@ func (a *adminUI) handleRoutingGeneratePOST(w http.ResponseWriter, r *http.Reque
 
 	gwRaw, err := os.ReadFile(res.GatewayYAMLPath)
 	if err != nil {
-		writeRoutingGenJSONError(w, http.StatusInternalServerError, "read gateway.yaml")
+		writeRoutingGenJSONError(w, http.StatusInternalServerError, "read "+gatewayConfigLabel())
 		return
 	}
 	gwPatched, err := config.PatchGatewayYAMLBytesWithFallbackChain(gwRaw, draft.Chain)
 	if err != nil {
-		writeRoutingGenJSONError(w, http.StatusBadRequest, "gateway.yaml patch validation failed: "+err.Error())
+		writeRoutingGenJSONError(w, http.StatusBadRequest, gatewayConfigLabel()+" patch validation failed: "+err.Error())
 		return
 	}
 	gwPatched, err = config.PatchGatewayYAMLBytesWithRouterModels(gwPatched, draft.RouterModels)
 	if err != nil {
-		writeRoutingGenJSONError(w, http.StatusBadRequest, "gateway.yaml router_models patch failed: "+err.Error())
+		writeRoutingGenJSONError(w, http.StatusBadRequest, gatewayConfigLabel()+" router_models patch failed: "+err.Error())
 		return
 	}
 	tmpValidate, err := os.CreateTemp(filepath.Dir(res.GatewayYAMLPath), "chimera-gw-validate-*.yaml")
@@ -216,7 +220,7 @@ func (a *adminUI) handleRoutingGeneratePOST(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": map[string]any{
-				"message": "gateway.yaml after patch failed to load: " + err.Error(),
+				"message": gatewayConfigLabel() + " after patch failed to load: " + err.Error(),
 				"type":    "gateway_config",
 			},
 		})
@@ -254,7 +258,7 @@ func (a *adminUI) handleRoutingGeneratePOST(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if _, err := config.LoadGatewayYAML(res.GatewayYAMLPath, nil); err != nil {
-		writeRoutingGenJSONError(w, http.StatusInternalServerError, "reload gateway.yaml after write: "+err.Error())
+		writeRoutingGenJSONError(w, http.StatusInternalServerError, "reload "+gatewayConfigLabel()+" after write: "+err.Error())
 		return
 	}
 
@@ -343,7 +347,7 @@ func (a *adminUI) handleRoutingEvaluatePOST(w http.ResponseWriter, r *http.Reque
 		} else if initial == "" {
 			out["smoke_completion"] = map[string]any{"ok": false, "error": "no initial model to probe"}
 		} else {
-			to := healthTimeout(res)
+			to := gruntime.HealthTimeout(res)
 			if to > 45*time.Second {
 				to = 45 * time.Second
 			}
@@ -401,7 +405,7 @@ func (a *adminUI) handleRoutingRouterToolingPOST(w http.ResponseWriter, r *http.
 	if len(ch) > 0 {
 		apiKey := a.rt.UpstreamAPIKey()
 		if apiKey != "" {
-			to := healthTimeout(res2)
+			to := gruntime.HealthTimeout(res2)
 			ctx, cancel := context.WithTimeout(r.Context(), to+2*time.Second)
 			defer cancel()
 			st, catBody, ok := upstream.FetchOpenAIModels(ctx, res2.UpstreamBaseURL, apiKey, to, a.log)
@@ -545,12 +549,12 @@ func (a *adminUI) handleRoutingFallbackChainSavePOST(w http.ResponseWriter, r *h
 	}
 	gwRaw, err := os.ReadFile(res.GatewayYAMLPath)
 	if err != nil {
-		writeRoutingGenJSONError(w, http.StatusInternalServerError, "read gateway.yaml: "+err.Error())
+		writeRoutingGenJSONError(w, http.StatusInternalServerError, "read "+gatewayConfigLabel()+": "+err.Error())
 		return
 	}
 	gwPatched, err := config.PatchGatewayYAMLBytesWithFallbackChain(gwRaw, body.FallbackChain)
 	if err != nil {
-		writeRoutingGenJSONError(w, http.StatusBadRequest, "gateway.yaml patch validation failed: "+err.Error())
+		writeRoutingGenJSONError(w, http.StatusBadRequest, gatewayConfigLabel()+" patch validation failed: "+err.Error())
 		return
 	}
 	tmpValidate, err := os.CreateTemp(filepath.Dir(res.GatewayYAMLPath), "chimera-gw-fb-validate-*.yaml")
@@ -566,7 +570,7 @@ func (a *adminUI) handleRoutingFallbackChainSavePOST(w http.ResponseWriter, r *h
 		return
 	}
 	if _, err := config.LoadGatewayYAML(tmpPath, nil); err != nil {
-		writeRoutingGenJSONError(w, http.StatusBadRequest, "gateway.yaml after patch failed to load: "+err.Error())
+		writeRoutingGenJSONError(w, http.StatusBadRequest, gatewayConfigLabel()+" after patch failed to load: "+err.Error())
 		return
 	}
 	gwPerm := fs.FileMode(0o644)
@@ -578,7 +582,7 @@ func (a *adminUI) handleRoutingFallbackChainSavePOST(w http.ResponseWriter, r *h
 		return
 	}
 	if _, err := config.LoadGatewayYAML(res.GatewayYAMLPath, nil); err != nil {
-		writeRoutingGenJSONError(w, http.StatusInternalServerError, "reload gateway.yaml after write: "+err.Error())
+		writeRoutingGenJSONError(w, http.StatusInternalServerError, "reload "+gatewayConfigLabel()+" after write: "+err.Error())
 		return
 	}
 	a.rt.Sync()

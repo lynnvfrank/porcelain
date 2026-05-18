@@ -1,11 +1,12 @@
-package server
+package catalog
 
 import (
 	"github.com/lynn/porcelain/chimera/internal/config"
 	"github.com/lynn/porcelain/chimera/internal/providerfreetier"
 )
 
-func filterOpenAIModelDataByFreeTier(data []any, res *config.Resolved) []any {
+// FilterOpenAIModelDataByFreeTier applies the provider free-tier allowlist when configured.
+func FilterOpenAIModelDataByFreeTier(data []any, res *config.Resolved) []any {
 	if res == nil || !res.ShouldApplyFreeTierCatalogFilter() {
 		return data
 	}

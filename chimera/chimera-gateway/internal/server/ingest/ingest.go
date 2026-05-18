@@ -1,4 +1,4 @@
-package server
+package ingest
 
 import (
 	"encoding/json"
@@ -12,38 +12,33 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gwhttp"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
+	gruntime "github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/runtime"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 	"github.com/lynn/porcelain/chimera/internal/platform/requestid"
-	"github.com/lynn/porcelain/internal/naming"
 )
 
-const (
-	headerProject  = naming.HeaderProjectTarget
-	headerFlavor   = naming.HeaderFlavorTarget
-	headerIndexRun = naming.HeaderIndexRunTarget
-)
-
-// handleV1Ingest implements POST /v1/ingest (gateway v0.2). One document per
+// HandleV1 implements POST /v1/ingest (gateway v0.2). One document per
 // request: either multipart/form-data with a "file" part (and optional
 // "source", "content_hash" form fields) or JSON {"text", "source",
 // "content_hash"}. Tenant is derived from the bearer token; project/flavor
 // from headers (with token / config defaults).
-func handleV1Ingest(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger) {
+func HandleV1(w http.ResponseWriter, r *http.Request, rt *gruntime.Runtime, log *slog.Logger) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 	if r.ContentLength > res.RAG.MaxIngestBytes && res.RAG.MaxIngestBytes > 0 {
-		writeJSONError(w, http.StatusRequestEntityTooLarge,
+		gwhttp.WriteJSONError(w, http.StatusRequestEntityTooLarge,
 			fmt.Sprintf("body exceeds rag.ingest.max_bytes=%d", res.RAG.MaxIngestBytes), "request_too_large")
 		return
 	}
@@ -51,30 +46,30 @@ func handleV1Ingest(w http.ResponseWriter, r *http.Request, rt *Runtime, log *sl
 
 	source, text, contentHash, err := readIngestBody(r)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error(), "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, err.Error(), "invalid_request")
 		return
 	}
 	if strings.TrimSpace(text) == "" {
-		writeJSONError(w, http.StatusBadRequest, "empty document text", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, "empty document text", "invalid_request")
 		return
 	}
 	if strings.TrimSpace(source) == "" {
-		writeJSONError(w, http.StatusBadRequest, "missing source", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, "missing source", "invalid_request")
 		return
 	}
 
 	coords := vectorstore.Coords{
 		TenantID:  sess.TenantID,
-		ProjectID: resolveProject(r.Header.Get(headerProject), res.RAG.DefaultProject),
-		FlavorID:  resolveFlavor(r.Header.Get(headerFlavor), res.RAG.DefaultFlavor),
+		ProjectID: ResolveProject(r.Header.Get(HeaderProject), res.RAG.DefaultProject),
+		FlavorID:  ResolveFlavor(r.Header.Get(HeaderFlavor), res.RAG.DefaultFlavor),
 	}
 
-	indexRun := strings.TrimSpace(r.Header.Get(headerIndexRun))
+	indexRun := strings.TrimSpace(r.Header.Get(HeaderIndexRun))
 	if indexRun != "" && !requestid.Valid(indexRun) {
 		indexRun = ""
 	}
 
-	convID := optionalConversationIDFromHeader(r)
+	convID := OptionalConversationIDFromHeader(r)
 
 	rid := requestid.FromContext(r.Context())
 	result, err := rt.RAG().Ingest(r.Context(), rag.IngestRequest{
@@ -100,7 +95,7 @@ func handleV1Ingest(w http.ResponseWriter, r *http.Request, rt *Runtime, log *sl
 			}
 			log.Error("ingest failed", args...)
 		}
-		writeJSONError(w, http.StatusBadGateway, err.Error(), "gateway_upstream")
+		gwhttp.WriteJSONError(w, http.StatusBadGateway, err.Error(), "gateway_upstream")
 		return
 	}
 
@@ -226,29 +221,4 @@ func readMultipartIngest(r *http.Request, params map[string]string) (string, str
 		return "", "", "", errors.New("multipart body must include a 'file' or 'text' part")
 	}
 	return strings.TrimSpace(source), textBuf.String(), contentHash, nil
-}
-
-func resolveProject(headerVal, def string) string {
-	if v := strings.TrimSpace(headerVal); v != "" {
-		return v
-	}
-	if def != "" {
-		return def
-	}
-	return "default"
-}
-
-func resolveFlavor(headerVal, def string) string {
-	if v := strings.TrimSpace(headerVal); v != "" {
-		return v
-	}
-	return strings.TrimSpace(def)
-}
-
-func writeJSONError(w http.ResponseWriter, status int, message, errType string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"error": map[string]any{"message": message, "type": errType},
-	})
 }

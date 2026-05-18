@@ -1,39 +1,44 @@
-package server
+package indexerapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gwhttp"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
+	gruntime "github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/runtime"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/scope"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 )
 
-// handleIndexerWorkspaces returns persisted operator workspaces for the Bearer token tenant
-// (GET /v1/indexer/workspaces). Same auth and RAG gating as handleIndexerConfig.
-func handleIndexerWorkspaces(w http.ResponseWriter, r *http.Request, rt *Runtime, _ *slog.Logger) {
+// HandleWorkspaces returns persisted operator workspaces for the Bearer token tenant
+// (GET /v1/indexer/workspaces). Same auth and RAG gating as HandleConfig.
+func HandleWorkspaces(w http.ResponseWriter, r *http.Request, rt *gruntime.Runtime, _ *slog.Logger) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 	st := rt.OperatorStore()
 	if st == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "Operator workspace store is not available", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "Operator workspace store is not available", "gateway_config")
 		return
 	}
 	ctx := r.Context()
-	wss, err := listIndexerOperatorWorkspaces(ctx, st, sess.TenantID)
+	wss, err := listOperatorWorkspaces(ctx, st, sess.TenantID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error(), "gateway_upstream")
+		gwhttp.WriteJSONError(w, http.StatusInternalServerError, err.Error(), "gateway_upstream")
 		return
 	}
 
@@ -72,19 +77,18 @@ func handleIndexerWorkspaces(w http.ResponseWriter, r *http.Request, rt *Runtime
 	_ = json.NewEncoder(w).Encode(payload)
 }
 
-// handleIndexerConfig returns the effective RAG / indexer settings for the
-// authenticated tenant (per docs/plans/version-v0.2.md "Indexer REST").
-func handleIndexerConfig(w http.ResponseWriter, r *http.Request, rt *Runtime, _ *slog.Logger) {
+// HandleConfig returns the effective RAG / indexer settings for the authenticated tenant.
+func HandleConfig(w http.ResponseWriter, r *http.Request, rt *gruntime.Runtime, _ *slog.Logger) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -106,7 +110,7 @@ func handleIndexerConfig(w http.ResponseWriter, r *http.Request, rt *Runtime, _ 
 		"ingest_complete_path_tpl": "/v1/ingest/session/{session_id}/complete",
 		"corpus_inventory_path":    "/v1/indexer/corpus/inventory",
 		"required_headers":         []string{"Authorization"},
-		"optional_headers":         []string{headerProject, headerFlavor, headerIndexRun},
+		"optional_headers":         []string{scope.HeaderProject, scope.HeaderFlavor, scope.HeaderIndexRun},
 		"payload_fields": []string{
 			"tenant_id", "project_id", "text", "source", "flavor_id", "created_at",
 			"content_sha256", "client_content_hash",
@@ -126,17 +130,18 @@ func handleIndexerConfig(w http.ResponseWriter, r *http.Request, rt *Runtime, _ 
 	})
 }
 
-func handleIndexerHealth(w http.ResponseWriter, r *http.Request, rt *Runtime, _ *slog.Logger) {
+// HandleHealth probes vector store connectivity for the authenticated tenant.
+func HandleHealth(w http.ResponseWriter, r *http.Request, rt *gruntime.Runtime, _ *slog.Logger) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 	err := rt.RAG().StoreHealth(r.Context())
@@ -161,29 +166,27 @@ func handleIndexerHealth(w http.ResponseWriter, r *http.Request, rt *Runtime, _ 
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-// handleIndexerStats returns live vectorstore stats for the (tenant, project,
-// flavor) collection that the request scope resolves to.
-func handleIndexerStats(w http.ResponseWriter, r *http.Request, rt *Runtime, _ *slog.Logger) {
+// HandleStats returns live vectorstore stats for the scoped collection.
+func HandleStats(w http.ResponseWriter, r *http.Request, rt *gruntime.Runtime, _ *slog.Logger) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 	coords := vectorstore.Coords{
 		TenantID:  sess.TenantID,
-		ProjectID: resolveProject(r.Header.Get(headerProject), res.RAG.DefaultProject),
-		FlavorID:  resolveFlavor(r.Header.Get(headerFlavor), res.RAG.DefaultFlavor),
+		ProjectID: scope.ResolveProject(r.Header.Get(scope.HeaderProject), res.RAG.DefaultProject),
+		FlavorID:  scope.ResolveFlavor(r.Header.Get(scope.HeaderFlavor), res.RAG.DefaultFlavor),
 	}
 	st, err := rt.RAG().StoreStats(r.Context(), coords)
 	if err != nil {
-		// Treat 404 / missing collection as zero-points (hasn't ingested yet).
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"object":     "indexer.storage.stats",
@@ -211,20 +214,18 @@ func handleIndexerStats(w http.ResponseWriter, r *http.Request, rt *Runtime, _ *
 	})
 }
 
-// handleIndexerCorpusInventory returns a paginated list of unique sources in
-// the scoped corpus with server and optional client content digests (for
-// indexer startup reconciliation).
-func handleIndexerCorpusInventory(w http.ResponseWriter, r *http.Request, rt *Runtime, _ *slog.Logger) {
+// HandleCorpusInventory returns a paginated list of unique sources in the scoped corpus.
+func HandleCorpusInventory(w http.ResponseWriter, r *http.Request, rt *gruntime.Runtime, _ *slog.Logger) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 	if r.Method != http.MethodGet {
@@ -244,12 +245,12 @@ func handleIndexerCorpusInventory(w http.ResponseWriter, r *http.Request, rt *Ru
 
 	coords := vectorstore.Coords{
 		TenantID:  sess.TenantID,
-		ProjectID: resolveProject(r.Header.Get(headerProject), res.RAG.DefaultProject),
-		FlavorID:  resolveFlavor(r.Header.Get(headerFlavor), res.RAG.DefaultFlavor),
+		ProjectID: scope.ResolveProject(r.Header.Get(scope.HeaderProject), res.RAG.DefaultProject),
+		FlavorID:  scope.ResolveFlavor(r.Header.Get(scope.HeaderFlavor), res.RAG.DefaultFlavor),
 	}
 	entries, next, err := rt.RAG().CorpusInventory(r.Context(), coords, limit, cursor)
 	if err != nil {
-		writeJSONError(w, http.StatusBadGateway, err.Error(), "gateway_upstream")
+		gwhttp.WriteJSONError(w, http.StatusBadGateway, err.Error(), "gateway_upstream")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -270,4 +271,19 @@ func defaultOr(s, def string) string {
 		return def
 	}
 	return s
+}
+
+// listOperatorWorkspaces returns workspaces for tenantID, falling back to "" when empty.
+func listOperatorWorkspaces(ctx context.Context, st *operatorstore.Store, tenantID string) ([]operatorstore.Workspace, error) {
+	if st == nil {
+		return nil, nil
+	}
+	wss, err := st.ListWorkspaces(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if len(wss) == 0 && strings.TrimSpace(tenantID) != "" {
+		return st.ListWorkspaces(ctx, "")
+	}
+	return wss, nil
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"github.com/lynn/porcelain/internal/naming"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ import (
 //   - RAG is enabled and pre-loaded with one ingested doc.
 func setupRAGChatServer(t *testing.T) (string, *capturedReqs, *Runtime) {
 	t.Helper()
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	captured := &capturedReqs{}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +43,8 @@ func setupRAGChatServer(t *testing.T) (string, *capturedReqs, *Runtime) {
 	t.Cleanup(upstream.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGatewayWithRAG(t, gwPath, upstream.URL, []string{"groq/m"}, "http://127.0.0.1:1")
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, upstream.URL, []string{"groq/m"}, "http://127.0.0.1:1")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "rag-tok", "tenantR")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -176,7 +177,7 @@ func TestVirtualModelChat_InjectsRetrievedContext(t *testing.T) {
 }
 
 func TestVirtualModelChat_NoContextWhenRAGDisabled(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	captured := &capturedReqs{}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -194,8 +195,8 @@ func TestVirtualModelChat_NoContextWhenRAGDisabled(t *testing.T) {
 	t.Cleanup(upstream.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, upstream.URL, []string{"groq/m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, upstream.URL, []string{"groq/m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "tok", "ten")
 	routePath := filepath.Join(dir, "routing-policy.yaml")

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/lynn/porcelain/internal/naming"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,7 @@ import (
 )
 
 func TestModelsList_VirtualModelFirst(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -28,8 +29,8 @@ func TestModelsList_VirtualModelFirst(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, up.URL, []string{"groq/x"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, up.URL, []string{"groq/x"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "tok", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -75,7 +76,7 @@ func TestModelsList_VirtualModelFirst(t *testing.T) {
 }
 
 func TestModelsList_NormalizesMissingOpenAIFields(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -93,8 +94,8 @@ func TestModelsList_NormalizesMissingOpenAIFields(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, up.URL, []string{"gemini/x"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, up.URL, []string{"gemini/x"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "tok", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -138,7 +139,7 @@ func TestModelsList_NormalizesMissingOpenAIFields(t *testing.T) {
 }
 
 func TestUIModels_NoGatewayToken(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -155,8 +156,8 @@ func TestUIModels_NoGatewayToken(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, up.URL, []string{"ollama/qwen"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, up.URL, []string{"ollama/qwen"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "tok", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -201,7 +202,7 @@ func TestUIModels_NoGatewayToken(t *testing.T) {
 }
 
 func TestModelsList_FreeTierFilter(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -221,9 +222,9 @@ func TestModelsList_FreeTierFilter(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
 	gwRaw := "gateway:\n  semver: \"0.1.0\"\n  listen_port: 0\n  listen_host: \"127.0.0.1\"\n" +
-		"upstream:\n  base_url: \"" + up.URL + "\"\n  api_key_env: \"CHIMERA_UPSTREAM_API_KEY\"\n" +
+		"upstream:\n  base_url: \"" + up.URL + "\"\n  api_key_env: \"" + naming.EnvUpstreamAPIKeyTarget + "\"\n" +
 		"health:\n  timeout_ms: 2000\n  chat_timeout_ms: 60000\n" +
 		"paths:\n  tokens: \"./api-keys.yaml\"\n  routing_policy: \"./routing-policy.yaml\"\n" +
 		"  provider_free_tier: \"./provider-free-tier.yaml\"\n" +

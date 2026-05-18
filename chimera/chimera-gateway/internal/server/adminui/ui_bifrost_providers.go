@@ -4,7 +4,7 @@
 // classifies each entry into a small operator-facing state vocabulary so the strip in
 // internal/server/embedui/logs.js can render meaningful colors regardless of what the
 // supervised chimera-broker-http subprocess happens to log about providers in this build.
-package server
+package adminui
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"time"
 
 	chimeraBrokeradmin "github.com/lynn/porcelain/chimera/chimera-gateway/internal/bifrostadmin"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/catalog"
 )
 
 // chimeraBrokerUIProviderNames is the fixed roster the operator UI surfaces today (mirrors
@@ -28,7 +29,9 @@ var chimeraBrokerUIProviderNames = []string{"groq", "gemini", "ollama"}
 //   - "down"        BiFrost itself is unreachable (transport error or 5xx).
 //   - "key_missing" provider is registered but has no configured key (groq / gemini).
 //   - "unknown"     provider is not registered (404), or the GET response could not be parsed.
-type chimeraBrokerProviderHealthEntry struct {
+//
+// ProviderHealthEntry is one row in the provider health strip JSON.
+type ProviderHealthEntry struct {
 	ID            string   `json:"id"`
 	State         string   `json:"state"`
 	KeyConfigured bool     `json:"key_configured"`
@@ -40,11 +43,12 @@ type chimeraBrokerProviderHealthEntry struct {
 	Error         string   `json:"error,omitempty"`
 }
 
-type chimeraBrokerProviderHealthResponse struct {
-	FetchedAt time.Time                          `json:"fetched_at"`
-	BifrostUp bool                               `json:"chimera_broker_up"`
-	Error     string                             `json:"error,omitempty"`
-	Providers []chimeraBrokerProviderHealthEntry `json:"providers"`
+// ProviderHealthResponse is the JSON payload for GET /api/ui/chimera-broker/providers.
+type ProviderHealthResponse struct {
+	FetchedAt time.Time             `json:"fetched_at"`
+	BifrostUp bool                  `json:"chimera_broker_up"`
+	Error     string                `json:"error,omitempty"`
+	Providers []ProviderHealthEntry `json:"providers"`
 }
 
 // classifyBifrostProviderResult turns one (status, body, transport-err) tuple from
@@ -57,8 +61,9 @@ type chimeraBrokerProviderHealthResponse struct {
 // configured + key-present but absent from the live `/v1/models` catalog is downgraded to
 // "down" (Chimera Broker is pruning its models because the upstream is unreachable). Pass nil to
 // skip the override for tests that only exercise config-view classification.
-func classifyBifrostProviderResult(name string, body []byte, status int, transportErr error, liveSnapshot *CatalogSnapshot) chimeraBrokerProviderHealthEntry {
-	out := chimeraBrokerProviderHealthEntry{ID: name, State: "unknown"}
+// ClassifyBifrostProviderResult turns one provider probe into an operator-facing health entry.
+func ClassifyBifrostProviderResult(name string, body []byte, status int, transportErr error, liveSnapshot *catalog.CatalogSnapshot) ProviderHealthEntry {
+	out := ProviderHealthEntry{ID: name, State: "unknown"}
 	if transportErr != nil {
 		out.State = "down"
 		out.Error = transportErr.Error()
@@ -118,11 +123,11 @@ func classifyBifrostProviderResult(name string, body []byte, status int, transpo
 	// Live override: BiFrost prunes a provider's models from /v1/models the moment it can't
 	// reach the upstream (most visible with local ollama: stop the daemon and `ollama/...`
 	// disappears from the merged catalog). When a fresh snapshot says "configured but no
-	// models present", treat that as the runtime liveness verdict and downgrade to "down".
+	// models present", treat that as the gruntime.Runtime liveness verdict and downgrade to "down".
 	// We only override the otherwise-positive states ("up") because a config-side
 	// "key_missing" / "unknown" already explains why the provider can't serve traffic.
 	if out.State == "up" && liveSnapshot != nil && liveSnapshot.OK &&
-		liveSnapshot.IsFresh(time.Now(), CatalogSnapshotFreshness) &&
+		liveSnapshot.IsFresh(time.Now(), catalog.CatalogSnapshotFreshness) &&
 		!liveSnapshot.HasProvider(name) {
 		out.State = "down"
 		if out.Error == "" {
@@ -139,24 +144,24 @@ func classifyBifrostProviderResult(name string, body []byte, status int, transpo
 // liveSnapshot, when non-nil and fresh, is used by [classifyChimeraBrokerProviderResult] to
 // override the config-view verdict with the live `/v1/models` catalog (see that function for
 // the override rules). Pass nil from tests that only need to exercise the config branch.
-func fetchChimeraBrokerProviderHealth(ctx context.Context, client *chimeraBrokeradmin.Client, names []string, liveSnapshot *CatalogSnapshot) chimeraBrokerProviderHealthResponse {
-	out := chimeraBrokerProviderHealthResponse{
+func fetchChimeraBrokerProviderHealth(ctx context.Context, client *chimeraBrokeradmin.Client, names []string, liveSnapshot *catalog.CatalogSnapshot) ProviderHealthResponse {
+	out := ProviderHealthResponse{
 		FetchedAt: time.Now().UTC(),
-		Providers: make([]chimeraBrokerProviderHealthEntry, 0, len(names)),
+		Providers: make([]ProviderHealthEntry, 0, len(names)),
 	}
-	snapshotFresh := liveSnapshot != nil && liveSnapshot.OK && liveSnapshot.IsFresh(time.Now(), CatalogSnapshotFreshness)
+	snapshotFresh := liveSnapshot != nil && liveSnapshot.OK && liveSnapshot.IsFresh(time.Now(), catalog.CatalogSnapshotFreshness)
 	if client == nil || strings.TrimSpace(client.BaseURL) == "" {
 		out.Error = "chimera-broker upstream not configured"
 		out.BifrostUp = false
 		for _, n := range names {
-			out.Providers = append(out.Providers, chimeraBrokerProviderHealthEntry{ID: n, State: "down", Error: out.Error})
+			out.Providers = append(out.Providers, ProviderHealthEntry{ID: n, State: "down", Error: out.Error})
 		}
 		return out
 	}
 	anySuccess := false
 	for _, name := range names {
 		body, status, err := client.GetProvider(ctx, name)
-		entry := classifyBifrostProviderResult(name, body, status, err, liveSnapshot)
+		entry := ClassifyBifrostProviderResult(name, body, status, err, liveSnapshot)
 		if snapshotFresh {
 			entry.ModelIDs = catalogModelIDsForProvider(liveSnapshot, name)
 		}
@@ -179,7 +184,7 @@ func fetchChimeraBrokerProviderHealth(ctx context.Context, client *chimeraBroker
 	return out
 }
 
-func catalogModelIDsForProvider(snap *CatalogSnapshot, providerName string) []string {
+func catalogModelIDsForProvider(snap *catalog.CatalogSnapshot, providerName string) []string {
 	if snap == nil || !snap.OK || len(snap.ModelIDs) == 0 {
 		return nil
 	}
@@ -200,7 +205,8 @@ func catalogModelIDsForProvider(snap *CatalogSnapshot, providerName string) []st
 	return out
 }
 
-func fetchBifrostProviderHealth(ctx context.Context, client *chimeraBrokeradmin.Client, names []string, liveSnapshot *CatalogSnapshot) chimeraBrokerProviderHealthResponse {
+// FetchBifrostProviderHealth queries Chimera Broker for provider health (tests and handlers).
+func FetchBifrostProviderHealth(ctx context.Context, client *chimeraBrokeradmin.Client, names []string, liveSnapshot *catalog.CatalogSnapshot) ProviderHealthResponse {
 	return fetchChimeraBrokerProviderHealth(ctx, client, names, liveSnapshot)
 }
 
@@ -222,7 +228,7 @@ func (a *adminUI) handleChimeraBrokerProviderHealth(w http.ResponseWriter, r *ht
 	client := chimeraBrokerAdminClient(a.rt)
 	// Read the live `/v1/models` snapshot maintained by the periodic catalog poller (see
 	// availablemodels.go). When fresh, missing providers in that catalog override the
-	// config-view "up" verdict so the Provider health strip reflects runtime reality.
+	// config-view "up" verdict so the Provider health strip reflects gruntime.Runtime reality.
 	resp := fetchChimeraBrokerProviderHealth(ctx, client, chimeraBrokerUIProviderNames, a.rt.CatalogSnapshot())
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(resp)

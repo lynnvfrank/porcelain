@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/lynn/porcelain/internal/naming"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -156,7 +157,7 @@ func TestIndexerStats_AfterIngest(t *testing.T) {
 
 	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/v1/indexer/storage/stats", nil)
 	req.Header.Set("Authorization", "Bearer ingest-tok")
-	req.Header.Set(headerProject, "proj")
+	req.Header.Set(HeaderProject, "proj")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +190,7 @@ func TestIndexerCorpusInventory_AfterIngest(t *testing.T) {
 	}
 	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/v1/indexer/corpus/inventory?limit=50", nil)
 	req.Header.Set("Authorization", "Bearer ingest-tok")
-	req.Header.Set(headerProject, "proj")
+	req.Header.Set(HeaderProject, "proj")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -261,7 +262,7 @@ func TestHealth_RAGFailDegrades(t *testing.T) {
 }
 
 func TestHealth_NoRAGProbeWhenDisabled(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
 			w.WriteHeader(http.StatusOK)
@@ -269,8 +270,8 @@ func TestHealth_NoRAGProbeWhenDisabled(t *testing.T) {
 	}))
 	t.Cleanup(upstream.Close)
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, upstream.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, upstream.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "tok", "ten")
 	routePath := filepath.Join(dir, "routing-policy.yaml")

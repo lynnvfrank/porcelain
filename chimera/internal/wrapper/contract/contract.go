@@ -26,13 +26,13 @@ var AllowedComponents = map[string]struct{}{
 }
 
 var AllowedBackendNames = map[string]struct{}{
-	naming.ProductQdrantBinName:  {},
-	"bifrost":                    {}, // legacy alias; new broker wrapper reports chimera-broker
-	naming.ProductBrokerName:     {},
-	"milvus":         {},
-	"weaviate":       {},
-	"redis_vector":   {},
-	"custom":         {},
+	naming.ProductQdrantBinName: {},
+	"bifrost":                   {}, // legacy alias; new broker wrapper reports chimera-broker
+	naming.ProductBrokerName:    {},
+	"milvus":                    {},
+	"weaviate":                  {},
+	"redis_vector":              {},
+	"custom":                    {},
 }
 
 var AllowedBackendModes = map[string]struct{}{

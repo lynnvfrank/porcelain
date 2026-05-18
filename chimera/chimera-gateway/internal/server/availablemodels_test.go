@@ -2,15 +2,15 @@ package server
 
 import (
 	"context"
+	"github.com/lynn/porcelain/internal/naming"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/catalog"
 	"github.com/lynn/porcelain/chimera/internal/config"
 )
 
@@ -45,7 +45,7 @@ func TestBuildCatalogSnapshot_collectsProvidersAndModels(t *testing.T) {
 	t.Cleanup(chimeraBroker.Close)
 
 	res := newTestResolved(chimeraBroker.URL)
-	snap := buildCatalogSnapshot(context.Background(), res, "ukey", 2*time.Second, nil)
+	snap := BuildCatalogSnapshot(context.Background(), res, "ukey", 2*time.Second, nil)
 	if snap == nil || !snap.OK {
 		t.Fatalf("snapshot ok=false: %+v", snap)
 	}
@@ -89,7 +89,7 @@ func TestBuildCatalogSnapshot_ollamaOfflineDropsProvider(t *testing.T) {
 	t.Cleanup(chimeraBroker.Close)
 
 	res := newTestResolved(chimeraBroker.URL)
-	snap := buildCatalogSnapshot(context.Background(), res, "ukey", 2*time.Second, nil)
+	snap := BuildCatalogSnapshot(context.Background(), res, "ukey", 2*time.Second, nil)
 	if snap == nil || !snap.OK {
 		t.Fatalf("snapshot ok=false: %+v", snap)
 	}
@@ -107,7 +107,7 @@ func TestBuildCatalogSnapshot_fetchFailureProducesErrorSnapshot(t *testing.T) {
 	dead.Close() // immediately close so dial fails
 
 	res := newTestResolved(dead.URL)
-	snap := buildCatalogSnapshot(context.Background(), res, "ukey", 500*time.Millisecond, nil)
+	snap := BuildCatalogSnapshot(context.Background(), res, "ukey", 500*time.Millisecond, nil)
 	if snap == nil {
 		t.Fatal("snapshot is nil")
 	}
@@ -125,7 +125,7 @@ func TestBuildCatalogSnapshot_fetchFailureProducesErrorSnapshot(t *testing.T) {
 func TestBuildCatalogSnapshot_emptyAPIKeyShortCircuits(t *testing.T) {
 	t.Parallel()
 	res := newTestResolved("http://example.invalid")
-	snap := buildCatalogSnapshot(context.Background(), res, "", 100*time.Millisecond, nil)
+	snap := BuildCatalogSnapshot(context.Background(), res, "", 100*time.Millisecond, nil)
 	if snap.OK {
 		t.Fatalf("ok should be false with empty api key: %+v", snap)
 	}
@@ -162,7 +162,7 @@ func TestRefreshAvailableModels_storesSnapshotAndRunsAuditors(t *testing.T) {
 	}))
 	t.Cleanup(chimeraBroker.Close)
 
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	rt := runtimeForCatalogTest(t, chimeraBroker.URL)
 
 	defer clearCatalogAuditors()
@@ -202,7 +202,7 @@ func TestRefreshAvailableModels_recoversFromAuditorPanic(t *testing.T) {
 		_, _ = w.Write([]byte(`{"object":"list","data":[{"id":"groq/m"}]}`))
 	}))
 	t.Cleanup(chimeraBroker.Close)
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	rt := runtimeForCatalogTest(t, chimeraBroker.URL)
 
 	defer clearCatalogAuditors()
@@ -231,7 +231,7 @@ func TestClassifyBifrostProviderResult_liveCatalogOverride(t *testing.T) {
 	// groq + gemini → classifier must downgrade ollama to "down".
 	live := buildSnapshotForTest(time.Now(), []string{"gemini", "groq"})
 	body := []byte(`{"name":"ollama","keys":[],"network_config":{"base_url":"http://127.0.0.1:11434"}}`)
-	got := classifyBifrostProviderResult("ollama", body, 200, nil, live)
+	got := ClassifyBifrostProviderResult("ollama", body, 200, nil, live)
 	if got.State != "down" {
 		t.Fatalf("state=%q want down (live override): %+v", got.State, got)
 	}
@@ -239,7 +239,7 @@ func TestClassifyBifrostProviderResult_liveCatalogOverride(t *testing.T) {
 		t.Fatalf("error annotation should be set: %+v", got)
 	}
 	bodyGroq := []byte(`{"name":"groq","keys":[{"name":"k","value":"env.GROQ_API_KEY"}]}`)
-	gotGroq := classifyBifrostProviderResult("groq", bodyGroq, 200, nil, live)
+	gotGroq := ClassifyBifrostProviderResult("groq", bodyGroq, 200, nil, live)
 	if gotGroq.State != "up" {
 		t.Fatalf("groq state=%q want up", gotGroq.State)
 	}
@@ -249,7 +249,7 @@ func TestClassifyBifrostProviderResult_staleSnapshotDoesNotOverride(t *testing.T
 	t.Parallel()
 	stale := buildSnapshotForTest(time.Now().Add(-10*time.Minute), []string{"groq"})
 	body := []byte(`{"name":"ollama","keys":[],"network_config":{"base_url":"http://127.0.0.1:11434"}}`)
-	got := classifyBifrostProviderResult("ollama", body, 200, nil, stale)
+	got := ClassifyBifrostProviderResult("ollama", body, 200, nil, stale)
 	if got.State != "up" {
 		t.Fatalf("stale snapshot must not override; got %q", got.State)
 	}
@@ -259,7 +259,7 @@ func TestClassifyBifrostProviderResult_failedSnapshotDoesNotOverride(t *testing.
 	t.Parallel()
 	failed := &CatalogSnapshot{FetchedAt: time.Now(), OK: false, FetchErr: "boom"}
 	body := []byte(`{"name":"ollama","keys":[],"network_config":{"base_url":"http://127.0.0.1:11434"}}`)
-	got := classifyBifrostProviderResult("ollama", body, 200, nil, failed)
+	got := ClassifyBifrostProviderResult("ollama", body, 200, nil, failed)
 	if got.State != "up" {
 		t.Fatalf("failed snapshot must not override; got %q", got.State)
 	}
@@ -271,7 +271,7 @@ func TestClassifyBifrostProviderResult_overrideOnlyAffectsUp(t *testing.T) {
 	// must NOT promote/demote a key_missing into "down" (it already explains the failure mode).
 	live := buildSnapshotForTest(time.Now(), []string{"groq"})
 	body := []byte(`{"name":"gemini","keys":[]}`)
-	got := classifyBifrostProviderResult("gemini", body, 200, nil, live)
+	got := ClassifyBifrostProviderResult("gemini", body, 200, nil, live)
 	if got.State != "key_missing" {
 		t.Fatalf("state=%q want key_missing", got.State)
 	}
@@ -280,42 +280,9 @@ func TestClassifyBifrostProviderResult_overrideOnlyAffectsUp(t *testing.T) {
 // ---------- helpers ----------
 
 func buildSnapshotForTest(at time.Time, providers []string) *CatalogSnapshot {
-	set := map[string]struct{}{}
-	for _, p := range providers {
-		set[p] = struct{}{}
-	}
-	return &CatalogSnapshot{
-		FetchedAt:   at,
-		OK:          true,
-		Providers:   append([]string(nil), providers...),
-		providerSet: set,
-		modelSet:    map[string]struct{}{},
-	}
-}
-
-// runtimeForCatalogTest writes a minimal gateway.yaml + api-keys.yaml + routing-policy.yaml
-// pointing at the given upstream URL and returns the loaded Runtime. Does not register any
-// HTTP routes (the tests poll Runtime / build snapshots directly).
-func runtimeForCatalogTest(t *testing.T, upstreamURL string) *Runtime {
-	t.Helper()
-	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	tokPath := filepath.Join(dir, "api-keys.yaml")
-	routePath := filepath.Join(dir, "routing-policy.yaml")
-	writeGateway(t, gwPath, upstreamURL, []string{"m"})
-	writeTokens(t, tokPath, "tok", "tenant")
-	if err := os.WriteFile(routePath, []byte("rules: []\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	rt, err := NewRuntime(gwPath, testLog())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return rt
+	return catalog.NewTestSnapshot(at, providers)
 }
 
 func clearCatalogAuditors() {
-	catalogAuditorsMu.Lock()
-	catalogAuditors = nil
-	catalogAuditorsMu.Unlock()
+	catalog.ResetAuditorsForTest()
 }

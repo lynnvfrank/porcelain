@@ -56,14 +56,14 @@ func TestLoggingMiddleware_emitsRequestID(t *testing.T) {
 func TestOptionalConversationIDFromHeader_set(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
 	r.Header.Set(headerConversationID, "sess-abc-1")
-	if got := optionalConversationIDFromHeader(r); got != "sess-abc-1" {
+	if got := OptionalConversationIDFromHeader(r); got != "sess-abc-1" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestOptionalConversationIDFromHeader_empty(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
-	if got := optionalConversationIDFromHeader(r); got != "" {
+	if got := OptionalConversationIDFromHeader(r); got != "" {
 		t.Fatalf("got %q want empty", got)
 	}
 }

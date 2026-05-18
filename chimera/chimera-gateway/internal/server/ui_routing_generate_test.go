@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/lynn/porcelain/internal/naming"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -15,7 +16,7 @@ import (
 )
 
 func TestUIRoutingGenerate_writesFiles(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -35,9 +36,9 @@ func TestUIRoutingGenerate_writesFiles(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
 	gwRaw := "gateway:\n  semver: \"0.1.0\"\n  listen_port: 0\n  listen_host: \"127.0.0.1\"\n" +
-		"upstream:\n  base_url: \"" + up.URL + "\"\n  api_key_env: \"CHIMERA_UPSTREAM_API_KEY\"\n" +
+		"upstream:\n  base_url: \"" + up.URL + "\"\n  api_key_env: \"" + naming.EnvUpstreamAPIKeyTarget + "\"\n" +
 		"health:\n  timeout_ms: 2000\n  chat_timeout_ms: 60000\n" +
 		"paths:\n  tokens: \"./api-keys.yaml\"\n  routing_policy: \"./routing-policy.yaml\"\n" +
 		"routing:\n  filter_free_tier_models: false\n  fallback_chain:\n    - \"groq/legacy\"\n"
@@ -118,7 +119,7 @@ func TestUIRoutingGenerate_writesFiles(t *testing.T) {
 }
 
 func TestUIRoutingPolicySave_writesRoutingPolicyOnly(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -135,9 +136,9 @@ func TestUIRoutingPolicySave_writesRoutingPolicyOnly(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
 	gwRaw := "gateway:\n  semver: \"0.1.0\"\n  listen_port: 0\n  listen_host: \"127.0.0.1\"\n" +
-		"upstream:\n  base_url: \"" + up.URL + "\"\n  api_key_env: \"CHIMERA_UPSTREAM_API_KEY\"\n" +
+		"upstream:\n  base_url: \"" + up.URL + "\"\n  api_key_env: \"" + naming.EnvUpstreamAPIKeyTarget + "\"\n" +
 		"health:\n  timeout_ms: 2000\n  chat_timeout_ms: 60000\n" +
 		"paths:\n  tokens: \"./api-keys.yaml\"\n  routing_policy: \"./routing-policy.yaml\"\n" +
 		"routing:\n  filter_free_tier_models: false\n  fallback_chain:\n    - \"groq/x\"\n"

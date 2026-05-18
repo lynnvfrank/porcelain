@@ -1,4 +1,4 @@
-package server
+package adminui
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"time"
 
 	chimeraBrokeradmin "github.com/lynn/porcelain/chimera/chimera-gateway/internal/bifrostadmin"
+	gruntime "github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/runtime"
 	"github.com/lynn/porcelain/chimera/internal/upstream"
 	"github.com/lynn/porcelain/internal/naming"
 )
@@ -33,7 +34,12 @@ func sanitizeLoginNext(next string) string {
 //go:embed embedui/login.html embedui/panel.html embedui/logs.html embedui/logs.css embedui/theme-tokens.css embedui/logs.js embedui/logs_bootstrap.js embedui/logs/* embedui/logs/*/* embedui/metrics.html embedui/shell.html embedui/pwa.html embedui/reload.svg embedui/setup.html
 var adminEmbedUI embed.FS
 
-func chimeraBrokerAdminClient(rt *Runtime) *chimeraBrokeradmin.Client {
+// ReadEmbedFile returns bytes for an embedded operator UI asset (e.g. embedui/setup.html).
+func ReadEmbedFile(name string) ([]byte, error) {
+	return adminEmbedUI.ReadFile(name)
+}
+
+func chimeraBrokerAdminClient(rt *gruntime.Runtime) *chimeraBrokeradmin.Client {
 	rt.Sync()
 	res, _, _ := rt.Snapshot()
 	if res == nil {
@@ -66,7 +72,7 @@ func publicGatewayBase(r *http.Request) string {
 }
 
 type adminUI struct {
-	rt   *Runtime
+	rt   *gruntime.Runtime
 	log  *slog.Logger
 	opts *UIOptions
 }
@@ -316,7 +322,7 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 	}
 	rm, trAt, trErr := a.rt.ToolRouterLast()
 	chimeraBrokerURL := strings.TrimSuffix(res.UpstreamBaseURL, "/")
-	chimeraBrokerOK, _, chimeraBrokerDetail := upstream.ProbeHealth(ctx, res.HealthUpstreamURL, a.rt.UpstreamAPIKey(), healthTimeout(res), a.log)
+	chimeraBrokerOK, _, chimeraBrokerDetail := upstream.ProbeHealth(ctx, res.HealthUpstreamURL, a.rt.UpstreamAPIKey(), gruntime.HealthTimeout(res), a.log)
 	chimeraBrokerState := "down"
 	if chimeraBrokerOK {
 		chimeraBrokerState = "up"
@@ -427,7 +433,7 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(out)
 }
 
-func registerAdminUI(mux *http.ServeMux, rt *Runtime, log *slog.Logger, ui *UIOptions) {
+func Register(mux *http.ServeMux, rt *gruntime.Runtime, log *slog.Logger, ui *UIOptions) {
 	if ui == nil || ui.Sessions == nil {
 		return
 	}

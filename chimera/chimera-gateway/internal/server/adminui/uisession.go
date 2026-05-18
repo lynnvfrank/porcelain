@@ -1,4 +1,4 @@
-package server
+package adminui
 
 import (
 	"crypto/rand"
@@ -9,7 +9,8 @@ import (
 	"github.com/lynn/porcelain/chimera/internal/servicelogs"
 )
 
-const defaultUICookieName = "chimera_ui_session"
+// DefaultUICookieName is the operator UI session cookie name.
+const DefaultUICookieName = "chimera_ui_session"
 const defaultSessionTTL = 24 * time.Hour
 
 // uiSessionStore holds short-lived admin UI sessions after gateway token login.
@@ -83,12 +84,12 @@ type UIOptions struct {
 
 func (o *UIOptions) cookieName() string {
 	if o == nil {
-		return defaultUICookieName
+		return DefaultUICookieName
 	}
 	if n := o.CookieName; n != "" {
 		return n
 	}
-	return defaultUICookieName
+	return DefaultUICookieName
 }
 
 // NewUIOptions returns UIOptions with an in-memory session store (production: same process as gateway).

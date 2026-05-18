@@ -1,4 +1,4 @@
-package server
+package runtime
 
 import (
 	"bytes"
@@ -14,7 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gwhttp"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/scope"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 	"github.com/lynn/porcelain/chimera/internal/platform/requestid"
 	"github.com/lynn/porcelain/internal/naming"
@@ -81,21 +83,21 @@ func randomSessionID() (string, error) {
 }
 
 // handleV1IngestSessionStart handles POST /v1/ingest/session (exact path).
-func handleV1IngestSessionStart(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger) {
+func HandleIngestSessionStart(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 	var body struct {
@@ -103,26 +105,26 @@ func handleV1IngestSessionStart(w http.ResponseWriter, r *http.Request, rt *Runt
 		ContentHash string `json:"content_hash"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "invalid JSON body", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, "invalid JSON body", "invalid_request")
 		return
 	}
 	source := strings.TrimSpace(body.Source)
 	if source == "" {
-		writeJSONError(w, http.StatusBadRequest, "missing source", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, "missing source", "invalid_request")
 		return
 	}
 	maxTotal := res.RAG.MaxIngestBytes
 	maxChunk := pickMaxChunkBytes(maxTotal)
 	id, err := randomSessionID()
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, "session id", "internal")
+		gwhttp.WriteJSONError(w, http.StatusInternalServerError, "session id", "internal")
 		return
 	}
-	indexRun := strings.TrimSpace(r.Header.Get(headerIndexRun))
+	indexRun := strings.TrimSpace(r.Header.Get(scope.HeaderIndexRun))
 	if indexRun != "" && !requestid.Valid(indexRun) {
 		indexRun = ""
 	}
-	convID := optionalConversationIDFromHeader(r)
+	convID := scope.OptionalConversationIDFromHeader(r)
 	rec := &ingestSession{
 		tenantID:       sess.TenantID,
 		source:         source,
@@ -134,8 +136,8 @@ func handleV1IngestSessionStart(w http.ResponseWriter, r *http.Request, rt *Runt
 		createdAt:      time.Now(),
 		coords: vectorstore.Coords{
 			TenantID:  sess.TenantID,
-			ProjectID: resolveProject(r.Header.Get(headerProject), res.RAG.DefaultProject),
-			FlavorID:  resolveFlavor(r.Header.Get(headerFlavor), res.RAG.DefaultFlavor),
+			ProjectID: scope.ResolveProject(r.Header.Get(scope.HeaderProject), res.RAG.DefaultProject),
+			FlavorID:  scope.ResolveFlavor(r.Header.Get(scope.HeaderFlavor), res.RAG.DefaultFlavor),
 		},
 	}
 	store := rt.ingestSessions
@@ -146,7 +148,7 @@ func handleV1IngestSessionStart(w http.ResponseWriter, r *http.Request, rt *Runt
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"object":             "ingest.session",
+		"object":             "scope.session",
 		"session_id":         id,
 		"max_chunk_bytes":    maxChunk,
 		"max_total_bytes":    maxTotal,
@@ -159,7 +161,7 @@ func handleV1IngestSessionStart(w http.ResponseWriter, r *http.Request, rt *Runt
 }
 
 // handleV1IngestSessionTail handles /v1/ingest/session/{id}/chunk and .../complete.
-func handleV1IngestSessionTail(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger) {
+func HandleIngestSessionTail(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger) {
 	p := strings.TrimPrefix(r.URL.Path, "/v1/ingest/session/")
 	parts := strings.Split(p, "/")
 	if len(parts) != 2 {
@@ -188,20 +190,20 @@ func handleV1IngestSessionTail(w http.ResponseWriter, r *http.Request, rt *Runti
 func handleIngestSessionChunk(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger, id string) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 	idxStr := strings.TrimSpace(r.Header.Get(naming.HeaderChunkIndexTarget))
 	idx, err := strconv.Atoi(idxStr)
 	if err != nil || idx < 0 {
-		writeJSONError(w, http.StatusBadRequest, "invalid "+naming.HeaderChunkIndexTarget, "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, "invalid "+naming.HeaderChunkIndexTarget, "invalid_request")
 		return
 	}
 
@@ -211,17 +213,17 @@ func handleIngestSessionChunk(w http.ResponseWriter, r *http.Request, rt *Runtim
 	rec, ok := store.sessions[id]
 	if !ok {
 		store.mu.Unlock()
-		writeJSONError(w, http.StatusNotFound, "unknown or expired session", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusNotFound, "unknown or expired session", "invalid_request")
 		return
 	}
 	if rec.tenantID != sess.TenantID {
 		store.mu.Unlock()
-		writeJSONError(w, http.StatusForbidden, "session tenant mismatch", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusForbidden, "session tenant mismatch", "invalid_request")
 		return
 	}
 	if idx != rec.nextChunk {
 		store.mu.Unlock()
-		writeJSONError(w, http.StatusBadRequest,
+		gwhttp.WriteJSONError(w, http.StatusBadRequest,
 			fmt.Sprintf("expected chunk index %d, got %d", rec.nextChunk, idx), "invalid_request")
 		return
 	}
@@ -231,11 +233,11 @@ func handleIngestSessionChunk(w http.ResponseWriter, r *http.Request, rt *Runtim
 	r.Body = http.MaxBytesReader(w, r.Body, maxChunk)
 	chunk, err := io.ReadAll(r.Body)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "chunk read error", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, "chunk read error", "invalid_request")
 		return
 	}
 	if len(chunk) == 0 {
-		writeJSONError(w, http.StatusBadRequest, "empty chunk", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, "empty chunk", "invalid_request")
 		return
 	}
 
@@ -243,13 +245,13 @@ func handleIngestSessionChunk(w http.ResponseWriter, r *http.Request, rt *Runtim
 	rec, ok = store.sessions[id]
 	if !ok || rec.tenantID != sess.TenantID {
 		store.mu.Unlock()
-		writeJSONError(w, http.StatusNotFound, "unknown or expired session", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusNotFound, "unknown or expired session", "invalid_request")
 		return
 	}
 	if int64(rec.buf.Len()+len(chunk)) > rec.maxTotal {
 		delete(store.sessions, id)
 		store.mu.Unlock()
-		writeJSONError(w, http.StatusRequestEntityTooLarge,
+		gwhttp.WriteJSONError(w, http.StatusRequestEntityTooLarge,
 			fmt.Sprintf("session exceeds max_total_bytes=%d", rec.maxTotal), "request_too_large")
 		return
 	}
@@ -262,7 +264,7 @@ func handleIngestSessionChunk(w http.ResponseWriter, r *http.Request, rt *Runtim
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"object":          "ingest.session.chunk",
+		"object":          "scope.session.chunk",
 		"session_id":      id,
 		"received_chunks": received,
 		"bytes_buffered":  bufLen,
@@ -272,14 +274,14 @@ func handleIngestSessionChunk(w http.ResponseWriter, r *http.Request, rt *Runtim
 func handleIngestSessionComplete(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger, id string) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
-		writeJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
+		gwhttp.WriteJSONError(w, http.StatusUnauthorized, "Unauthorized", "invalid_api_key")
 		return
 	}
 	if !res.RAG.Enabled || rt.RAG() == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
+		gwhttp.WriteJSONError(w, http.StatusServiceUnavailable, "RAG is not enabled", "gateway_config")
 		return
 	}
 
@@ -289,18 +291,18 @@ func handleIngestSessionComplete(w http.ResponseWriter, r *http.Request, rt *Run
 	rec, ok := store.sessions[id]
 	if !ok {
 		store.mu.Unlock()
-		writeJSONError(w, http.StatusNotFound, "unknown or expired session", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusNotFound, "unknown or expired session", "invalid_request")
 		return
 	}
 	if rec.tenantID != sess.TenantID {
 		store.mu.Unlock()
-		writeJSONError(w, http.StatusForbidden, "session tenant mismatch", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusForbidden, "session tenant mismatch", "invalid_request")
 		return
 	}
 	if rec.buf.Len() == 0 {
 		delete(store.sessions, id)
 		store.mu.Unlock()
-		writeJSONError(w, http.StatusBadRequest, "no chunks uploaded", "invalid_request")
+		gwhttp.WriteJSONError(w, http.StatusBadRequest, "no chunks uploaded", "invalid_request")
 		return
 	}
 	text := rec.buf.String()
@@ -325,7 +327,7 @@ func handleIngestSessionComplete(w http.ResponseWriter, r *http.Request, rt *Run
 	if err != nil {
 		if log != nil {
 			args := []any{
-				"msg", "ingest.chunked.error",
+				"msg", "scope.chunked.error",
 				"tenant", sess.TenantID, "source", source, "err", err,
 				"service", "gateway", "principal_id", sess.TenantID,
 				"timeline_kind", "indexer",
@@ -341,13 +343,13 @@ func handleIngestSessionComplete(w http.ResponseWriter, r *http.Request, rt *Run
 			}
 			log.Error("chunked ingest failed", args...)
 		}
-		writeJSONError(w, http.StatusBadGateway, err.Error(), "gateway_upstream")
+		gwhttp.WriteJSONError(w, http.StatusBadGateway, err.Error(), "gateway_upstream")
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	out := map[string]any{
-		"object":         "ingest.result",
+		"object":         "scope.result",
 		"source":         result.Source,
 		"chunks":         result.Chunks,
 		"collection":     result.Collection,
@@ -362,7 +364,7 @@ func handleIngestSessionComplete(w http.ResponseWriter, r *http.Request, rt *Run
 	}
 	if log != nil {
 		args := []any{
-			"msg", "ingest.complete",
+			"msg", "scope.complete",
 			"tenant", sess.TenantID, "source", source, "chunks", result.Chunks,
 			"service", "gateway", "principal_id", sess.TenantID,
 			"timeline_kind", "indexer",

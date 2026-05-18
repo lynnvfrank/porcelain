@@ -10,7 +10,7 @@
 //
 // Future auditors should attach via [RegisterCatalogAuditor]: they receive the freshly built
 // snapshot plus the resolved gateway config and run after every refresh.
-package server
+package catalog
 
 import (
 	"context"
@@ -122,7 +122,8 @@ func RegisterCatalogAuditor(a CatalogAuditor) {
 	catalogAuditorsMu.Unlock()
 }
 
-func snapshotAuditors() []CatalogAuditor {
+// SnapshotAuditors returns a copy of registered catalog auditors.
+func SnapshotAuditors() []CatalogAuditor {
 	catalogAuditorsMu.RLock()
 	defer catalogAuditorsMu.RUnlock()
 	if len(catalogAuditors) == 0 {
@@ -133,11 +134,11 @@ func snapshotAuditors() []CatalogAuditor {
 	return out
 }
 
-// buildCatalogSnapshot calls BiFrost `/v1/models` and shapes the response into a
-// [CatalogSnapshot]. It does NOT log; callers (e.g. [RefreshAvailableModels]) are responsible
+// BuildSnapshot calls BiFrost `/v1/models` and shapes the response into a
+// [CatalogSnapshot]. It does NOT log; callers (e.g. runtime.RefreshAvailableModels) are responsible
 // for emitting `chat.chimera-broker.available_models`. Pure of cache writes / runtime mutation so it
 // can be reused by tests and ad-hoc callers.
-func buildCatalogSnapshot(ctx context.Context, res *config.Resolved, apiKey string, timeout time.Duration, log *slog.Logger) *CatalogSnapshot {
+func BuildSnapshot(ctx context.Context, res *config.Resolved, apiKey string, timeout time.Duration, log *slog.Logger) *CatalogSnapshot {
 	out := &CatalogSnapshot{FetchedAt: time.Now().UTC()}
 	if res == nil {
 		out.FetchErr = "gateway config not resolved"
@@ -161,7 +162,7 @@ func buildCatalogSnapshot(ctx context.Context, res *config.Resolved, apiKey stri
 	if data == nil {
 		data = []any{}
 	}
-	data = filterOpenAIModelDataByFreeTier(data, res)
+	data = FilterOpenAIModelDataByFreeTier(data, res)
 
 	provSet := map[string]struct{}{}
 	modelSet := map[string]struct{}{}
@@ -226,38 +227,8 @@ func itoaShort(n int) string {
 	return string(buf[i:])
 }
 
-// RefreshAvailableModels polls BiFrost `/v1/models`, stores the result on the runtime, emits
-// the `chat.chimera-broker.available_models` slog line, and runs every registered catalog auditor.
-//
-// Safe to call from startup, periodic tickers, and HTTP request handlers concurrently —
-// stores are atomic and auditors run on the calling goroutine. Returns the published snapshot
-// so callers (tests / one-shot triggers) can act on it directly.
-func RefreshAvailableModels(ctx context.Context, rt *Runtime, log *slog.Logger) *CatalogSnapshot {
-	if rt == nil {
-		return nil
-	}
-	apiKey := rt.UpstreamAPIKey()
-	res, _, _ := rt.Snapshot()
-	timeout := healthTimeout(res)
-	snap := buildCatalogSnapshot(ctx, res, apiKey, timeout, log)
-	rt.SetCatalogSnapshot(snap)
-	emitAvailableModelsLog(snap, log)
-	if auditors := snapshotAuditors(); len(auditors) > 0 {
-		for _, a := range auditors {
-			func() {
-				defer func() {
-					if r := recover(); r != nil && log != nil {
-						log.Error("catalog auditor panicked", "msg", "gateway.catalog.auditor_panic", "panic", r)
-					}
-				}()
-				a(ctx, snap, res, log)
-			}()
-		}
-	}
-	return snap
-}
-
-func emitAvailableModelsLog(snap *CatalogSnapshot, log *slog.Logger) {
+// EmitAvailableModelsLog writes chat.chimera-broker.available_models when snap is non-nil.
+func EmitAvailableModelsLog(snap *CatalogSnapshot, log *slog.Logger) {
 	if log == nil || snap == nil {
 		return
 	}
@@ -287,42 +258,4 @@ func emitAvailableModelsLog(snap *CatalogSnapshot, log *slog.Logger) {
 	}
 	args = append(args, "err", snap.FetchErr)
 	log.Warn("upstream models unavailable", args...)
-}
-
-// LogUpstreamAvailableModelsForLogsUI is the historical entry point still used by callers that
-// only want the side-effect (logging) without holding onto the snapshot. New call sites should
-// prefer [RefreshAvailableModels] directly.
-func LogUpstreamAvailableModelsForLogsUI(ctx context.Context, rt *Runtime, log *slog.Logger) {
-	_ = RefreshAvailableModels(ctx, rt, log)
-}
-
-// StartCatalogPoller runs RefreshAvailableModels on a fixed interval until ctx is cancelled.
-// Designed to run as a single goroutine started from `chimera serve`. The first refresh fires
-// immediately so the snapshot cache is populated before downstream consumers ask for it.
-//
-// interval <= 0 disables polling.
-func StartCatalogPoller(ctx context.Context, rt *Runtime, log *slog.Logger, interval time.Duration) {
-	if rt == nil || interval <= 0 {
-		return
-	}
-	go func() {
-		// First refresh: immediate, with a per-call timeout so a slow BiFrost can't pin
-		// startup. 25s mirrors the bound used in cmd/chimera/serve.go for the prior one-shot.
-		runOnce := func() {
-			callCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
-			defer cancel()
-			RefreshAvailableModels(callCtx, rt, log)
-		}
-		runOnce()
-		t := time.NewTicker(interval)
-		defer t.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				runOnce()
-			}
-		}
-	}()
 }

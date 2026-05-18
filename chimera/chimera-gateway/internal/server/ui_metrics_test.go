@@ -11,10 +11,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/testsupport"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 func TestMetricsAPI_unauthorizedWithoutSession(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -35,7 +38,7 @@ func TestMetricsAPI_unauthorizedWithoutSession(t *testing.T) {
 }
 
 func TestMetricsAPI_returnsJSONWhenAuthed(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -81,7 +84,7 @@ func TestMetricsAPI_returnsJSONWhenAuthed(t *testing.T) {
 }
 
 func TestMetricsPage_redirectsToLoginWithoutSession(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -108,12 +111,12 @@ func TestMetricsPage_redirectsToLoginWithoutSession(t *testing.T) {
 }
 
 func TestMetricsWithWorkingStore_queryRollups(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	migSrc := filepath.Clean(filepath.Join("..", "..", "migrations", "chimera-gateway", "metrics"))
+	migSrc := testsupport.GatewayMetricsMigrationsDir(t)
 	migDst := filepath.Join(dir, "migrations", "chimera-gateway", "metrics")
 	if err := os.MkdirAll(migDst, 0o755); err != nil {
 		t.Fatal(err)
@@ -135,20 +138,20 @@ func TestMetricsWithWorkingStore_queryRollups(t *testing.T) {
 		}
 	}
 
-	gwPath := filepath.Join(dir, "gateway.yaml")
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
 	raw := `gateway:
   semver: "0.1.0"
   listen_port: 0
   listen_host: "127.0.0.1"
 upstream:
   base_url: "` + up.URL + `"
-  api_key_env: "CHIMERA_UPSTREAM_API_KEY"
+  api_key_env: "` + naming.EnvUpstreamAPIKeyTarget + `"
 health:
   timeout_ms: 2000
   chat_timeout_ms: 60000
 paths:
-  api_keys: "./api-keys.yaml"
-  routing_policy: "./routing-policy.yaml"
+  api_keys: "./` + naming.APIKeysFileTarget + `"
+  routing_policy: "./` + naming.RoutingPolicyFileTarget + `"
 routing:
   fallback_chain:
     - "groq/x"
@@ -159,8 +162,8 @@ metrics:
 	if err := os.WriteFile(gwPath, []byte(raw), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	writeTokens(t, filepath.Join(dir, "api-keys.yaml"), "gw-ui-secret", "t1")
-	if err := os.WriteFile(filepath.Join(dir, "routing-policy.yaml"), []byte("rules: []\n"), 0o644); err != nil {
+	writeTokens(t, filepath.Join(dir, naming.APIKeysFileTarget), "gw-ui-secret", "t1")
+	if err := os.WriteFile(filepath.Join(dir, naming.RoutingPolicyFileTarget), []byte("rules: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

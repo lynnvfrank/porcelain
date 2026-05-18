@@ -8,19 +8,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
-	"log/slog"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
-func testLog() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError + 1}))
-}
-
 func TestStatusEndpoint(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
 			w.WriteHeader(http.StatusOK)
@@ -31,11 +26,11 @@ func TestStatusEndpoint(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, up.URL, []string{"m"})
-	tokPath := filepath.Join(dir, "api-keys.yaml")
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, up.URL, []string{"m"}, "")
+	tokPath := filepath.Join(dir, naming.APIKeysFileTarget)
 	writeTokens(t, tokPath, "t", "x")
-	routePath := filepath.Join(dir, "routing-policy.yaml")
+	routePath := filepath.Join(dir, naming.RoutingPolicyFileTarget)
 	if err := os.WriteFile(routePath, []byte("rules: []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +71,7 @@ func TestStatusEndpoint(t *testing.T) {
 }
 
 func TestUILoginAndState(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/health":
@@ -97,8 +92,8 @@ func TestUILoginAndState(t *testing.T) {
 	t.Cleanup(chimeraBroker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-ui-secret", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -188,7 +183,7 @@ func TestUILoginAndState(t *testing.T) {
 }
 
 func TestUISaveGroqKey(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	var lastPutMethod, lastPutPath string
 	var lastPutBody []byte
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -212,8 +207,8 @@ func TestUISaveGroqKey(t *testing.T) {
 	t.Cleanup(chimeraBroker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-save", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -268,7 +263,7 @@ func TestUISaveGroqKey(t *testing.T) {
 }
 
 func TestUISaveGroqKey_providerMissing404(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	var lastPutBody []byte
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -290,8 +285,8 @@ func TestUISaveGroqKey_providerMissing404(t *testing.T) {
 	t.Cleanup(chimeraBroker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-save404", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -343,7 +338,7 @@ func TestUISaveGroqKey_providerMissing404(t *testing.T) {
 }
 
 func TestUISaveRemoveGroqKey(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	var lastPutBody []byte
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -367,8 +362,8 @@ func TestUISaveRemoveGroqKey(t *testing.T) {
 	t.Cleanup(chimeraBroker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-rm", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -416,7 +411,7 @@ func TestUISaveRemoveGroqKey(t *testing.T) {
 }
 
 func TestUISaveOllamaURL_providerMissingEnvelope(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	var lastPutBody []byte
 	envelope := `{"is_chimera_broker_error":false,"status_code":404,"error":{"message":"Provider not found: not found"},"extra_fields":{}}`
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -439,8 +434,8 @@ func TestUISaveOllamaURL_providerMissingEnvelope(t *testing.T) {
 	t.Cleanup(chimeraBroker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, chimeraBroker.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-ollama-env", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -485,7 +480,7 @@ func TestUISaveOllamaURL_providerMissingEnvelope(t *testing.T) {
 }
 
 func TestChatVirtualModelFallback429(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 
 	var seenModels []string
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -514,8 +509,8 @@ func TestChatVirtualModelFallback429(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, up.URL, []string{"groq/a", "groq/b"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, up.URL, []string{"groq/a", "groq/b"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "secret-gw", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -547,38 +542,5 @@ func TestChatVirtualModelFallback429(t *testing.T) {
 	}
 	if seenModels[0] != "groq/a" || seenModels[1] != "groq/b" {
 		t.Fatalf("order: %v", seenModels)
-	}
-}
-
-func writeGateway(t *testing.T, path, upstream string, chain []string) {
-	t.Helper()
-	chainYAML := ""
-	for _, m := range chain {
-		chainYAML += "    - \"" + m + "\"\n"
-	}
-	raw := "gateway:\n  semver: \"0.1.0\"\n  listen_port: 0\n  listen_host: \"127.0.0.1\"\n" +
-		"upstream:\n  base_url: \"" + upstream + "\"\n  api_key_env: \"CHIMERA_UPSTREAM_API_KEY\"\n" +
-		"health:\n  timeout_ms: 2000\n  chat_timeout_ms: 60000\n" +
-		"paths:\n  tokens: \"./api-keys.yaml\"\n  routing_policy: \"./routing-policy.yaml\"\n" +
-		"routing:\n  fallback_chain:\n" + chainYAML
-	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func writeTokens(t *testing.T, path, token, tenant string) {
-	t.Helper()
-	raw := "api_keys:\n  - secret: \"" + token + "\"\n    tenant_id: \"" + tenant + "\"\n"
-	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func writeRouting(t *testing.T, path, model string, minChars int) {
-	t.Helper()
-	raw := "ambiguous_default_model: \"" + model + "\"\nrules:\n  - name: x\n    when:\n      min_message_chars: " +
-		strconv.Itoa(minChars) + "\n    models:\n      - \"" + model + "\"\n"
-	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
-		t.Fatal(err)
 	}
 }

@@ -7,20 +7,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gatewaymetrics"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/testsupport"
 )
 
 func testMigrationsDir(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "migrations", "chimera-gateway", "metrics"))
+	return testsupport.GatewayMetricsMigrationsDir(t)
 }
 
 func TestProxyChatCompletion_recordsMetrics(t *testing.T) {

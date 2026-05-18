@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/lynn/porcelain/chimera/internal/wrapper/contract"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 func TestParseListenHostPort(t *testing.T) {
@@ -23,7 +24,7 @@ func TestParseListenHostPort(t *testing.T) {
 }
 
 func TestDefaultGatewayBackendBin(t *testing.T) {
-	t.Setenv("GATEWAY__BACKEND_BIN_DEFAULT", "custom-gateway")
+	t.Setenv(naming.EnvGatewayBackendBinDefault, "custom-gateway")
 	if got := defaultGatewayBackendBin(); got != "custom-gateway" {
 		t.Fatalf("default backend bin=%q", got)
 	}

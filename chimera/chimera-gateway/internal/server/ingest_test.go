@@ -14,14 +14,15 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/testsupport"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 // inMemoryStore is a minimal vectorstore.Store for handler integration tests.
@@ -144,11 +145,7 @@ func (e stubEmbedder) Model() string { return "test-embed" }
 
 func testRepoOperatorMigrationsDir(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "migrations", "chimera-gateway", "operator"))
+	return testsupport.GatewayOperatorMigrationsDir(t)
 }
 
 // setupRAGServerWithLog wires NewRuntime + fake RAG like setupRAGServer; if lg is nil, uses testLog().
@@ -157,7 +154,7 @@ func setupRAGServerWithLog(t *testing.T, lg *slog.Logger) (*Runtime, *inMemorySt
 	if lg == nil {
 		lg = testLog()
 	}
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
 			w.WriteHeader(http.StatusOK)
@@ -172,8 +169,8 @@ func setupRAGServerWithLog(t *testing.T, lg *slog.Logger) (*Runtime, *inMemorySt
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	gwPath := filepath.Join(cfgDir, "gateway.yaml")
-	writeGatewayWithRAG(t, gwPath, upstream.URL, []string{"m"}, "http://127.0.0.1:1")
+	gwPath := filepath.Join(cfgDir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, upstream.URL, []string{"m"}, "http://127.0.0.1:1")
 	opMig := testRepoOperatorMigrationsDir(t)
 	opAppend := "\noperator:\n  migrations_dir: \"" + strings.ReplaceAll(filepath.ToSlash(opMig), `\`, `/`) + "\"\n"
 	gwBytes, err := os.ReadFile(gwPath)
@@ -223,34 +220,13 @@ func setupRAGServer(t *testing.T) (*Runtime, *inMemoryStore, *httptest.Server) {
 	return setupRAGServerWithLog(t, nil)
 }
 
-func writeGatewayWithRAG(t *testing.T, path, upstream string, chain []string, qdrantURL string) {
-	t.Helper()
-	chainYAML := ""
-	for _, m := range chain {
-		chainYAML += "    - \"" + m + "\"\n"
-	}
-	raw := "gateway:\n  semver: \"0.2.0\"\n  listen_port: 0\n  listen_host: \"127.0.0.1\"\n" +
-		"upstream:\n  base_url: \"" + upstream + "\"\n  api_key_env: \"CHIMERA_UPSTREAM_API_KEY\"\n" +
-		"health:\n  timeout_ms: 2000\n  chat_timeout_ms: 60000\n" +
-		"paths:\n  tokens: \"./api-keys.yaml\"\n  routing_policy: \"./routing-policy.yaml\"\n" +
-		"routing:\n  fallback_chain:\n" + chainYAML +
-		"rag:\n  enabled: true\n  qdrant:\n    url: \"" + qdrantURL + "\"\n" +
-		"  embedding:\n    model: \"test-embed\"\n    dim: 8\n" +
-		"  chunking:\n    size: 128\n    overlap: 32\n" +
-		"  ingest:\n    max_bytes: 10485760\n" +
-		"  defaults:\n    project_id: \"default\"\n"
-	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestIngest_JSON(t *testing.T) {
 	_, store, srv := setupRAGServer(t)
 	body := `{"source":"docs/readme.md","text":"` + strings.Repeat("alpha ", 50) + `"}`
 	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/v1/ingest", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer ingest-tok")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(headerProject, "myproj")
+	req.Header.Set(HeaderProject, "myproj")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -293,7 +269,7 @@ func TestIngest_Multipart(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/v1/ingest", &buf)
 	req.Header.Set("Authorization", "Bearer ingest-tok")
 	req.Header.Set("Content-Type", mw.FormDataContentType())
-	req.Header.Set(headerFlavor, "branch-foo")
+	req.Header.Set(HeaderFlavor, "branch-foo")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -344,12 +320,12 @@ func TestIngest_Unauthorized(t *testing.T) {
 }
 
 func TestIngest_RAGDisabled_503(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) }))
 	t.Cleanup(upstream.Close)
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, upstream.URL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, upstream.URL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "tok", "ten")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -441,7 +417,7 @@ func TestIngest_ChunkedSession(t *testing.T) {
 		chunk := payload[off:end]
 		preq, _ := http.NewRequest(http.MethodPut, srv.URL+"/v1/ingest/session/"+sid+"/chunk", strings.NewReader(chunk))
 		preq.Header.Set("Authorization", "Bearer ingest-tok")
-		preq.Header.Set("X-Chimera-Chunk-Index", strconv.Itoa(idx))
+		preq.Header.Set(naming.HeaderChunkIndexTarget, strconv.Itoa(idx))
 		preq.ContentLength = int64(len(chunk))
 		pres, err := http.DefaultClient.Do(preq)
 		if err != nil {
@@ -486,7 +462,7 @@ func TestIngest_JSON_logsConversationIDWhenHeaderPresent(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/v1/ingest", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer ingest-tok")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(headerProject, "myproj")
+	req.Header.Set(HeaderProject, "myproj")
 	req.Header.Set(headerConversationID, "ingest-linked-conv-1")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

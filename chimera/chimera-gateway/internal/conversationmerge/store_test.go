@@ -4,22 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/testsupport"
 
 	_ "modernc.org/sqlite"
 )
 
 func testOperatorMigrationsDir(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "migrations", "chimera-gateway", "operator"))
+	return testsupport.GatewayOperatorMigrationsDir(t)
 }
 
 func TestStore_roundTrip(t *testing.T) {

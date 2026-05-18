@@ -20,11 +20,11 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/gatewayline"
-	platform "github.com/lynn/porcelain/chimera/chimera-gateway/internal/platform"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server"
 	"github.com/lynn/porcelain/chimera/internal/config"
 	"github.com/lynn/porcelain/chimera/internal/logfmt"
 	"github.com/lynn/porcelain/chimera/internal/netaddr"
+	"github.com/lynn/porcelain/chimera/internal/platform"
 	"github.com/lynn/porcelain/chimera/internal/servicelogs"
 	"github.com/lynn/porcelain/chimera/internal/supervisorlogs"
 	"github.com/lynn/porcelain/chimera/internal/upstream"
@@ -74,7 +74,7 @@ Flags:
 	fs.SetOutput(os.Stdout)
 	_ = fs.String("listen", "", "Wrapper listen address (default: 127.0.0.1:7720)")
 	_ = fs.String("bin", "", "Gateway backend binary path")
-	_ = fs.String("config", "", "Path to gateway.yaml (default: $"+naming.EnvGatewayConfigTarget+" or ./config/gateway.yaml)")
+	_ = fs.String("config", "", "Path to "+naming.GatewayConfigFileTarget+" (default: $"+naming.EnvGatewayConfigTarget+" or ./"+naming.DefaultGatewayConfigRelPath+")")
 	_ = fs.String("gateway-listen", "", "Backend listen override passed to gateway binary")
 	fs.PrintDefaults()
 }
@@ -103,13 +103,13 @@ func parseConfig(args []string) (gatewayConfig, error) {
 	fs.SetOutput(io.Discard)
 	cfg := gatewayConfig{}
 	var showVersion bool
-	fs.StringVar(&cfg.Listen, "listen", envOrDefault("GATEWAY__LISTEN", "127.0.0.1:7720"), "wrapper listen addr (host:port)")
-	fs.StringVar(&cfg.Bin, "bin", envOrDefault("GATEWAY__BIN", defaultGatewayBackendBin()), "gateway backend binary path")
-	fs.StringVar(&cfg.ConfigPath, "config", envOrDefault(naming.EnvGatewayConfigTarget, ""), "path to gateway.yaml")
-	fs.StringVar(&cfg.GatewayListen, "gateway-listen", envOrDefault("GATEWAY__BACKEND_LISTEN", ""), "backend listen override")
-	fs.StringVar(&cfg.UpstreamOverride, "upstream-override", envOrDefault("GATEWAY__UPSTREAM_OVERRIDE", ""), "override upstream base URL for backend runtime")
-	fs.DurationVar(&cfg.StartupTimeout, "startup-timeout", envDuration("GATEWAY__TIMEOUTS__STARTUP", contract.DefaultStartupTimeout), "startup readiness timeout")
-	fs.DurationVar(&cfg.ShutdownTimeout, "shutdown-timeout", envDuration("GATEWAY__TIMEOUTS__SHUTDOWN", contract.DefaultShutdownTimeout), "wrapper graceful shutdown timeout")
+	fs.StringVar(&cfg.Listen, "listen", envOrDefault(naming.EnvGatewayListen, naming.DefaultGatewayListen), "wrapper listen addr (host:port)")
+	fs.StringVar(&cfg.Bin, "bin", envOrDefault(naming.EnvGatewayBin, defaultGatewayBackendBin()), "gateway backend binary path")
+	fs.StringVar(&cfg.ConfigPath, "config", envOrDefault(naming.EnvGatewayConfigTarget, ""), "path to "+naming.GatewayConfigFileTarget)
+	fs.StringVar(&cfg.GatewayListen, "gateway-listen", envOrDefault(naming.EnvGatewayBackendListen, ""), "backend listen override")
+	fs.StringVar(&cfg.UpstreamOverride, "upstream-override", envOrDefault(naming.EnvGatewayUpstreamOverride, ""), "override upstream base URL for backend runtime")
+	fs.DurationVar(&cfg.StartupTimeout, "startup-timeout", envDuration(naming.EnvGatewayTimeoutsStartup, contract.DefaultStartupTimeout), "startup readiness timeout")
+	fs.DurationVar(&cfg.ShutdownTimeout, "shutdown-timeout", envDuration(naming.EnvGatewayTimeoutsShutdown, contract.DefaultShutdownTimeout), "wrapper graceful shutdown timeout")
 	fs.DurationVar(&cfg.TerminateWait, "terminate-wait", contract.DefaultTerminateWait, "wait before force-kill backend")
 	fs.DurationVar(&cfg.BackoffInitial, "backoff-initial", contract.DefaultBackoffInitial, "restart backoff initial delay")
 	fs.Float64Var(&cfg.BackoffMultiplier, "backoff-multiplier", contract.DefaultBackoffMultiplier, "restart backoff multiplier")
@@ -291,7 +291,7 @@ func parseListenHostPort(addr string) (string, int, error) {
 }
 
 func defaultGatewayBackendBin() string {
-	return envOrDefault("GATEWAY__BACKEND_BIN_DEFAULT", "chimera-gateway-backend")
+	return envOrDefault(naming.EnvGatewayBackendBinDefault, naming.ProductGatewayBackendBinName)
 }
 
 func wrapGatewayLine(raw string) string {
@@ -330,7 +330,7 @@ func useEmbeddedBackend(bin string) bool {
 	if strings.Contains(base, "chimera-gateway") && !strings.Contains(base, "backend") {
 		return true
 	}
-	if base == "chimera-gateway-backend" || base == "chimera-gateway-backend.exe" {
+	if base == naming.ProductGatewayBackendBinName || base == naming.ProductGatewayBackendBinName+".exe" {
 		if _, err := exec.LookPath(bin); err != nil {
 			return true
 		}
@@ -344,9 +344,9 @@ func runGatewayBackend(args []string) error {
 	cfgPath := envOrDefault(naming.EnvGatewayConfigTarget, "")
 	listen := ""
 	upstreamOverride := ""
-	fs.StringVar(&cfgPath, "config", cfgPath, "path to gateway.yaml")
+	fs.StringVar(&cfgPath, "config", cfgPath, "path to "+naming.GatewayConfigFileTarget)
 	fs.StringVar(&listen, "listen", "", "listen override")
-	fs.StringVar(&upstreamOverride, "upstream-override", envOrDefault("GATEWAY__UPSTREAM_OVERRIDE", ""), "upstream base URL override")
+	fs.StringVar(&upstreamOverride, "upstream-override", envOrDefault(naming.EnvGatewayUpstreamOverride, ""), "upstream base URL override")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}

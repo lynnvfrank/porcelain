@@ -16,7 +16,13 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/chat"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/conversationmerge"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/conversationwitness"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gwhttp"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/catalog"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/indexerapi"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/ingest"
+	gruntime "github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/runtime"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/transform"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 	"github.com/lynn/porcelain/chimera/internal/config"
@@ -66,8 +72,8 @@ func publicGatewayURL(res *config.Resolved, overlay *StatusOverlay) string {
 // effect: emits the slog line, matching the prior behavior. Prefer [RefreshAvailableModels]
 // when you also want the snapshot cached on the runtime.
 func mergedUpstreamModelStats(ctx context.Context, res *config.Resolved, apiKey string, timeout time.Duration, log *slog.Logger) (count int, providers []string, ok bool) {
-	snap := buildCatalogSnapshot(ctx, res, apiKey, timeout, log)
-	emitAvailableModelsLog(snap, log)
+	snap := catalog.BuildSnapshot(ctx, res, apiKey, timeout, log)
+	catalog.EmitAvailableModelsLog(snap, log)
 	if snap == nil || !snap.OK {
 		return 0, nil, false
 	}
@@ -364,13 +370,13 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		handleV1Ingest(w, r, rt, log)
+		ingest.HandleV1(w, r, rt, log)
 	})
 	mux.HandleFunc("/v1/ingest/session/", func(w http.ResponseWriter, r *http.Request) {
-		handleV1IngestSessionTail(w, r, rt, log)
+		gruntime.HandleIngestSessionTail(w, r, rt, log)
 	})
 	mux.HandleFunc("/v1/ingest/session", func(w http.ResponseWriter, r *http.Request) {
-		handleV1IngestSessionStart(w, r, rt, log)
+		gruntime.HandleIngestSessionStart(w, r, rt, log)
 	})
 
 	mux.HandleFunc("/v1/indexer/config", func(w http.ResponseWriter, r *http.Request) {
@@ -378,38 +384,38 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		handleIndexerConfig(w, r, rt, log)
+		indexerapi.HandleConfig(w, r, rt, log)
 	})
 	mux.HandleFunc("/v1/indexer/workspaces", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		handleIndexerWorkspaces(w, r, rt, log)
+		indexerapi.HandleWorkspaces(w, r, rt, log)
 	})
 	mux.HandleFunc("/v1/indexer/storage/health", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		handleIndexerHealth(w, r, rt, log)
+		indexerapi.HandleHealth(w, r, rt, log)
 	})
 	mux.HandleFunc("/v1/indexer/storage/stats", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		handleIndexerStats(w, r, rt, log)
+		indexerapi.HandleStats(w, r, rt, log)
 	})
 	mux.HandleFunc("/v1/indexer/corpus/inventory", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		handleIndexerCorpusInventory(w, r, rt, log)
+		indexerapi.HandleCorpusInventory(w, r, rt, log)
 	})
 
-	registerAdminUI(mux, rt, log, ui)
+	adminui.Register(mux, rt, log, ui)
 
 	return requestid.Middleware(loggingMiddleware(log, mux))
 }
@@ -417,7 +423,7 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 func handleV1Models(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger) {
 	rt.Sync()
 	res, tokStore, _ := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -455,7 +461,7 @@ func writeMergedModelsResponse(w http.ResponseWriter, ctx context.Context, res *
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": map[string]any{
-				"message": "Missing upstream API key (set " + res.UpstreamAPIKeyEnv + " or upstream.api_key in gateway.yaml)",
+				"message": "Missing upstream API key (set " + res.UpstreamAPIKeyEnv + " or upstream.api_key in " + naming.GatewayConfigFileTarget + ")",
 				"type":    "gateway_config",
 			},
 		})
@@ -489,7 +495,7 @@ func writeMergedModelsResponse(w http.ResponseWriter, ctx context.Context, res *
 		data = []any{}
 	}
 	ensureOpenAIModelListItems(data)
-	data = filterOpenAIModelDataByFreeTier(data, res)
+	data = catalog.FilterOpenAIModelDataByFreeTier(data, res)
 	virtual := map[string]any{
 		"id":       res.VirtualModelID,
 		"object":   "model",
@@ -567,7 +573,7 @@ func attachConversationDelivery(routeLog *slog.Logger, opts **chat.ProxyOpts) {
 func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger) {
 	rt.Sync()
 	res, tokStore, pol := rt.Snapshot()
-	token := bearerToken(r.Header.Get("Authorization"))
+	token := gwhttp.BearerToken(r.Header.Get("Authorization"))
 	sess := tokStore.Validate(token)
 	if token == "" || sess == nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -583,7 +589,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": map[string]any{
-				"message": "Missing upstream API key (set " + res.UpstreamAPIKeyEnv + " or upstream.api_key in gateway.yaml)",
+				"message": "Missing upstream API key (set " + res.UpstreamAPIKeyEnv + " or upstream.api_key in " + naming.GatewayConfigFileTarget + ")",
 				"type":    "gateway_config",
 			},
 		})
@@ -629,9 +635,9 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	if rtDur < 5*time.Second {
 		rtDur = 5 * time.Second
 	}
-	headerCID := optionalConversationIDFromHeader(r)
-	proj := resolveProject(r.Header.Get(headerProject), res.RAG.DefaultProject)
-	flav := resolveFlavor(r.Header.Get(headerFlavor), res.RAG.DefaultFlavor)
+	headerCID := ingest.OptionalConversationIDFromHeader(r)
+	proj := ingest.ResolveProject(r.Header.Get(ingest.HeaderProject), res.RAG.DefaultProject)
+	flav := ingest.ResolveFlavor(r.Header.Get(ingest.HeaderFlavor), res.RAG.DefaultFlavor)
 	lastUser := rag.LastUserText(raw["messages"])
 
 	var mergeSvc *conversationmerge.Service
@@ -772,8 +778,8 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	if clientModel == res.VirtualModelID {
 		coords := vectorstore.Coords{
 			TenantID:  sess.TenantID,
-			ProjectID: resolveProject(r.Header.Get(headerProject), res.RAG.DefaultProject),
-			FlavorID:  resolveFlavor(r.Header.Get(headerFlavor), res.RAG.DefaultFlavor),
+			ProjectID: ingest.ResolveProject(r.Header.Get(ingest.HeaderProject), res.RAG.DefaultProject),
+			FlavorID:  ingest.ResolveFlavor(r.Header.Get(ingest.HeaderFlavor), res.RAG.DefaultFlavor),
 		}
 		collection := vectorstore.CollectionName(coords)
 		if !res.RAG.Enabled || rt.RAG() == nil {
@@ -883,28 +889,6 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	_, _ = w.Write(pr.JSONBody)
 }
 
-func bearerToken(h string) string {
-	h = strings.TrimSpace(h)
-	const p = "Bearer "
-	if len(h) <= len(p) || !strings.EqualFold(h[:len(p)], p) {
-		return ""
-	}
-	return strings.TrimSpace(h[len(p):])
-}
-
-func redactAuth(h string) string {
-	h = strings.TrimSpace(h)
-	const p = "Bearer "
-	if !strings.HasPrefix(strings.ToLower(h), strings.ToLower(p)) {
-		return ""
-	}
-	tok := strings.TrimSpace(h[len(p):])
-	if len(tok) <= 8 {
-		return "Bearer ***"
-	}
-	return "Bearer " + tok[:4] + "…"
-}
-
 type wrapResponse struct {
 	http.ResponseWriter
 	status int
@@ -964,7 +948,7 @@ func loggingMiddleware(log *slog.Logger, next http.Handler) http.Handler {
 				"path", r.URL.Path,
 				"statusCode", st,
 				"responseTimeMs", time.Since(start).Milliseconds(),
-				"authorization", redactAuth(r.Header.Get("Authorization")),
+				"authorization", gwhttp.RedactBearerAuth(r.Header.Get("Authorization")),
 				"service", "gateway",
 				"timeline_kind", timelineKindForGatewayHTTPPath(r.URL.Path),
 			}
@@ -984,10 +968,3 @@ const headerRequestFingerprint = naming.HeaderRequestFingerprintTarget
 
 // headerRollingFingerprint is the gateway-computed rolling hash after each completed JSON completion.
 const headerRollingFingerprint = naming.HeaderRollingFingerprintTarget
-
-func optionalConversationIDFromHeader(r *http.Request) string {
-	if h := strings.TrimSpace(r.Header.Get(headerConversationID)); requestid.Valid(h) {
-		return h
-	}
-	return ""
-}

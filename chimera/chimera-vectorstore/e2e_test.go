@@ -486,4 +486,3 @@ func endpointPort(endpoint string) string {
 	_, p, _ := strings.Cut(strings.TrimSpace(endpoint), ":")
 	return p
 }
-

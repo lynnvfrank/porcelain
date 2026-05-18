@@ -1,4 +1,4 @@
-package server
+package adminui
 
 import (
 	"context"

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"github.com/lynn/porcelain/internal/naming"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -35,8 +36,8 @@ func chimeraBrokerStubForUILogs(t *testing.T) *httptest.Server {
 func runtimeForUILogs(t *testing.T, chimeraBrokerURL string) *Runtime {
 	t.Helper()
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, "gateway.yaml")
-	writeGateway(t, gwPath, chimeraBrokerURL, []string{"m"})
+	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	writeGateway(t, gwPath, chimeraBrokerURL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-ui-secret", "t1")
 	routePath := filepath.Join(dir, "routing-policy.yaml")
@@ -51,7 +52,7 @@ func runtimeForUILogs(t *testing.T, chimeraBrokerURL string) *Runtime {
 }
 
 func TestUILogsAPI_unauthorizedWithoutSession(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -82,7 +83,7 @@ func TestUILogsAPI_unauthorizedWithoutSession(t *testing.T) {
 }
 
 func TestUILogsPoll_returnsLinesAfterSince(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -141,7 +142,7 @@ func TestUILogsPoll_returnsLinesAfterSince(t *testing.T) {
 }
 
 func TestUILogsPoll_limitReturnsTailWhenSinceZero(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -189,7 +190,7 @@ func TestUILogsPoll_limitReturnsTailWhenSinceZero(t *testing.T) {
 }
 
 func TestUILogsPoll_beforeSeq_returnsOlderChunk(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -237,7 +238,7 @@ func TestUILogsPoll_beforeSeq_returnsOlderChunk(t *testing.T) {
 }
 
 func TestUILogsPoll_sinceAndBeforeRejected(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -268,7 +269,7 @@ func TestUILogsPoll_sinceAndBeforeRejected(t *testing.T) {
 }
 
 func TestUILogsStream_replaysTailOnConnect(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -296,7 +297,7 @@ func TestUILogsStream_replaysTailOnConnect(t *testing.T) {
 	}
 	var sessionValue string
 	for _, c := range jar.Cookies(u) {
-		if c.Name == defaultUICookieName {
+		if c.Name == DefaultUICookieName {
 			sessionValue = c.Value
 			break
 		}
@@ -315,7 +316,7 @@ func TestUILogsStream_replaysTailOnConnect(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/ui/logs/stream", nil)
 	req = req.WithContext(ctx)
-	req.AddCookie(&http.Cookie{Name: defaultUICookieName, Value: sessionValue})
+	req.AddCookie(&http.Cookie{Name: DefaultUICookieName, Value: sessionValue})
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("stream status %d body %s", rec.Code, rec.Body.String())
@@ -337,7 +338,7 @@ func min(a, b int) int {
 }
 
 func TestUILogsPage_requiresAuth(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -365,7 +366,7 @@ func TestUILogsPage_requiresAuth(t *testing.T) {
 }
 
 func TestUIDesktopPage_requiresAuth(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -389,7 +390,7 @@ func TestUIDesktopPage_requiresAuth(t *testing.T) {
 }
 
 func TestUILogsPage_servesLogsHTMLWhenAuthed(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -433,7 +434,7 @@ func TestUILogsPage_servesLogsHTMLWhenAuthed(t *testing.T) {
 		`src="/ui/assets/logs/transport/streaming.js"`,
 		`src="/ui/assets/logs/derive/conversationMetrics.js"`,
 		`src="/ui/assets/logs/derive/conversationBifrost.js"`,
-		`src="/ui/assets/logs/derive/bifrostMetrics.js"`,
+		`src="/ui/assets/logs/derive/chimeraBrokerMetrics.js"`,
 		`src="/ui/assets/logs/derive/sha1.js"`,
 		`src="/ui/assets/logs/derive/qdrantRagMetrics.js"`,
 		`src="/ui/assets/logs/derive/qdrantCollection.js"`,
@@ -471,7 +472,7 @@ func TestUILogsPage_servesLogsHTMLWhenAuthed(t *testing.T) {
 }
 
 func TestUILogsAssets_servesLogsJSWhenAuthed(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -523,7 +524,7 @@ func TestUILogsAssets_servesLogsJSWhenAuthed(t *testing.T) {
 }
 
 func TestUILogsAssets_logsMainContainsBrokerServiceSummary(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -581,7 +582,7 @@ func TestUILogsAssets_logsMainContainsBrokerServiceSummary(t *testing.T) {
 }
 
 func TestUILogsAssets_servesLogsModuleWhenAuthed(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -621,7 +622,7 @@ func TestUILogsAssets_servesLogsModuleWhenAuthed(t *testing.T) {
 }
 
 func TestUIDesktopPage_servesShellWhenAuthed(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -667,7 +668,7 @@ func TestUIDesktopPage_servesShellWhenAuthed(t *testing.T) {
 }
 
 func TestUIPWAPage_servesWhenAuthed(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -704,7 +705,7 @@ func TestUIPWAPage_servesWhenAuthed(t *testing.T) {
 }
 
 func TestUIIndexer_redirectsToLogsWhenAuthed(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 
@@ -741,7 +742,7 @@ func TestUIIndexer_redirectsToLogsWhenAuthed(t *testing.T) {
 }
 
 func TestUIPanel_redirectsToLogsAdminWhenAuthed(t *testing.T) {
-	t.Setenv("CHIMERA_UPSTREAM_API_KEY", "ukey")
+	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
 

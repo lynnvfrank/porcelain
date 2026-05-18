@@ -1,10 +1,11 @@
-package server
+package adminui
 
 import (
 	"encoding/json"
 	"net/http"
 	"strings"
 
+	gruntime "github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/runtime"
 	"github.com/lynn/porcelain/chimera/internal/tokens"
 )
 
@@ -123,6 +124,6 @@ func (a *adminUI) handleTokensDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // serverBootstrapLocked is true when no valid gateway tokens exist (admin token APIs unavailable).
-func serverBootstrapLocked(rt *Runtime) bool {
-	return BootstrapMode(rt)
+func serverBootstrapLocked(rt *gruntime.Runtime) bool {
+	return gruntime.BootstrapMode(rt)
 }

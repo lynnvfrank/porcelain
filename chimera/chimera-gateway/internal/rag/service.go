@@ -1,6 +1,6 @@
 // Package rag wires together the chunker, embedding client, and vector store
 // for gateway v0.2 ingest + retrieval. The Service is created once per process
-// (after RAG is verified enabled in gateway.yaml) and shared across handlers.
+// (after RAG is verified enabled in gateway config) and shared across handlers.
 package rag
 
 import (
@@ -15,10 +15,10 @@ import (
 	"strings"
 	"time"
 
-	platform "github.com/lynn/porcelain/chimera/chimera-gateway/internal/platform"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/chunk"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/embed"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/ragembed"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
+	"github.com/lynn/porcelain/chimera/internal/platform"
 )
 
 // queryPreviewMax bounds the query/text excerpt included in DEBUG logs so we
@@ -47,7 +47,7 @@ type Service struct {
 	log          *slog.Logger
 }
 
-// Embedder is the embedding client contract (satisfied by *embed.Client).
+// Embedder is the embedding client contract (satisfied by *ragembed.Client).
 type Embedder interface {
 	EmbedBatch(ctx context.Context, inputs []string) ([][]float32, error)
 	EmbedOne(ctx context.Context, s string) ([]float32, error)
@@ -422,5 +422,5 @@ func (s *Service) CorpusInventory(ctx context.Context, c vectorstore.Coords, lim
 // EmbeddingModel returns the configured embedding model id.
 func (s *Service) EmbeddingModel() string { return s.embedder.Model() }
 
-// Compile-time guard so embed.Client is a valid Embedder.
-var _ Embedder = (*embed.Client)(nil)
+// Compile-time guard so ragembed.Client is a valid Embedder.
+var _ Embedder = (*ragembed.Client)(nil)

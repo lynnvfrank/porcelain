@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/testsupport"
 	"github.com/lynn/porcelain/chimera/internal/config"
 
 	_ "modernc.org/sqlite"
@@ -19,11 +19,7 @@ import (
 
 func testOperatorMigrationsDirMerge(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "migrations", "chimera-gateway", "operator"))
+	return testsupport.GatewayOperatorMigrationsDir(t)
 }
 
 func TestMergeCorrelationAttrs(t *testing.T) {

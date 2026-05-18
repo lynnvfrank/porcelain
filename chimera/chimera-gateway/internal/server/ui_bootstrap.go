@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui"
 	"github.com/lynn/porcelain/chimera/internal/platform/requestid"
 	"github.com/lynn/porcelain/chimera/internal/tokens"
 )
@@ -79,7 +80,7 @@ func serveBootstrapHTML(name string) http.HandlerFunc {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		b, err := adminEmbedUI.ReadFile(name)
+		b, err := adminui.ReadEmbedFile(name)
 		if err != nil {
 			http.Error(w, "not found", http.StatusNotFound)
 			return

@@ -466,7 +466,7 @@ func ResolveGatewayConfigPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(wd, "config", "gateway.yaml"), nil
+	return filepath.Join(wd, naming.GatewayConfigDirTarget, naming.GatewayConfigFileTarget), nil
 }
 
 // ListenAddr returns "host:port" for net.Listen.
