@@ -57,9 +57,9 @@ func NewBootstrapMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay) http
 			"status":    "ok",
 			"bootstrap": true,
 			"checks": map[string]any{
-				"upstream": map[string]any{
+				"broker": map[string]any{
 					"ok":     false,
-					"detail": "bootstrap mode — BiFrost not started",
+					"detail": "bootstrap mode — chimera-broker not started",
 				},
 			},
 		})
@@ -107,16 +107,17 @@ func handleBootstrapStatus(w http.ResponseWriter, r *http.Request, rt *Runtime, 
 			"active": false,
 		},
 		"gateway": map[string]any{
-			"listen":            listen,
-			"virtual_model":     res.VirtualModelID,
-			"semver":            res.Semver,
-			"upstream_base_url": res.UpstreamBaseURL,
+			"listen":          listen,
+			"virtual_model":   res.VirtualModelID,
+			"semver":          res.Semver,
+			"broker_base_url": res.UpstreamBaseURL,
 		},
-		"upstream": map[string]any{
+		"broker": map[string]any{
 			"health_url": res.HealthUpstreamURL,
+			"base_url":   res.UpstreamBaseURL,
 			"ok":         false,
 			"status":     0,
-			"detail":     "bootstrap mode — start BiFrost after creating tokens and restarting",
+			"detail":     "bootstrap mode — start chimera-broker after creating tokens and restarting",
 		},
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -172,7 +173,7 @@ func handleSetupTokenPOST(rt *Runtime, log *slog.Logger) http.HandlerFunc {
 			"token":     plain,
 			"tenant_id": tenant,
 			"label":     label,
-			"message":   "Copy this token now. Restart Chimera to start BiFrost and use the full admin UI.",
+			"message":   "Copy this token now. Restart Chimera to start chimera-broker and use the full admin UI.",
 		})
 	}
 }

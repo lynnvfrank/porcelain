@@ -1,6 +1,6 @@
-// Package qdrant implements vectorstore.Store against Qdrant's HTTP REST API
-// (default port 6333). It is intentionally minimal and stateless: callers
-// construct one Client per process and share it.
+// Package qdrant is the Qdrant storage driver (implementation detail — not operator vocabulary).
+// It implements vectorstore.Store against Qdrant's HTTP REST API (default port 6333).
+// Callers outside vectorstore/ should depend on vectorstore.Store, not this package.
 //
 // Reference: https://qdrant.tech/documentation/concepts/collections/
 package qdrant

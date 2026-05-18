@@ -68,7 +68,7 @@ func (a *adminUI) computeRoutingDraft(ctx context.Context, res *config.Resolved)
 	apiKey := a.rt.UpstreamAPIKey()
 	if apiKey == "" {
 		return nil, http.StatusServiceUnavailable, map[string]any{
-			"error": map[string]any{"message": "missing upstream API key", "type": "gateway_config"},
+			"error": map[string]any{"message": "missing chimera-broker API key", "type": "gateway_config"},
 		}
 	}
 	timeout := gruntime.HealthTimeout(res)
@@ -78,7 +78,7 @@ func (a *adminUI) computeRoutingDraft(ctx context.Context, res *config.Resolved)
 	if !ok {
 		return nil, http.StatusBadGateway, map[string]any{
 			"error": map[string]any{
-				"message": "Failed to list models from upstream",
+				"message": "Failed to list models from chimera-broker",
 				"type":    "gateway_upstream",
 				"status":  st,
 			},
@@ -87,7 +87,7 @@ func (a *adminUI) computeRoutingDraft(ctx context.Context, res *config.Resolved)
 	ids, err := routinggen.ExtractCatalogModelIDs(body, res.VirtualModelID)
 	if err != nil {
 		return nil, http.StatusBadGateway, map[string]any{
-			"error": map[string]any{"message": "invalid upstream models JSON", "type": "gateway_upstream"},
+			"error": map[string]any{"message": "invalid chimera-broker models JSON", "type": "gateway_upstream"},
 		}
 	}
 	pool := ids
@@ -138,7 +138,7 @@ func (a *adminUI) routingDraftResponse(d *routingDraft, saved bool) map[string]a
 		"saved":                        saved,
 		"fallback_chain":               d.Chain,
 		"router_models":                d.RouterModels,
-		"models_upstream":              len(d.IDs),
+		"models_broker_catalog":        len(d.IDs),
 		"models_used":                  len(d.Pool),
 		"routing_policy_yaml":          string(d.RouteYAML),
 		"routing":                      summarizeRoutingYAML(d.RouteYAML),
@@ -343,7 +343,7 @@ func (a *adminUI) handleRoutingEvaluatePOST(w http.ResponseWriter, r *http.Reque
 	if body.SmokeCompletion {
 		apiKey := a.rt.UpstreamAPIKey()
 		if apiKey == "" {
-			out["smoke_completion"] = map[string]any{"ok": false, "error": "missing upstream API key"}
+			out["smoke_completion"] = map[string]any{"ok": false, "error": "missing chimera-broker API key"}
 		} else if initial == "" {
 			out["smoke_completion"] = map[string]any{"ok": false, "error": "no initial model to probe"}
 		} else {

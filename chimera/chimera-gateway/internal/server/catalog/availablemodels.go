@@ -33,7 +33,7 @@ var (
 	catalogMergeInfoEmitted bool
 )
 
-// CatalogSnapshot captures one point-in-time view of BiFrost's merged model catalog.
+// CatalogSnapshot captures one point-in-time view of the chimera-broker merged model catalog.
 //
 // Consumers MUST treat the value as read-only — copies returned from [Runtime.CatalogSnapshot]
 // share the same backing slices and maps. A nil snapshot means "no poll has succeeded yet";
@@ -48,7 +48,7 @@ type CatalogSnapshot struct {
 	CatalogModelCount int
 	// Providers is the distinct set of provider prefixes derived from the model ids
 	// (ASCII-sorted). When ollama is offline, ollama disappears from this list because
-	// BiFrost stops listing its models in `/v1/models`.
+	// chimera-broker stops listing its models in `/v1/models`.
 	Providers   []string
 	providerSet map[string]struct{}
 	// ModelIDs is the full filtered upstream id list (without the virtual Chimera id),
@@ -134,7 +134,7 @@ func SnapshotAuditors() []CatalogAuditor {
 	return out
 }
 
-// BuildSnapshot calls BiFrost `/v1/models` and shapes the response into a
+// BuildSnapshot calls chimera-broker `/v1/models` and shapes the response into a
 // [CatalogSnapshot]. It does NOT log; callers (e.g. runtime.RefreshAvailableModels) are responsible
 // for emitting `chat.chimera-broker.available_models`. Pure of cache writes / runtime mutation so it
 // can be reused by tests and ad-hoc callers.
@@ -145,7 +145,7 @@ func BuildSnapshot(ctx context.Context, res *config.Resolved, apiKey string, tim
 		return out
 	}
 	if strings.TrimSpace(apiKey) == "" {
-		out.FetchErr = "missing upstream API key"
+		out.FetchErr = "missing chimera-broker API key"
 		return out
 	}
 	st, body, fetchOK := upstream.FetchOpenAIModels(ctx, res.UpstreamBaseURL, apiKey, timeout, log)
@@ -250,12 +250,12 @@ func EmitAvailableModelsLog(snap *CatalogSnapshot, log *slog.Logger) {
 		catalogMergeInfoEmitted = true
 		catalogMergeLogMu.Unlock()
 		if infoOnce {
-			log.Info("upstream models (merged list)", args...)
+			log.Info("chimera-broker catalog (merged list)", args...)
 		} else {
-			log.Debug("upstream models (merged list)", args...)
+			log.Debug("chimera-broker catalog (merged list)", args...)
 		}
 		return
 	}
 	args = append(args, "err", snap.FetchErr)
-	log.Warn("upstream models unavailable", args...)
+	log.Warn("chimera-broker catalog unavailable", args...)
 }

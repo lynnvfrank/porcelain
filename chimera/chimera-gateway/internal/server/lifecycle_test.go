@@ -24,9 +24,9 @@ func TestPhase3_lifecycleFixtureContainsAllMsgs(t *testing.T) {
 		"msg=conversation.rag.span",
 		"msg=conversation.rag.skipped",
 		"msg=conversation.rag.attached",
-		"msg=conversation.upstream.started",
-		"msg=conversation.upstream.completed",
-		"msg=conversation.upstream.failed",
+		"msg=conversation.broker.started",
+		"msg=conversation.broker.completed",
+		"msg=conversation.broker.failed",
 		"msg=conversation.fallback.attempted",
 		"msg=conversation.fallback.exhausted",
 		"msg=conversation.delivered",
@@ -54,7 +54,7 @@ func TestPhase6_multiTurnFixtureCarriesTurnIndex(t *testing.T) {
 		"msg=conversation.routing.resolved",
 		"msg=chat.chimera-broker.request",
 		"msg=chat.chimera-broker.response",
-		"msg=conversation.upstream.completed",
+		"msg=conversation.broker.completed",
 		"msg=conversation.delivered",
 	}
 	for _, line := range strings.Split(string(b), "\n") {

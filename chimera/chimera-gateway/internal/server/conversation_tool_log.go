@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"log/slog"
 	"strings"
+
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 // LogConversationIncomingToolMessages emits conversation.tool.call_* for each OpenAI-style
 // tool-role message in the chat completion payload (client-executed tools whose results are
-// relayed upstream). The gateway does not execute tools locally; this is the observable relay
-// boundary before upstream proxying.
+// relayed through chimera-broker). The gateway does not execute tools locally; this is the observable relay
+// boundary before broker proxying.
 func LogConversationIncomingToolMessages(log *slog.Logger, messages json.RawMessage) {
 	if log == nil || len(messages) == 0 {
 		return
@@ -40,7 +42,7 @@ func LogConversationIncomingToolMessages(log *slog.Logger, messages json.RawMess
 		startArgs := []any{
 			"msg", "conversation.tool.call_started",
 			"arg_bytes", argBytes,
-			"timeline_kind", "upstream",
+			"timeline_kind", naming.TimelineKindBroker,
 		}
 		startArgs = appendIfNonEmpty(startArgs, "tool_name", toolName)
 		startArgs = appendIfNonEmpty(startArgs, "tool_call_id", toolCallID)
@@ -52,7 +54,7 @@ func LogConversationIncomingToolMessages(log *slog.Logger, messages json.RawMess
 				"msg", "conversation.tool.call_failed",
 				"latency_ms", int64(0),
 				"err", errMsg,
-				"timeline_kind", "upstream",
+				"timeline_kind", naming.TimelineKindBroker,
 			}
 			failArgs = appendIfNonEmpty(failArgs, "tool_name", toolName)
 			failArgs = appendIfNonEmpty(failArgs, "tool_call_id", toolCallID)
@@ -63,7 +65,7 @@ func LogConversationIncomingToolMessages(log *slog.Logger, messages json.RawMess
 			"msg", "conversation.tool.call_completed",
 			"latency_ms", int64(0),
 			"result_bytes", contentBytes,
-			"timeline_kind", "upstream",
+			"timeline_kind", naming.TimelineKindBroker,
 		}
 		doneArgs = appendIfNonEmpty(doneArgs, "tool_name", toolName)
 		doneArgs = appendIfNonEmpty(doneArgs, "tool_call_id", toolCallID)

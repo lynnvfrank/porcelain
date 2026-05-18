@@ -17,8 +17,8 @@ Make **chimera-gateway** easier to change by using one vocabulary everywhere ope
 |-------|---------|--------|
 | [Phase 1 — Inventory and naming contract](#phase-1--inventory-and-naming-contract) | Written rename matrix; shared constants for Go + UI | `done` |
 | [Phase 2 — Go package and facade cleanup](#phase-2--go-package-and-facade-cleanup) | `brokeradmin`, slimmer `server` package, no duplicate UI paths | `done` |
-| [Phase 3 — Broker vocabulary (Go)](#phase-3--broker-vocabulary-go) | Operator logs, APIs, and config language say **broker**, not bifrost/upstream | `todo` |
-| [Phase 4 — Vectorstore vocabulary (Go)](#phase-4--vectorstore-vocabulary-go) | RAG and timeline use **vectorstore**; Qdrant is an implementation detail | `todo` |
+| [Phase 3 — Broker vocabulary (Go)](#phase-3--broker-vocabulary-go) | Operator logs, APIs, and config language say **broker**, not bifrost/upstream | `done` |
+| [Phase 4 — Vectorstore vocabulary (Go)](#phase-4--vectorstore-vocabulary-go) | RAG and timeline use **vectorstore**; Qdrant is an implementation detail | `done` |
 | [Phase 5 — Logs UI structure and naming](#phase-5--logs-ui-structure-and-naming) | Modular logs app, honest asset names, broker/vectorstore in JS | `todo` |
 | [Phase 6 — Validation and doc sync](#phase-6--validation-and-doc-sync) | Tests green; operator docs match code | `todo` |
 
@@ -169,7 +169,14 @@ Allowed after later phases: `ProductBifrostHTTPBinName`, `vectorstore/qdrant` dr
 - `rg 'timeline_kind.*upstream' chimera/chimera-gateway` → zero.
 - E2E and `logs_components_test` fixtures updated; no dual-read aliases.
 
-**Status:** `todo`
+**Status:** `done`
+
+**Shipped (2026-05-18)**
+
+- `timeline_kind=broker` on chat, witness, and tool-relay logs (`naming.TimelineKindBroker`).
+- Lifecycle slugs `conversation.broker.{started,completed,failed}`; catalog/status/admin JSON use broker vocabulary.
+- `NewRuntimeWithBrokerOverride`, `LogBrokerAvailableModelsForLogsUI`; `/status` exposes `broker` block with `broker.upstream.implementation` debug field.
+- Minimal logs UI sync: lifecycle step `broker`, `timeline_kind` slug mapping, `gateway.startup.listening` `broker` KV.
 
 ---
 
@@ -190,7 +197,14 @@ Allowed after later phases: `ProductBifrostHTTPBinName`, `vectorstore/qdrant` dr
 - `rg -i '\bqdrant\b' chimera/chimera-gateway --glob '*.go'` limited to `vectorstore/qdrant` driver and explicit `upstream.name: qdrant` debug structs.
 - Vectorstore interface tests pass without importing qdrant from `server` or `chat`.
 
-**Status:** `todo`
+**Status:** `done`
+
+**Shipped (2026-05-18)**
+
+- `timeline_kind=vectorstore` on RAG lifecycle and chat RAG paths (`naming.TimelineKindVectorstore`); unified RAG service logs (was `chimera-vectorstore`).
+- `/health` check key `vectorstore`; `/status` supervisor fields `vectorstore_supervised` / `vectorstore_http`.
+- Indexer storage health `backend: chimera-vectorstore`; removed `/v1/qdrant` from `timeline_kind` path classification.
+- `vectorstore` package comments and Qdrant driver package doc; minimal logs UI sync for `vectorstore_supervised`.
 
 ---
 

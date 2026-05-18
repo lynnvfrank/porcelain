@@ -171,8 +171,8 @@ type ProxyResult struct {
 
 // ProxyOpts carries optional hooks for gateway features (e.g. conversation merge persistence).
 type ProxyOpts struct {
-	// UpstreamRequestID is forwarded as X-Request-Id on the upstream BiFrost hop
-	// so upstream logs can expose the gateway request id when the platform supports it.
+	// UpstreamRequestID is forwarded as X-Request-Id on the chimera-broker hop
+	// so broker logs can expose the gateway request id when the platform supports it.
 	UpstreamRequestID string
 	// OnUpstreamJSONSuccess runs before the caller writes a successful non-streaming JSON body
 	// (status 2xx). Streaming completions do not invoke this hook.
@@ -303,7 +303,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 		n, errTok := tokencount.Count(string(out))
 		reqEx := truncateRunes(string(out), 320)
 		if errTok == nil {
-			log.Info("upstream chat relay",
+			log.Info("chimera-broker chat relay",
 				"msg", "chat.chimera-broker.request",
 				"path", path,
 				"upstreamModel", upstreamModel,
@@ -313,7 +313,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 				"requestBodyExcerpt", reqEx,
 			)
 		} else {
-			log.Info("upstream chat relay",
+			log.Info("chimera-broker chat relay",
 				"msg", "chat.chimera-broker.request",
 				"path", path,
 				"upstreamModel", upstreamModel,
@@ -342,7 +342,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 	}
 
 	if log != nil {
-		log.Info("conversation upstream started", "msg", "conversation.upstream.started",
+		log.Info("conversation broker started", "msg", "conversation.broker.started",
 			"upstreamModel", upstreamModel, "stream", stream, "outgoingTokens", est)
 	}
 
@@ -350,7 +350,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 	if err != nil {
 		if log != nil {
 			log.Warn("upstream chat fetch failed", "msg", "chat.chimera-broker.error", "err", err, "target", url, "upstreamModel", upstreamModel, "stream", stream)
-			log.Warn("conversation upstream failed", "msg", "conversation.upstream.failed",
+			log.Warn("conversation broker failed", "msg", "conversation.broker.failed",
 				"upstreamModel", upstreamModel, "statusCode", http.StatusServiceUnavailable, "err", err.Error())
 		}
 		recordUpstreamMetrics(rec, upstreamModel, http.StatusServiceUnavailable, est)
@@ -583,7 +583,7 @@ func logUpstreamChatResponse(log *slog.Logger, url string, statusCode int, upstr
 	path := "/v1/chat/completions"
 	args := []any{
 		"msg", "chat.chimera-broker.response",
-		"route", "POST /v1/chat/completions (upstream)",
+		"route", "POST /v1/chat/completions (chimera-broker)",
 		"path", path,
 		"target", url,
 		"statusCode", statusCode,
@@ -632,7 +632,7 @@ func logUpstreamChatResponse(log *slog.Logger, url string, statusCode int, upstr
 	}
 	if statusOK(statusCode) {
 		lc := []any{
-			"msg", "conversation.upstream.completed",
+			"msg", "conversation.broker.completed",
 			"upstreamModel", upstreamModel,
 			"statusCode", statusCode,
 			"stream", stream,
@@ -645,13 +645,13 @@ func logUpstreamChatResponse(log *slog.Logger, url string, statusCode int, upstr
 				lc = append(lc, "usagePromptTokens", p, "usageCompletionTokens", c, "usageTotalTokens", tot)
 			}
 		}
-		log.Info("conversation upstream completed", lc...)
+		log.Info("conversation broker completed", lc...)
 	} else {
-		log.Warn("conversation upstream failed", "msg", "conversation.upstream.failed",
+		log.Warn("conversation broker failed", "msg", "conversation.broker.failed",
 			"upstreamModel", upstreamModel, "statusCode", statusCode, "stream", stream,
 			"err", upstreamErrSummary(statusCode, respBody))
 	}
-	log.Info("upstream chat response", args...)
+	log.Info("chimera-broker chat response", args...)
 }
 
 func upstreamErrSummary(statusCode int, respBody []byte) string {

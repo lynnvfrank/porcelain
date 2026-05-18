@@ -86,7 +86,10 @@ func Start(ctx context.Context, cfg Config, log *slog.Logger) (*exec.Cmd, error)
 		}
 		argv = append(argv, cfg.ExtraArgs...)
 	}
-	cmd := exec.CommandContext(ctx, bin, argv...)
+	// Do not use CommandContext: wrapper shutdown uses TerminateThenKill. Context
+	// cancel would race and force-kill the child before exit code 30 is recorded.
+	_ = ctx
+	cmd := exec.Command(bin, argv...)
 	cmd.Dir = cfg.DataDir
 	cmd.Env = mergeEnv(map[string]string{
 		"APP_HOST": cfg.BindHost,

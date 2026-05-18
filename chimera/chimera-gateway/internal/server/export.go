@@ -41,14 +41,14 @@ const DefaultUICookieName = adminui.DefaultUICookieName
 // NewRuntime loads gateway config and constructs process state.
 var NewRuntime = gruntime.NewRuntime
 
-// NewRuntimeWithUpstreamOverride is like NewRuntime but can patch upstream base URL.
-var NewRuntimeWithUpstreamOverride = gruntime.NewRuntimeWithUpstreamOverride
+// NewRuntimeWithBrokerOverride is like NewRuntime but can patch chimera-broker base URL.
+var NewRuntimeWithBrokerOverride = gruntime.NewRuntimeWithBrokerOverride
 
-// RefreshAvailableModels polls upstream models and caches the snapshot on the runtime.
+// RefreshAvailableModels polls chimera-broker models and caches the snapshot on the runtime.
 var RefreshAvailableModels = gruntime.RefreshAvailableModels
 
-// LogUpstreamAvailableModelsForLogsUI logs the merged upstream catalog once.
-var LogUpstreamAvailableModelsForLogsUI = gruntime.LogUpstreamAvailableModelsForLogsUI
+// LogBrokerAvailableModelsForLogsUI logs the merged broker catalog once.
+var LogBrokerAvailableModelsForLogsUI = gruntime.LogBrokerAvailableModelsForLogsUI
 
 // StartCatalogPoller periodically refreshes the catalog snapshot.
 var StartCatalogPoller = gruntime.StartCatalogPoller

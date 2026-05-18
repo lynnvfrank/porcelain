@@ -21,7 +21,7 @@ func healthTimeout(res *config.Resolved) time.Duration {
 	return HealthTimeout(res)
 }
 
-// RefreshAvailableModels polls BiFrost `/v1/models`, stores the result on the runtime, emits
+// RefreshAvailableModels polls chimera-broker `/v1/models`, stores the result on the runtime, emits
 // the catalog slog line, and runs registered catalog auditors.
 func RefreshAvailableModels(ctx context.Context, rt *Runtime, log *slog.Logger) *catalog.CatalogSnapshot {
 	if rt == nil {
@@ -45,8 +45,8 @@ func RefreshAvailableModels(ctx context.Context, rt *Runtime, log *slog.Logger) 
 	return snap
 }
 
-// LogUpstreamAvailableModelsForLogsUI refreshes and logs the merged upstream model catalog.
-func LogUpstreamAvailableModelsForLogsUI(ctx context.Context, rt *Runtime, log *slog.Logger) {
+// LogBrokerAvailableModelsForLogsUI refreshes and logs the merged chimera-broker model catalog.
+func LogBrokerAvailableModelsForLogsUI(ctx context.Context, rt *Runtime, log *slog.Logger) {
 	_ = RefreshAvailableModels(ctx, rt, log)
 }
 

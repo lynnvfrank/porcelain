@@ -44,7 +44,7 @@ type ProviderHealthEntry struct {
 // ProviderHealthResponse is the JSON payload for GET /api/ui/chimera-broker/providers.
 type ProviderHealthResponse struct {
 	FetchedAt time.Time             `json:"fetched_at"`
-	BifrostUp bool                  `json:"chimera_broker_up"`
+	BrokerUp bool                   `json:"chimera_broker_up"`
 	Error     string                `json:"error,omitempty"`
 	Providers []ProviderHealthEntry `json:"providers"`
 }
@@ -150,7 +150,7 @@ func fetchChimeraBrokerProviderHealth(ctx context.Context, client *brokeradmin.C
 	snapshotFresh := liveSnapshot != nil && liveSnapshot.OK && liveSnapshot.IsFresh(time.Now(), catalog.CatalogSnapshotFreshness)
 	if client == nil || strings.TrimSpace(client.BaseURL) == "" {
 		out.Error = "chimera-broker upstream not configured"
-		out.BifrostUp = false
+		out.BrokerUp = false
 		for _, n := range names {
 			out.Providers = append(out.Providers, ProviderHealthEntry{ID: n, State: "down", Error: out.Error})
 		}
@@ -168,7 +168,7 @@ func fetchChimeraBrokerProviderHealth(ctx context.Context, client *brokeradmin.C
 		}
 		out.Providers = append(out.Providers, entry)
 	}
-	out.BifrostUp = anySuccess
+	out.BrokerUp = anySuccess
 	if !anySuccess {
 		// All probes failed at the transport level — annotate the response so the strip
 		// caption can explain the empty state instead of looking like "no providers".

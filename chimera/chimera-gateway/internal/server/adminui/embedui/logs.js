@@ -718,8 +718,8 @@ globalThis.ChimeraLogs.Main = function () {
           partsR.push("attempt " + Math.round(att) + "/" + Math.round(chain));
         return partsR.join(" · ");
       }
-      case "conversation.upstream.started": {
-        var baseUp = "Upstream provider request started (POST to chat/completions).";
+      case "conversation.broker.started": {
+        var baseUp = "chimera-broker request started (POST to chat/completions).";
         var modUp = flat.upstreamModel != null ? String(flat.upstreamModel).trim() : "";
         return modUp ? baseUp + " Model: " + modUp + "." : baseUp;
       }
@@ -765,16 +765,16 @@ globalThis.ChimeraLogs.Main = function () {
         var bitsL = ["Gateway listening for HTTP requests."];
         var addrL = flat.addr != null ? String(flat.addr).trim() : "";
         if (addrL) bitsL.push("bind " + addrL);
-        var upL = flat.upstream != null ? String(flat.upstream).trim() : "";
-        if (upL) {
-          var upShort = upL;
+        var brL = flat.broker != null ? String(flat.broker).trim() : "";
+        if (brL) {
+          var brShort = brL;
           try {
-            upShort = new URL(upL).host || upL;
+            brShort = new URL(brL).host || brL;
           } catch (eL) {
-            upShort = upL;
+            brShort = brL;
           }
-          if (upShort.length > 56) upShort = upShort.slice(0, 55) + "…";
-          bitsL.push("upstream " + upShort);
+          if (brShort.length > 56) brShort = brShort.slice(0, 55) + "…";
+          bitsL.push("chimera-broker " + brShort);
         }
         return bitsL.join(" · ");
       }
@@ -3650,6 +3650,10 @@ globalThis.ChimeraLogs.Main = function () {
   function timelineKindLab(ev) {
     var f = getFlat(ev.parsed);
     var tk = f.timeline_kind != null ? String(f.timeline_kind).trim().toLowerCase() : "";
+    if (tk === "broker") return "chimera-broker";
+    if (tk === "vectorstore") return "chimera-vectorstore";
+    if (tk === "indexer") return "chimera-indexer";
+    if (tk === "gateway") return "chimera-gateway";
     if (tk === "web" || tk === "chimera-vectorstore" || tk === "chimera-broker" || tk === "chimera-indexer" || tk === "chimera-gateway") {
       return tk;
     }
@@ -3694,7 +3698,7 @@ globalThis.ChimeraLogs.Main = function () {
         received: "pending",
         routed: "pending",
         rag: "pending",
-        upstream: "pending",
+        broker: "pending",
         delivered: "pending"
       },
       kv: { turnIndex: "", clientModel: "", upstreamModel: "", stream: "", ragCollection: "", mergeHint: "" },
@@ -3709,7 +3713,7 @@ globalThis.ChimeraLogs.Main = function () {
       { k: "received", lab: "Accepted" },
       { k: "rag", lab: "Context" },
       { k: "routed", lab: "Routed" },
-      { k: "upstream", lab: "Upstream" },
+      { k: "broker", lab: "Broker" },
       { k: "delivered", lab: "Delivered" }
     ];
   }
@@ -4979,8 +4983,8 @@ globalThis.ChimeraLogs.Main = function () {
       '<dl class="indexer-run-kv indexer-run-kv--gateway-summary">' +
       "<dt>listening</dt><dd>" +
       escapeHtml(kv.listening || "—") +
-      '</dd><dt>upstream</dt><dd>' +
-      escapeHtml(kv.upstream || "—") +
+      '</dd><dt>chimera-broker</dt><dd>' +
+      escapeHtml(kv.broker || "—") +
       '</dd><dt>config</dt><dd>' +
       escapeHtml(kv.config || "—") +
       "</dd><dt>API keys</dt>" +

@@ -81,7 +81,7 @@ func TestUIBrokerProviderHealth_endToEnd(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&doc); err != nil {
 		t.Fatal(err)
 	}
-	if !doc.BifrostUp {
+	if !doc.BrokerUp {
 		t.Fatalf("chimera_broker_up should be true: %+v", doc)
 	}
 	if doc.FetchedAt.IsZero() {
@@ -152,7 +152,7 @@ func TestUIChimeraBrokerProviderHealth_chimeraBrokerDown(t *testing.T) {
 	if err := json.NewDecoder(res.Body).Decode(&doc); err != nil {
 		t.Fatal(err)
 	}
-	if doc.BifrostUp {
+	if doc.BrokerUp {
 		t.Fatalf("chimera_broker_up should be false: %+v", doc)
 	}
 	if doc.Error == "" {

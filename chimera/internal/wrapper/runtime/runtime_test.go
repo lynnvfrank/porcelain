@@ -8,10 +8,49 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
+
+	"github.com/lynn/porcelain/chimera/internal/wrapper/contract"
 )
+
+func TestRunForcedShutdownExit30(t *testing.T) {
+	if runtimeIsWindows() {
+		t.Skip("forced-kill semantics are kill-first on windows")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	a := &fakeAdapterIgnoreTerminate{}
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		cancel()
+	}()
+	err := Run(ctx, Config{
+		Component:              "chimera-broker",
+		ComponentLabel:         "chimera-broker",
+		BackendLabel:           "bifrost",
+		ModeLabel:              "binary",
+		BackendMode:            "binary",
+		Listen:                 "127.0.0.1:0",
+		StartupTimeout:         2 * time.Second,
+		ShutdownTimeout:        2 * time.Second,
+		TerminateWait:          50 * time.Millisecond,
+		BackoffInitial:         10 * time.Millisecond,
+		BackoffMultiplier:      2,
+		BackoffMax:             20 * time.Millisecond,
+		BackoffResetAfter:      30 * time.Millisecond,
+		WrapperVersion:         "test",
+		ReadyMessage:           "broker.ready",
+		UpstreamLineMessage:    "broker.upstream.line",
+		HTTPServerErrorMessage: "broker.http.server_error",
+	}, a, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if ExitCodeForError(err) != contract.ExitBackendRuntime {
+		t.Fatalf("expected forced shutdown exit %d, got err=%v code=%d", contract.ExitBackendRuntime, err, ExitCodeForError(err))
+	}
+}
 
 func TestTerminateThenKillForceKillError(t *testing.T) {
 	if runtimeIsWindows() {
@@ -148,16 +187,45 @@ func TestHelperProcessSleep(t *testing.T) {
 	if os.Getenv("WRAPPER_TEST_HELPER") != "1" {
 		return
 	}
-	if len(os.Args) >= 2 && os.Args[len(os.Args)-1] == "sleep" {
+	if len(os.Args) < 2 {
+		return
+	}
+	switch os.Args[len(os.Args)-1] {
+	case "sleep":
 		time.Sleep(5 * time.Second)
 		os.Exit(0)
+	case "ignore-terminate":
+		sigCh := make(chan os.Signal, 2)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		for range sigCh {
+		}
 	}
+}
+
+type fakeAdapterIgnoreTerminate struct{}
+
+func (f *fakeAdapterIgnoreTerminate) Start(_ context.Context, capture io.Writer, _ *slog.Logger) (*exec.Cmd, error) {
+	cmd := exec.Command("go", "test", "-run", "TestHelperProcessSleep", "./internal/wrapper/runtime", "--", "ignore-terminate")
+	cmd.Env = append(os.Environ(), "WRAPPER_TEST_HELPER=1")
+	cmd.Stdout = capture
+	cmd.Stderr = capture
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	return cmd, nil
+}
+
+func (f *fakeAdapterIgnoreTerminate) ReadyURL() string   { return "" }
+func (f *fakeAdapterIgnoreTerminate) MetricsURL() string { return "" }
+func (f *fakeAdapterIgnoreTerminate) BackendName() string {
+	return "bifrost"
 }
 
 type fakeAdapter struct{}
 
 func (f *fakeAdapter) Start(ctx context.Context, capture io.Writer, log *slog.Logger) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, "go", "test", "-run", "TestHelperProcessSleep", "./internal/wrapper/runtime", "--", "sleep")
+	_ = ctx
+	cmd := exec.Command("go", "test", "-run", "TestHelperProcessSleep", "./internal/wrapper/runtime", "--", "sleep")
 	cmd.Env = append(os.Environ(), "WRAPPER_TEST_HELPER=1")
 	cmd.Stdout = capture
 	cmd.Stderr = capture
@@ -178,7 +246,8 @@ type fakeAdapterOutput struct {
 }
 
 func (f *fakeAdapterOutput) Start(ctx context.Context, capture io.Writer, _ *slog.Logger) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, "go", "test", "-run", "TestHelperProcessSleep", "./internal/wrapper/runtime", "--", "sleep")
+	_ = ctx
+	cmd := exec.Command("go", "test", "-run", "TestHelperProcessSleep", "./internal/wrapper/runtime", "--", "sleep")
 	cmd.Env = append(os.Environ(), "WRAPPER_TEST_HELPER=1")
 	cmd.Stdout = capture
 	cmd.Stderr = capture
@@ -200,7 +269,8 @@ func (f *fakeAdapterOutput) BackendName() string {
 type fakeAdapterNoReadyURL struct{}
 
 func (f *fakeAdapterNoReadyURL) Start(ctx context.Context, capture io.Writer, _ *slog.Logger) (*exec.Cmd, error) {
-	cmd := exec.CommandContext(ctx, "go", "test", "-run", "TestHelperProcessSleep", "./internal/wrapper/runtime", "--", "sleep")
+	_ = ctx
+	cmd := exec.Command("go", "test", "-run", "TestHelperProcessSleep", "./internal/wrapper/runtime", "--", "sleep")
 	cmd.Env = append(os.Environ(), "WRAPPER_TEST_HELPER=1")
 	cmd.Stdout = capture
 	cmd.Stderr = capture

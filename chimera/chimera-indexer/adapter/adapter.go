@@ -32,7 +32,9 @@ func (a *Indexer) Start(ctx context.Context, capture io.Writer, _ *slog.Logger) 
 	}
 	stdout := platform.StdoutTee(indexerline.NewWriter(capture))
 	stderr := platform.StderrTee(indexerline.NewWriter(capture))
-	cmd := exec.CommandContext(ctx, bin, args...)
+	// Do not use CommandContext: wrapper shutdown uses TerminateThenKill.
+	_ = ctx
+	cmd := exec.Command(bin, args...)
 	cmd.Env = os.Environ()
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr

@@ -34,7 +34,7 @@ type Runtime struct {
 	routing          *routing.Policy
 	metrics          *gatewaymetrics.Store // optional; nil when disabled or init failed
 	operator         *operatorstore.Store  // optional; nil when init failed
-	upstreamOverride string                // non-empty: after each yaml load, patch upstream base + health (supervised BiFrost)
+	brokerBaseURLOverride string // non-empty: after each yaml load, patch broker base + health (supervised chimera-broker)
 
 	toolRouterMu      sync.Mutex
 	toolRouterModel   string
@@ -52,7 +52,7 @@ type Runtime struct {
 	chatTurnMu sync.Mutex
 	chatTurns  map[string]int
 
-	// catalogSnapshot is the most recent BiFrost `/v1/models` view, refreshed by the periodic
+	// catalogSnapshot is the most recent chimera-broker `/v1/models` view, refreshed by the periodic
 	// poller in cmd/chimera/serve.go. nil until the first refresh completes. See
 	// availablemodels.go for the snapshot type and consumers (provider-health classifier and
 	// future routing/embedding/router-model auditors).
@@ -75,12 +75,12 @@ type IndexerSupervisorStatus struct {
 }
 
 func NewRuntime(gatewayPath string, log *slog.Logger) (*Runtime, error) {
-	return NewRuntimeWithUpstreamOverride(gatewayPath, log, "")
+	return NewRuntimeWithBrokerOverride(gatewayPath, log, "")
 }
 
-// NewRuntimeWithUpstreamOverride loads gateway config; if upstreamOverride is set (e.g. http://127.0.0.1:8080),
-// it replaces upstream.base_url and health probe URL on every reload (supervised BiFrost).
-func NewRuntimeWithUpstreamOverride(gatewayPath string, log *slog.Logger, upstreamOverride string) (*Runtime, error) {
+// NewRuntimeWithBrokerOverride loads gateway config; if brokerBaseURLOverride is set (e.g. http://127.0.0.1:8080),
+// it replaces upstream.base_url and health probe URL on every reload (supervised chimera-broker).
+func NewRuntimeWithBrokerOverride(gatewayPath string, log *slog.Logger, brokerBaseURLOverride string) (*Runtime, error) {
 	res, err := config.LoadGatewayYAML(gatewayPath, log)
 	if err != nil {
 		return nil, err
@@ -89,14 +89,14 @@ func NewRuntimeWithUpstreamOverride(gatewayPath string, log *slog.Logger, upstre
 	if err != nil {
 		return nil, err
 	}
-	if upstreamOverride != "" {
+	if brokerBaseURLOverride != "" {
 		res = config.CloneResolved(res)
-		config.PatchResolvedUpstream(res, upstreamOverride)
+		config.PatchResolvedUpstream(res, brokerBaseURLOverride)
 	}
 	rt := &Runtime{
-		log:              log,
-		gatewayPath:      gatewayPath,
-		upstreamOverride: upstreamOverride,
+		log:                   log,
+		gatewayPath:           gatewayPath,
+		brokerBaseURLOverride: brokerBaseURLOverride,
 		resolved:         res,
 		tokens:           tokens.NewStore(res.TokensPath, log),
 		routing:          routing.NewPolicy(res.RoutingPolicyPath, log),
@@ -140,12 +140,12 @@ func NewRuntimeWithUpstreamOverride(gatewayPath string, log *slog.Logger, upstre
 	return rt, nil
 }
 
-func (rt *Runtime) applyUpstreamOverride(res *config.Resolved) *config.Resolved {
-	if rt.upstreamOverride == "" {
+func (rt *Runtime) applyBrokerBaseURLOverride(res *config.Resolved) *config.Resolved {
+	if rt.brokerBaseURLOverride == "" {
 		return res
 	}
 	cp := config.CloneResolved(res)
-	config.PatchResolvedUpstream(cp, rt.upstreamOverride)
+	config.PatchResolvedUpstream(cp, rt.brokerBaseURLOverride)
 	return cp
 }
 
@@ -183,7 +183,7 @@ func (rt *Runtime) Sync() {
 	}
 	pathsChanged := next.TokensPath != rt.resolved.TokensPath ||
 		next.RoutingPolicyPath != rt.resolved.RoutingPolicyPath
-	rt.resolved = rt.applyUpstreamOverride(next)
+	rt.resolved = rt.applyBrokerBaseURLOverride(next)
 	rt.gatewayMtime = gst.ModTime()
 	if next.ProviderFreeTierPath != "" {
 		if st, err := os.Stat(next.ProviderFreeTierPath); err == nil {
@@ -394,7 +394,7 @@ func (rt *Runtime) SetRAGForTest(s *rag.Service) {
 	rt.rag = s
 }
 
-// buildRAGService constructs a Qdrant + embedding-backed Service from resolved
+// buildRAGService constructs a vectorstore + embedding-backed Service from resolved
 // config. The upstream API key (env-resolved at runtime) is used as the bearer
 // for embeddings since the gateway plan colocates embed under the upstream
 // LLM proxy in v0.2.
@@ -417,7 +417,7 @@ func buildRAGService(res *config.Resolved, log *slog.Logger) (*rag.Service, erro
 	})
 }
 
-// CatalogSnapshot returns the most recent BiFrost `/v1/models` snapshot, or nil when no poll
+// CatalogSnapshot returns the most recent chimera-broker `/v1/models` snapshot, or nil when no poll
 // has succeeded yet. The returned pointer aliases the runtime's cached value — callers MUST
 // treat it as read-only.
 func (rt *Runtime) CatalogSnapshot() *catalog.CatalogSnapshot {

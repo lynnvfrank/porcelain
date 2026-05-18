@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 // payloadSampleLogLevel is slog's trace level (-8). Named constant so we compile on Go 1.22
@@ -61,7 +63,7 @@ func LogPayloadSample(log *slog.Logger, emit bool, maxRunes int, kind string, pa
 		"head", head,
 		"tail", tail,
 		"redacted", true,
-		"timeline_kind", "upstream",
+		"timeline_kind", naming.TimelineKindBroker,
 	)
 }
 
@@ -79,7 +81,7 @@ func LogRequestWitness(log *slog.Logger, body map[string]json.RawMessage) {
 		"role_counts", roleJSON,
 		"prompt_char_estimate", promptEst,
 		"tool_decl_count", toolDecls,
-		"timeline_kind", "upstream",
+		"timeline_kind", naming.TimelineKindBroker,
 	)
 }
 
@@ -138,7 +140,7 @@ func estimateMessageContentChars(content json.RawMessage) int {
 	return utf8.RuneCountInString(string(content))
 }
 
-// LogResponseWitness logs conversation.response.witness for upstream JSON or SSE tail bytes.
+// LogResponseWitness logs conversation.response.witness for chimera-broker JSON or SSE tail bytes.
 func LogResponseWitness(log *slog.Logger, stream bool, respBody []byte) {
 	if log == nil || len(respBody) == 0 {
 		return
@@ -151,7 +153,7 @@ func LogResponseWitness(log *slog.Logger, stream bool, respBody []byte) {
 		"completion_char_estimate", comp,
 		"finish_reason", fr,
 		"chunk_count", chunks,
-		"timeline_kind", "upstream",
+		"timeline_kind", naming.TimelineKindBroker,
 	)
 }
 

@@ -242,8 +242,8 @@ func TestHealth_RAGProbeIncluded(t *testing.T) {
 	var doc map[string]any
 	_ = json.NewDecoder(res.Body).Decode(&doc)
 	checks, _ := doc["checks"].(map[string]any)
-	if _, ok := checks["qdrant"]; !ok {
-		t.Fatalf("missing qdrant check: %+v", checks)
+	if _, ok := checks["vectorstore"]; !ok {
+		t.Fatalf("missing vectorstore check: %+v", checks)
 	}
 }
 
@@ -291,7 +291,7 @@ func TestHealth_NoRAGProbeWhenDisabled(t *testing.T) {
 	var doc map[string]any
 	_ = json.NewDecoder(res.Body).Decode(&doc)
 	checks, _ := doc["checks"].(map[string]any)
-	if _, ok := checks["qdrant"]; ok {
-		t.Fatalf("qdrant check should not be present when RAG disabled: %+v", checks)
+	if _, ok := checks["vectorstore"]; ok {
+		t.Fatalf("vectorstore check should not be present when RAG disabled: %+v", checks)
 	}
 }

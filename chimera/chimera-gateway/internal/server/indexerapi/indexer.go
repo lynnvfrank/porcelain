@@ -13,6 +13,7 @@ import (
 	gruntime "github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/runtime"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/scope"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 // HandleWorkspaces returns persisted operator workspaces for the Bearer token tenant
@@ -147,7 +148,7 @@ func HandleHealth(w http.ResponseWriter, r *http.Request, rt *gruntime.Runtime, 
 	err := rt.RAG().StoreHealth(r.Context())
 	resp := map[string]any{
 		"object":    "indexer.storage.health",
-		"backend":   "qdrant",
+		"backend":   naming.ProductVectorstoreName,
 		"url":       res.RAG.QdrantURL,
 		"tenant_id": sess.TenantID,
 	}

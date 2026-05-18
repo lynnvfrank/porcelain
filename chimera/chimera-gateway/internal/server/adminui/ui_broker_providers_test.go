@@ -107,7 +107,7 @@ func TestClassifyBrokerProviderResult_states(t *testing.T) {
 func TestFetchBrokerProviderHealth_emptyBaseURL(t *testing.T) {
 	t.Parallel()
 	resp := FetchBrokerProviderHealth(context.Background(), nil, []string{"groq", "ollama"}, nil)
-	if resp.BifrostUp {
+	if resp.BrokerUp {
 		t.Fatalf("chimera_broker_up should be false with nil client")
 	}
 	if !strings.Contains(resp.Error, "not configured") {

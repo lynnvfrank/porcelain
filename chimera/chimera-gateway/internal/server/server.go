@@ -139,9 +139,9 @@ var gatewayIndexTmpl = template.Must(template.New("gatewayIndex").Parse(`<!DOCTY
     <dt>Chimera (this gateway)</dt>
     <dd><span class="ok">up</span> · <a href="{{.GatewayURL}}">{{.GatewayURL}}</a></dd>
     <dt>Broker</dt>
-    <dd><span class="{{.BifrostClass}}">{{if .BifrostOK}}up{{else}}down{{end}}</span> · <a href="{{.BifrostURL}}">{{.BifrostURL}}</a></dd>
+    <dd><span class="{{.BrokerClass}}">{{if .BrokerOK}}up{{else}}down{{end}}</span> · <a href="{{.BrokerURL}}">{{.BrokerURL}}</a></dd>
     <dt>Vector Store</dt>
-    <dd><span class="{{.QdrantClass}}">{{.QdrantState}}</span> · <a href="{{.QdrantURL}}">{{.QdrantURL}}</a></dd>
+    <dd><span class="{{.VectorstoreClass}}">{{.VectorstoreState}}</span> · <a href="{{.VectorstoreURL}}">{{.VectorstoreURL}}</a></dd>
     <dt>Indexer (supervised)</dt>
     <dd><span class="{{.IndexerWorkerClass}}">{{.IndexerWorker}}</span> · config: <span class="muted">{{.IndexerConfig}}</span></dd>
   </dl>
@@ -151,7 +151,7 @@ var gatewayIndexTmpl = template.Must(template.New("gatewayIndex").Parse(`<!DOCTY
     <dt>Gateway tokens</dt><dd>{{.TokensCount}} configured</dd>
     <dt>Metrics</dt><dd>{{if .MetricsEnabled}}enabled{{else}}disabled{{end}}</dd>
     <dt>Conversation merge</dt><dd>{{if .ConversationMerge}}enabled{{else}}disabled{{end}}</dd>
-    <dt>Upstream model providers</dt><dd>{{.Providers}}</dd>
+    <dt>Broker model providers</dt><dd>{{.Providers}}</dd>
     <dt>Models available</dt><dd>{{.ModelCount}} <span class="muted">(merged list: virtual + upstream)</span></dd>
   </dl>
 </body>
@@ -193,19 +193,19 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 			chimeraBrokerClass = "ok"
 		}
 
-		qdrantURL := strings.TrimSuffix(res.RAG.QdrantURL, "/")
-		qdrantState := "disabled (RAG off)"
-		qClass := "muted"
+		vectorstoreURL := strings.TrimSuffix(res.RAG.QdrantURL, "/")
+		vectorstoreState := "disabled (RAG off)"
+		vsClass := "muted"
 		if res.RAG.Enabled {
 			if rt.RAG() == nil {
-				qdrantState = "unavailable"
-				qClass = "err"
+				vectorstoreState = "unavailable"
+				vsClass = "err"
 			} else if err := rt.RAG().StoreHealth(ctx); err != nil {
-				qdrantState = "down"
-				qClass = "err"
+				vectorstoreState = "down"
+				vsClass = "err"
 			} else {
-				qdrantState = "up"
-				qClass = "ok"
+				vectorstoreState = "up"
+				vsClass = "ok"
 			}
 		}
 
@@ -244,18 +244,18 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 				providers = "(none)"
 			}
 		} else if apiKey == "" {
-			providers = "set upstream API key to query upstream"
+			providers = "set chimera-broker API key to query catalog"
 		}
 
 		data := struct {
 			Semver, VirtualModel string
 			GatewayURL           string
-			BifrostURL           string
-			BifrostOK            bool
-			BifrostClass         string
-			QdrantURL            string
-			QdrantState          string
-			QdrantClass          string
+			BrokerURL            string
+			BrokerOK             bool
+			BrokerClass          string
+			VectorstoreURL       string
+			VectorstoreState     string
+			VectorstoreClass     string
 			IndexerConfig        string
 			IndexerWorker        string
 			IndexerWorkerClass   string
@@ -268,12 +268,12 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 			Semver:             res.Semver,
 			VirtualModel:       res.VirtualModelID,
 			GatewayURL:         gwURL,
-			BifrostURL:         chimeraBrokerURL,
-			BifrostOK:          chimeraBrokerOK,
-			BifrostClass:       chimeraBrokerClass,
-			QdrantURL:          qdrantURL,
-			QdrantState:        qdrantState,
-			QdrantClass:        qClass,
+			BrokerURL:          chimeraBrokerURL,
+			BrokerOK:           chimeraBrokerOK,
+			BrokerClass:        chimeraBrokerClass,
+			VectorstoreURL:     vectorstoreURL,
+			VectorstoreState:   vectorstoreState,
+			VectorstoreClass:   vsClass,
 			IndexerConfig:      idxConfig,
 			IndexerWorker:      idxWorker,
 			IndexerWorkerClass: idxWorkerClass,
@@ -298,15 +298,15 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 		apiKey := rt.UpstreamAPIKey()
 		ctx := r.Context()
 		ok, st, detail := upstream.ProbeHealth(ctx, res.HealthUpstreamURL, apiKey, healthTimeout(res), log)
-		upstreamCheck := map[string]any{
+		brokerCheck := map[string]any{
 			"ok":     ok,
 			"status": st,
 		}
 		if detail != "" {
-			upstreamCheck["detail"] = detail
+			brokerCheck["detail"] = detail
 		}
 		checks := map[string]any{
-			"upstream": upstreamCheck,
+			"broker": brokerCheck,
 		}
 		degraded := !ok
 		if res.RAG.Enabled && rt.RAG() != nil {
@@ -316,7 +316,7 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 				qCheck["detail"] = qErr.Error()
 				degraded = true
 			}
-			checks["qdrant"] = qCheck
+			checks["vectorstore"] = qCheck
 		}
 		if degraded {
 			w.Header().Set("Content-Type", "application/json")
@@ -461,7 +461,7 @@ func writeMergedModelsResponse(w http.ResponseWriter, ctx context.Context, res *
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": map[string]any{
-				"message": "Missing upstream API key (set " + res.UpstreamAPIKeyEnv + " or upstream.api_key in " + naming.GatewayConfigFileTarget + ")",
+				"message": "Missing chimera-broker API key (set " + res.UpstreamAPIKeyEnv + " or upstream.api_key in " + naming.GatewayConfigFileTarget + ")",
 				"type":    "gateway_config",
 			},
 		})
@@ -557,11 +557,11 @@ func attachConversationDelivery(routeLog *slog.Logger, opts **chat.ProxyOpts) {
 		if st >= 200 && st < 300 {
 			routeLog.Info("conversation delivered", "msg", "conversation.delivered",
 				"statusCode", st, "stream", stream, "bytes", nb, "total_ms", elapsedMs,
-				"timeline_kind", "upstream")
+				"timeline_kind", naming.TimelineKindBroker)
 			return
 		}
 		routeLog.Warn("conversation errored", "msg", "conversation.errored",
-			"statusCode", st, "errorType", lifecycleErrorType(st), "timeline_kind", "upstream")
+			"statusCode", st, "errorType", lifecycleErrorType(st), "timeline_kind", naming.TimelineKindBroker)
 	}
 	if *opts == nil {
 		*opts = &chat.ProxyOpts{OnChatDelivery: dfn}
@@ -589,7 +589,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": map[string]any{
-				"message": "Missing upstream API key (set " + res.UpstreamAPIKeyEnv + " or upstream.api_key in " + naming.GatewayConfigFileTarget + ")",
+				"message": "Missing chimera-broker API key (set " + res.UpstreamAPIKeyEnv + " or upstream.api_key in " + naming.GatewayConfigFileTarget + ")",
 				"type":    "gateway_config",
 			},
 		})
@@ -681,7 +681,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 			if dedupLog != nil {
 				dedupLog.Info("conversation received", "msg", "conversation.received",
 					"clientModel", clientModel, "stream", stream, "tenant", sess.TenantID,
-					"project", proj, "flavor", flav, "cid_source", "merge", "timeline_kind", "upstream")
+					"project", proj, "flavor", flav, "cid_source", "merge", "timeline_kind", naming.TimelineKindBroker)
 				emitConversationRequestWitness(dedupLog, res, raw)
 			}
 			if fp := mergeSvc.RollingFingerprint(ctx, cid); fp != "" {
@@ -697,7 +697,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 				}
 				dedupLog.Info("conversation delivered", "msg", "conversation.delivered",
 					"statusCode", http.StatusOK, "stream", false, "bytes", int64(n),
-					"total_ms", time.Since(flowStart).Milliseconds(), "timeline_kind", "upstream")
+					"total_ms", time.Since(flowStart).Milliseconds(), "timeline_kind", naming.TimelineKindBroker)
 			}
 			return
 		}
@@ -733,8 +733,8 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	if routeLog != nil {
 		routeLog.Info("conversation received", "msg", "conversation.received",
 			"clientModel", clientModel, "stream", stream, "tenant", sess.TenantID,
-			"project", proj, "flavor", flav, "cid_source", cidSource, "timeline_kind", "upstream")
-		routeLog.Info("chat completion request", "msg", "chat.request", "clientModel", clientModel, "stream", stream, "tenant", sess.TenantID, "timeline_kind", "upstream")
+			"project", proj, "flavor", flav, "cid_source", cidSource, "timeline_kind", naming.TimelineKindBroker)
+		routeLog.Info("chat completion request", "msg", "chat.request", "clientModel", clientModel, "stream", stream, "tenant", sess.TenantID, "timeline_kind", naming.TimelineKindBroker)
 	}
 	if routeLog != nil && trSum.Ran {
 		errStr := ""
@@ -748,7 +748,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 			"tools_before", trSum.ToolsBefore, "tools_after", trSum.ToolsAfter,
 			"router_model", trSum.RouterModel,
 			"err", errStr,
-			"timeline_kind", "upstream")
+			"timeline_kind", naming.TimelineKindBroker)
 	}
 	LogConversationIncomingToolMessages(routeLog, raw["messages"])
 
@@ -785,12 +785,12 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		if !res.RAG.Enabled || rt.RAG() == nil {
 			if routeLog != nil {
 				routeLog.Debug("conversation RAG skipped", "msg", "conversation.rag.skipped",
-					"reason", "disabled", "timeline_kind", "qdrant")
+					"reason", "disabled", "timeline_kind", naming.TimelineKindVectorstore)
 			}
 		} else if q := rag.LastUserText(raw["messages"]); strings.TrimSpace(q) == "" {
 			if routeLog != nil {
 				routeLog.Debug("conversation RAG skipped", "msg", "conversation.rag.skipped",
-					"reason", "empty_query", "timeline_kind", "qdrant")
+					"reason", "empty_query", "timeline_kind", naming.TimelineKindVectorstore)
 			}
 		} else {
 			hits, rerr := rt.RAG().Retrieve(ctx, rag.RetrieveRequest{
@@ -804,7 +804,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 			if rerr != nil {
 				if routeLog != nil {
 					routeLog.Warn("rag retrieve failed; proceeding without context", "msg", "rag.retrieve.error", "err", rerr,
-						"tenant", coords.TenantID, "project", coords.ProjectID, "timeline_kind", "qdrant")
+						"tenant", coords.TenantID, "project", coords.ProjectID, "timeline_kind", naming.TimelineKindVectorstore)
 				}
 			} else if ctxBlock := rag.FormatRetrievedContext(hits); ctxBlock != "" {
 				if routeLog != nil {
@@ -817,7 +817,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 							"tenant_id", coords.TenantID,
 							"project_id", coords.ProjectID,
 							"flavor_id", coords.FlavorID,
-							"timeline_kind", "qdrant",
+							"timeline_kind", naming.TimelineKindVectorstore,
 						)
 					}
 				}
@@ -829,11 +829,11 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 						"flavor", coords.FlavorID,
 						"hits", len(hits),
 						"collection", collection,
-						"timeline_kind", "qdrant")
+						"timeline_kind", naming.TimelineKindVectorstore)
 				}
 			} else if routeLog != nil {
 				routeLog.Debug("conversation RAG skipped", "msg", "conversation.rag.skipped",
-					"reason", "no_hits", "timeline_kind", "qdrant")
+					"reason", "no_hits", "timeline_kind", naming.TimelineKindVectorstore)
 			}
 		}
 		emitConversationRequestWitness(routeLog, res, raw)
@@ -841,7 +841,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		if initial == "" {
 			if routeLog != nil {
 				routeLog.Warn("conversation errored", "msg", "conversation.errored",
-					"statusCode", http.StatusServiceUnavailable, "errorType", "gateway_config", "timeline_kind", "upstream")
+					"statusCode", http.StatusServiceUnavailable, "errorType", "gateway_config", "timeline_kind", naming.TimelineKindBroker)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -862,7 +862,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	if clientModel == "" {
 		if routeLog != nil {
 			routeLog.Warn("conversation errored", "msg", "conversation.errored",
-				"statusCode", http.StatusBadRequest, "errorType", "invalid_request", "timeline_kind", "upstream")
+				"statusCode", http.StatusBadRequest, "errorType", "invalid_request", "timeline_kind", naming.TimelineKindBroker)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)

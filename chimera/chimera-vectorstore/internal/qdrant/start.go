@@ -43,7 +43,9 @@ func Start(ctx context.Context, cfg Config, log *slog.Logger) (*exec.Cmd, error)
 		return nil, fmt.Errorf("resolve qdrant storage dir: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, bin)
+	// Do not use CommandContext: wrapper shutdown uses TerminateThenKill.
+	_ = ctx
+	cmd := exec.Command(bin)
 	cmd.Dir = absStorage
 	envOverrides := map[string]string{
 		"QDRANT__STORAGE__STORAGE_PATH": absStorage,

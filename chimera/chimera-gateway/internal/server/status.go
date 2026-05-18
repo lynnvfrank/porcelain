@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/lynn/porcelain/chimera/internal/upstream"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 // StatusOverlay configures GET /status (operator + GUI). Pass nil from tests; production
@@ -17,9 +18,9 @@ type StatusOverlay struct {
 
 // SupervisorInfo describes subprocesses when started via "chimera serve".
 type SupervisorInfo struct {
-	BifrostListen     string
-	QdrantSupervised  bool
-	QdrantHTTP        string // host:port for HTTP API /readyz when supervised
+	BrokerListen      string
+	VectorstoreSupervised bool
+	VectorstoreHTTP       string // host:port for chimera-vectorstore /readyz when supervised
 	IndexerSupervised bool
 	IndexerConfigPath string // single --config path when supervised (may be empty if not started)
 }
@@ -45,9 +46,9 @@ func handleStatus(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		s := overlay.Supervisor
 		sup = map[string]any{
 			"active":                true,
-			"chimera_broker_listen": s.BifrostListen,
-			"qdrant_supervised":     s.QdrantSupervised,
-			"qdrant_http":           s.QdrantHTTP,
+			"chimera_broker_listen": s.BrokerListen,
+			"vectorstore_supervised": s.VectorstoreSupervised,
+			"vectorstore_http":       s.VectorstoreHTTP,
 			"indexer_supervised":    s.IndexerSupervised,
 			"indexer_config_path":   s.IndexerConfigPath,
 		}
@@ -56,16 +57,20 @@ func handleStatus(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	body := map[string]any{
 		"supervisor": sup,
 		"gateway": map[string]any{
-			"listen":            listen,
-			"virtual_model":     res.VirtualModelID,
-			"semver":            res.Semver,
-			"upstream_base_url": res.UpstreamBaseURL,
+			"listen":          listen,
+			"virtual_model":   res.VirtualModelID,
+			"semver":          res.Semver,
+			"broker_base_url": res.UpstreamBaseURL,
 		},
-		"upstream": map[string]any{
+		"broker": map[string]any{
 			"health_url": res.HealthUpstreamURL,
+			"base_url":   res.UpstreamBaseURL,
 			"ok":         ok,
 			"status":     st,
 			"detail":     detail,
+			"upstream": map[string]any{
+				"implementation": naming.ProductBifrostHTTPBinName,
+			},
 		},
 	}
 

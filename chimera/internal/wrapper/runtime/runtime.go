@@ -236,15 +236,18 @@ func (r *Runtime) runBackendLoop(ctx context.Context) error {
 		defer monitorCancel()
 		go r.monitorReadiness(monitorCtx, r.adapter.ReadyURL())
 		var werr error
+		shuttingDown := false
 		select {
 		case werr = <-waitCh:
+			shuttingDown = ctx.Err() != nil
 		case <-ctx.Done():
+			shuttingDown = true
 			if terr := TerminateThenKill(cmd, r.cfg.TerminateWait); errors.Is(terr, errBackendForcedKill) {
 				r.killed.Store(true)
 			}
 			werr = <-waitCh
 		}
-		if ctx.Err() != nil {
+		if shuttingDown && ctx.Err() != nil {
 			if r.killed.Load() {
 				r.log.Error("forced backend shutdown", "msg", "wrapper.shutdown.forced_kill", "status", "error")
 				return WrapExitError(contract.ExitBackendRuntime, errBackendForcedKill)

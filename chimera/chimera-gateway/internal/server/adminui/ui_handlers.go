@@ -327,15 +327,15 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 	if chimeraBrokerOK {
 		chimeraBrokerState = "up"
 	}
-	qdrantURL := strings.TrimSuffix(res.RAG.QdrantURL, "/")
-	qdrantState := "disabled"
+	vectorstoreURL := strings.TrimSuffix(res.RAG.QdrantURL, "/")
+	vectorstoreState := "disabled"
 	if res.RAG.Enabled {
 		if a.rt.RAG() == nil {
-			qdrantState = "unavailable"
+			vectorstoreState = "unavailable"
 		} else if err := a.rt.RAG().StoreHealth(ctx); err != nil {
-			qdrantState = "down"
+			vectorstoreState = "down"
 		} else {
-			qdrantState = "up"
+			vectorstoreState = "up"
 		}
 	}
 	idxScope := res.IndexerSupervisedEnabled && (res.RAG.Enabled || res.IndexerSupervisedStartWhenRAGDisabled)
@@ -363,7 +363,7 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	overviewState := "ok"
-	if chimeraBrokerState != "up" || (res.RAG.Enabled && qdrantState != "up") {
+	if chimeraBrokerState != "up" || (res.RAG.Enabled && vectorstoreState != "up") {
 		overviewState = "degraded"
 	}
 	if res.IndexerSupervisedEnabled && idxScope {
@@ -405,8 +405,8 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 			},
 			"chimera-vectorstore": map[string]any{
 				"enabled": res.RAG.Enabled,
-				"state":   qdrantState,
-				"url":     qdrantURL,
+				"state":   vectorstoreState,
+				"url":     vectorstoreURL,
 			},
 			"chimera-indexer": map[string]any{
 				"enabled":             res.IndexerSupervisedEnabled,

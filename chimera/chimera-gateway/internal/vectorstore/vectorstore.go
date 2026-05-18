@@ -1,7 +1,7 @@
 // Package vectorstore defines the storage interface used by gateway v0.2 RAG.
 //
-// Implementations live in subpackages (e.g. vectorstore/qdrant). Callers must
-// treat the Store interface as the only contract — payload field names and
+// Implementations live in subpackages (e.g. vectorstore/qdrant for the Qdrant driver).
+// Callers must treat Store as the only contract — payload field names and
 // collection naming rules are documented here so swapping backends does not
 // change wire behavior visible to clients.
 package vectorstore
@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-// Coords identifies a single corpus (one Qdrant collection per triple in v0.2).
+// Coords identifies a single corpus (one collection per tenant/project/flavor triple in v0.2).
 type Coords struct {
 	TenantID  string
 	ProjectID string
@@ -29,9 +29,8 @@ type Point struct {
 	Payload Payload
 }
 
-// Payload is the minimum set of fields stored per point (see docs/plans/version-v0.2.md
-// "Qdrant payload (minimum)"). Extra fields may be added by callers but the
-// gateway only filters/reads on these names.
+// Payload is the minimum set of fields stored per point (see docs/plans/version-v0.2.md).
+// Extra fields may be added by callers but the gateway only filters/reads on these names.
 type Payload struct {
 	TenantID  string `json:"tenant_id"`
 	ProjectID string `json:"project_id"`
@@ -52,7 +51,7 @@ type PointPayload struct {
 	Payload Payload
 }
 
-// ScrollBatch is one page from ScrollPoints (Qdrant scroll).
+// ScrollBatch is one page from ScrollPoints.
 type ScrollBatch struct {
 	Points     []PointPayload
 	NextCursor string // empty when no further pages
@@ -102,7 +101,7 @@ func CollectionName(c Coords) string {
 	h := sha1.Sum([]byte(c.TenantID + "\x00" + c.ProjectID + "\x00" + c.FlavorID))
 	suffix := hex.EncodeToString(h[:4])
 	full := "chimera-" + prefix + "-" + suffix
-	if len(full) > 200 { // Qdrant collection name limit is generous; keep us safe.
+	if len(full) > 200 { // backend collection name limit is generous; keep us safe.
 		full = full[:200]
 	}
 	return full
@@ -125,7 +124,7 @@ func slug(s string) string {
 func PointID(c Coords, source string, chunkIdx int) string {
 	h := sha1.Sum(fmt.Appendf(nil, "%s\x00%s\x00%s\x00%s\x00%d",
 		c.TenantID, c.ProjectID, c.FlavorID, source, chunkIdx))
-	// Format as 8-4-4-4-12 hex (UUID v4 shape; Qdrant accepts any UUID string).
+	// Format as 8-4-4-4-12 hex (UUID v4 shape).
 	hexs := hex.EncodeToString(h[:16])
 	return hexs[:8] + "-" + hexs[8:12] + "-" + hexs[12:16] + "-" + hexs[16:20] + "-" + hexs[20:32]
 }

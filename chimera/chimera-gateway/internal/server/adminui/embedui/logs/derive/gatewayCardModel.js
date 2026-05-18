@@ -98,7 +98,7 @@ function gatewayCardModel(arr, getFlat) {
   }
 
   var listeningAddr = "";
-  var upstreamUrl = "";
+  var brokerUrl = "";
   var brokerData = "";
   var qSup = null;
   var idxSup = null;
@@ -109,9 +109,9 @@ function gatewayCardModel(arr, getFlat) {
     msg = gatewayNormMsg(f);
     if (msg === "gateway.startup.listening") {
       if (f.addr != null && String(f.addr).trim() !== "") listeningAddr = String(f.addr);
-      if (f.upstream != null && String(f.upstream).trim() !== "") upstreamUrl = String(f.upstream);
+      if (f.broker != null && String(f.broker).trim() !== "") brokerUrl = String(f.broker);
       if (f.chimera_broker_data != null && String(f.chimera_broker_data).trim() !== "") brokerData = String(f.chimera_broker_data);
-      if (f.qdrant_supervised !== undefined && f.qdrant_supervised !== null) qSup = !!f.qdrant_supervised;
+      if (f.vectorstore_supervised !== undefined && f.vectorstore_supervised !== null) qSup = !!f.vectorstore_supervised;
       if (f.indexer_supervised !== undefined && f.indexer_supervised !== null) idxSup = !!f.indexer_supervised;
       if (f.config != null && String(f.config).trim() !== "") startupConfigPath = String(f.config);
     }
@@ -151,7 +151,7 @@ function gatewayCardModel(arr, getFlat) {
   out.kv.apiKeysTint = lastCredFail > lastAuthReload && lastCredFail >= 0 ? "error" : "none";
 
   out.kv.listening = listeningAddr || "—";
-  out.kv.upstream = upstreamUrl || "—";
+  out.kv.broker = brokerUrl || "—";
 
   for (i = arr.length - 1; i >= 0; i--) {
     f = getFlat(arr[i].parsed);

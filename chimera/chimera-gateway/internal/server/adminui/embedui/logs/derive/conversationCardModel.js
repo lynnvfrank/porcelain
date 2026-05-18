@@ -225,12 +225,12 @@ function lifecycleLabelForMsg(m) {
       return "RAG skipped";
     case "conversation.rag.span":
       return "RAG span";
-    case "conversation.upstream.started":
-      return "upstream…";
-    case "conversation.upstream.completed":
-      return "upstream ok";
-    case "conversation.upstream.failed":
-      return "upstream failed";
+    case "conversation.broker.started":
+      return "broker…";
+    case "conversation.broker.completed":
+      return "broker ok";
+    case "conversation.broker.failed":
+      return "broker failed";
     case "conversation.fallback.attempted":
       return "fallback";
     case "conversation.fallback.model_not_found":
@@ -272,7 +272,7 @@ function buildConversationCardModel(events, getFlat) {
     received: "pending",
     routed: "pending",
     rag: "pending",
-    upstream: "pending",
+    broker: "pending",
     delivered: "pending"
   };
   var kv = {
@@ -289,8 +289,8 @@ function buildConversationCardModel(events, getFlat) {
   var witnessResp = false;
   /** Last-wins for RAG step: done | skipped | pending */
   var ragLast = null;
-  /** Last-wins upstream: done | failed | pending */
-  var upstreamLast = null;
+  /** Last-wins broker relay: done | failed | pending */
+  var brokerLast = null;
 
   var i;
   for (i = 0; i < sorted.length; i++) {
@@ -341,16 +341,16 @@ function buildConversationCardModel(events, getFlat) {
       if (f.collection != null && String(f.collection).trim() !== "") kv.ragCollection = String(f.collection).trim();
       ragLast = "done";
     }
-    if (m === "conversation.upstream.started") {
-      upstreamLast = "pending";
+    if (m === "conversation.broker.started") {
+      brokerLast = "pending";
       if (f.upstreamModel != null && String(f.upstreamModel).trim() !== "") kv.upstreamModel = String(f.upstreamModel).trim();
     }
-    if (m === "conversation.upstream.completed") {
-      upstreamLast = "done";
+    if (m === "conversation.broker.completed") {
+      brokerLast = "done";
       if (f.upstreamModel != null && String(f.upstreamModel).trim() !== "") kv.upstreamModel = String(f.upstreamModel).trim();
     }
-    if (m === "conversation.upstream.failed") {
-      upstreamLast = "failed";
+    if (m === "conversation.broker.failed") {
+      brokerLast = "failed";
       if (f.upstreamModel != null && String(f.upstreamModel).trim() !== "") kv.upstreamModel = String(f.upstreamModel).trim();
     }
     if (m === "conversation.delivered") progress.delivered = "done";
@@ -360,18 +360,18 @@ function buildConversationCardModel(events, getFlat) {
   if (dedupShort) {
     progress.routed = progress.routed === "done" ? "done" : "skipped";
     progress.rag = "skipped";
-    progress.upstream = "skipped";
+    progress.broker = "skipped";
   } else {
     progress.rag = ragLast != null ? ragLast : "skipped";
     if (progress.rag === "pending") progress.rag = "done";
-    progress.upstream = upstreamLast != null ? upstreamLast : "skipped";
+    progress.broker = brokerLast != null ? brokerLast : "skipped";
   }
 
   var stateLabel = lastLifecycleMsg ? lifecycleLabelForMsg(lastLifecycleMsg) : "—";
   var stateKind = "complete";
   if (
     lastLifecycleMsg === "conversation.errored" ||
-    lastLifecycleMsg === "conversation.upstream.failed" ||
+    lastLifecycleMsg === "conversation.broker.failed" ||
     lastLifecycleMsg === "conversation.fallback.exhausted"
   ) {
     stateKind = "error";

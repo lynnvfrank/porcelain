@@ -360,7 +360,7 @@ func runGatewayBackend(args []string) error {
 		}
 	}
 	log := buildLogger(cfgPath)
-	rt, err := server.NewRuntimeWithUpstreamOverride(cfgPath, log, strings.TrimSpace(upstreamOverride))
+	rt, err := server.NewRuntimeWithBrokerOverride(cfgPath, log, strings.TrimSpace(upstreamOverride))
 	if err != nil {
 		return err
 	}

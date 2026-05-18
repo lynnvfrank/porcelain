@@ -6,9 +6,9 @@ time=2026-05-09T12:00:00.030Z level=INFO msg=conversation.routing.resolved reque
 time=2026-05-09T12:00:00.040Z level=INFO msg=conversation.rag.span request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 collection=coll-lc span_id=span-lc window_ms=10000 turn_index=1
 time=2026-05-09T12:00:00.050Z level=INFO msg=conversation.rag.skipped request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 reason=no_hits turn_index=1
 time=2026-05-09T12:00:00.060Z level=INFO msg=conversation.rag.attached request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
-time=2026-05-09T12:00:00.070Z level=INFO msg=conversation.upstream.started request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
-time=2026-05-09T12:00:00.080Z level=INFO msg=conversation.upstream.completed request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
-time=2026-05-09T12:00:00.090Z level=WARN msg=conversation.upstream.failed request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
+time=2026-05-09T12:00:00.070Z level=INFO msg=conversation.broker.started request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
+time=2026-05-09T12:00:00.080Z level=INFO msg=conversation.broker.completed request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
+time=2026-05-09T12:00:00.090Z level=WARN msg=conversation.broker.failed request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
 time=2026-05-09T12:00:00.100Z level=INFO msg=conversation.fallback.attempted request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
 time=2026-05-09T12:00:00.110Z level=WARN msg=conversation.fallback.exhausted request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1
 time=2026-05-09T12:00:00.120Z level=INFO msg=conversation.delivered request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1

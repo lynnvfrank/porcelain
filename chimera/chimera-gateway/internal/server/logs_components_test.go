@@ -290,8 +290,8 @@ func TestLogsDerive_conversationCardModel_joinAndProgress(t *testing.T) {
 		{"ts": "2026-05-09T12:00:01.000Z", "parsed": map[string]any{"rawFlat": map[string]any{"msg": "conversation.routing.resolved", "upstreamModel": "m1"}}},
 		{"ts": "2026-05-09T12:00:02.000Z", "parsed": map[string]any{"rawFlat": map[string]any{"msg": "conversation.rag.span", "collection": "cx"}}},
 		{"ts": "2026-05-09T12:00:03.000Z", "parsed": map[string]any{"rawFlat": map[string]any{"msg": "conversation.rag.skipped", "reason": "no_hits"}}},
-		{"ts": "2026-05-09T12:00:04.000Z", "parsed": map[string]any{"rawFlat": map[string]any{"msg": "conversation.upstream.started"}}},
-		{"ts": "2026-05-09T12:00:05.000Z", "parsed": map[string]any{"rawFlat": map[string]any{"msg": "conversation.upstream.completed"}}},
+		{"ts": "2026-05-09T12:00:04.000Z", "parsed": map[string]any{"rawFlat": map[string]any{"msg": "conversation.broker.started"}}},
+		{"ts": "2026-05-09T12:00:05.000Z", "parsed": map[string]any{"rawFlat": map[string]any{"msg": "conversation.broker.completed"}}},
 		{"ts": "2026-05-09T12:00:06.000Z", "parsed": map[string]any{"rawFlat": map[string]any{"msg": "conversation.delivered"}}},
 	}
 	vMod, err := modelFn(goja.Undefined(), vm.ToValue(lifecycleEvs), goja.Undefined())
@@ -303,8 +303,8 @@ func TestLogsDerive_conversationCardModel_joinAndProgress(t *testing.T) {
 	if prog.Get("rag").String() != "skipped" {
 		t.Fatalf("rag=%q want skipped", prog.Get("rag").String())
 	}
-	if prog.Get("upstream").String() != "done" {
-		t.Fatalf("upstream=%q want done", prog.Get("upstream").String())
+	if prog.Get("broker").String() != "done" {
+		t.Fatalf("broker=%q want done", prog.Get("broker").String())
 	}
 	if prog.Get("delivered").String() != "done" {
 		t.Fatalf("delivered=%q want done", prog.Get("delivered").String())
@@ -1188,8 +1188,8 @@ func TestLogsDerive_gatewayCardModel_kvCountersHideRow(t *testing.T) {
 			"rawFlat": map[string]any{"msg": "gateway.http.access", "path": "/v1/chat", "statusCode": 200, "method": "POST"},
 		}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{
-			"msg": "gateway.startup.listening", "addr": ":8080", "upstream": "http://bifrost", "chimera_broker_data": "/data/b",
-			"qdrant_supervised": true, "indexer_supervised": true, "config": "/x/gateway.yaml",
+			"msg": "gateway.startup.listening", "addr": ":8080", "broker": "http://bifrost", "chimera_broker_data": "/data/b",
+			"vectorstore_supervised": true, "indexer_supervised": true, "config": "/x/gateway.yaml",
 		}}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{"msg": "gateway.auth.reloaded", "count": 2}}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{"msg": "routing.policy.reloaded", "rules": 5}}},
@@ -1213,8 +1213,8 @@ func TestLogsDerive_gatewayCardModel_kvCountersHideRow(t *testing.T) {
 	if kv.Get("listening").String() != ":8080" {
 		t.Fatalf("listening=%q", kv.Get("listening").String())
 	}
-	if kv.Get("upstream").String() != "http://bifrost" {
-		t.Fatalf("upstream=%q", kv.Get("upstream").String())
+	if kv.Get("broker").String() != "http://bifrost" {
+		t.Fatalf("broker=%q", kv.Get("broker").String())
 	}
 	if kv.Get("apiKeys").String() != "2" {
 		t.Fatalf("apiKeys=%q", kv.Get("apiKeys").String())

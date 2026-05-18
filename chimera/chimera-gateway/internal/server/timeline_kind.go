@@ -18,8 +18,8 @@ func timelineKindForGatewayHTTPPath(path string) string {
 	if path == "/v1/chat/completions" || path == "/v1/models" || path == "/ui/models" {
 		return naming.TimelineKindBroker
 	}
-	// Future gateway-exposed vectorstore proxy or passthrough; also matches raw collection REST paths.
-	if strings.HasPrefix(path, "/v1/qdrant") || strings.Contains(path, "/collections/") {
+	// Raw collection REST paths (vectorstore backend); gateway does not expose /v1/qdrant-shaped URLs.
+	if strings.Contains(path, "/collections/") {
 		return naming.TimelineKindVectorstore
 	}
 	return naming.TimelineKindWeb

@@ -21,6 +21,7 @@ func TestTimelineKindForGatewayHTTPPath(t *testing.T) {
 		{"/health", naming.TimelineKindWeb},
 		{"/api/ui/logs", naming.TimelineKindWeb},
 		{"/collections/foo/points/search", naming.TimelineKindVectorstore},
+		{"/v1/qdrant/collections", naming.TimelineKindWeb},
 		{"", naming.TimelineKindWeb},
 	}
 	for _, tc := range cases {

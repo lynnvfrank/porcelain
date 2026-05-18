@@ -19,6 +19,7 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/ragembed"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 	"github.com/lynn/porcelain/chimera/internal/platform"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 // queryPreviewMax bounds the query/text excerpt included in DEBUG logs so we
@@ -261,7 +262,7 @@ func (s *Service) Retrieve(ctx context.Context, req RetrieveRequest) ([]vectorst
 			"span_id", newSpanID(),
 			"window_ms", conversationRAGSpanWindowMS,
 			"turn_index", ti,
-			"timeline_kind", "chimera-vectorstore",
+			"timeline_kind", naming.TimelineKindVectorstore,
 		}
 		if req.LifecycleLog == nil {
 			args = appendGatewayCorrelation(args, req.RequestID, req.ConversationID, "", req.Coords.TenantID)
@@ -281,7 +282,7 @@ func (s *Service) Retrieve(ctx context.Context, req RetrieveRequest) ([]vectorst
 			"query", previewText(req.Query),
 		}
 		args = appendGatewayCorrelation(args, req.RequestID, req.ConversationID, "", req.Coords.TenantID)
-		args = append(args, "timeline_kind", "chimera-vectorstore")
+		args = append(args, "timeline_kind", naming.TimelineKindVectorstore)
 		s.log.Debug("rag search query", args...)
 	}
 	embedStart := time.Now()
@@ -301,7 +302,7 @@ func (s *Service) Retrieve(ctx context.Context, req RetrieveRequest) ([]vectorst
 			"elapsed_ms", time.Since(embedStart).Milliseconds(),
 		}
 		args = appendGatewayCorrelation(args, req.RequestID, req.ConversationID, "", req.Coords.TenantID)
-		args = append(args, "timeline_kind", "chimera-vectorstore")
+		args = append(args, "timeline_kind", naming.TimelineKindVectorstore)
 		s.log.Debug("rag embedding retrieved", args...)
 	}
 	hits, err := s.store.Search(ctx, collection, vec, k, s.scoreFloor, &req.Coords)
@@ -326,7 +327,7 @@ func (s *Service) Retrieve(ctx context.Context, req RetrieveRequest) ([]vectorst
 				"text", previewText(h.Payload.Text),
 			}
 			args = appendGatewayCorrelation(args, req.RequestID, req.ConversationID, "", req.Coords.TenantID)
-			args = append(args, "timeline_kind", "chimera-vectorstore")
+			args = append(args, "timeline_kind", naming.TimelineKindVectorstore)
 			s.log.Debug("rag comparison", args...)
 		}
 	}

@@ -41,8 +41,8 @@ func TestStatusEndpoint(t *testing.T) {
 	ov := &StatusOverlay{
 		EffectiveListen: "127.0.0.1:3999",
 		Supervisor: &SupervisorInfo{
-			BifrostListen:    "127.0.0.1:8080",
-			QdrantSupervised: false,
+			BrokerListen:     "127.0.0.1:8080",
+			VectorstoreSupervised: false,
 		},
 	}
 	srv := httptest.NewServer(NewMux(rt, testLog(), ov, nil))
