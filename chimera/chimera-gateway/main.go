@@ -19,10 +19,10 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/lynn/porcelain/chimera/internal/gatewayline"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/proc"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server"
 	"github.com/lynn/porcelain/chimera/internal/config"
+	"github.com/lynn/porcelain/chimera/internal/gatewayline"
 	"github.com/lynn/porcelain/chimera/internal/logfmt"
 	"github.com/lynn/porcelain/chimera/internal/netaddr"
 	"github.com/lynn/porcelain/chimera/internal/platform"
