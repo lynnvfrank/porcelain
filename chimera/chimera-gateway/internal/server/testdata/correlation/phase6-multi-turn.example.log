@@ -1,0 +1,15 @@
+# Phase 6: two turns; each chat-scoped slug carries turn_index (7 events per turn).
+time=2026-05-09T12:00:00.000Z level=INFO msg=conversation.received request_id=p6-req-1 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=1
+time=2026-05-09T12:00:00.010Z level=INFO msg=chat.request request_id=p6-req-1 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=1
+time=2026-05-09T12:00:00.020Z level=INFO msg=conversation.routing.resolved request_id=p6-req-1 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=1
+time=2026-05-09T12:00:00.030Z level=INFO msg=chat.chimera-broker.request request_id=p6-req-1 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=1
+time=2026-05-09T12:00:00.040Z level=INFO msg=chat.chimera-broker.response request_id=p6-req-1 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=1
+time=2026-05-09T12:00:00.050Z level=INFO msg=conversation.upstream.completed request_id=p6-req-1 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=1
+time=2026-05-09T12:00:00.060Z level=INFO msg=conversation.delivered request_id=p6-req-1 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=1
+time=2026-05-09T12:00:01.000Z level=INFO msg=conversation.received request_id=p6-req-2 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=2
+time=2026-05-09T12:00:01.010Z level=INFO msg=chat.request request_id=p6-req-2 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=2
+time=2026-05-09T12:00:01.020Z level=INFO msg=conversation.routing.resolved request_id=p6-req-2 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=2
+time=2026-05-09T12:00:01.030Z level=INFO msg=chat.chimera-broker.request request_id=p6-req-2 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=2
+time=2026-05-09T12:00:01.040Z level=INFO msg=chat.chimera-broker.response request_id=p6-req-2 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=2
+time=2026-05-09T12:00:01.050Z level=INFO msg=conversation.upstream.completed request_id=p6-req-2 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=2
+time=2026-05-09T12:00:01.060Z level=INFO msg=conversation.delivered request_id=p6-req-2 conversation_id=p6-conv-1 principal_id=p6-principal-1 turn_index=2

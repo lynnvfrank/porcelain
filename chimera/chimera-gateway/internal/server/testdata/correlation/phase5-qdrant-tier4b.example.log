@@ -1,0 +1,4 @@
+# Phase 5: overlapping conversation.rag.span anchors; Qdrant row attributes to most recent span (span-new, turn 2).
+time=2026-05-09T12:00:00.000Z level=INFO msg=conversation.rag.span request_id=p5-req-1 conversation_id=p5-conv-1 principal_id=p5-principal-1 collection=coll-x span_id=span-old window_ms=10000 turn_index=1
+time=2026-05-09T12:00:05.000Z level=INFO msg=conversation.rag.span request_id=p5-req-1 conversation_id=p5-conv-1 principal_id=p5-principal-1 collection=coll-x span_id=span-new window_ms=10000 turn_index=2
+time=2026-05-09T12:00:07.000Z level=INFO msg=qdrant.http.vector_search collection=coll-x status=200

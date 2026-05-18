@@ -1,23 +1,27 @@
 package server
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/lynn/porcelain/internal/naming"
+)
 
 func TestTimelineKindForGatewayHTTPPath(t *testing.T) {
 	cases := []struct {
 		path string
 		want string
 	}{
-		{"/v1/ingest", "indexer"},
-		{"/v1/ingest/session", "indexer"},
-		{"/v1/ingest/session/x/chunk", "indexer"},
-		{"/v1/indexer/config", "indexer"},
-		{"/v1/chat/completions", "upstream"},
-		{"/v1/models", "upstream"},
-		{"/ui/models", "upstream"},
-		{"/health", "web"},
-		{"/api/ui/logs", "web"},
-		{"/collections/foo/points/search", "qdrant"},
-		{"", "web"},
+		{"/v1/ingest", naming.TimelineKindIndexer},
+		{"/v1/ingest/session", naming.TimelineKindIndexer},
+		{"/v1/ingest/session/x/chunk", naming.TimelineKindIndexer},
+		{"/v1/indexer/config", naming.TimelineKindIndexer},
+		{"/v1/chat/completions", naming.TimelineKindBroker},
+		{"/v1/models", naming.TimelineKindBroker},
+		{"/ui/models", naming.TimelineKindBroker},
+		{"/health", naming.TimelineKindWeb},
+		{"/api/ui/logs", naming.TimelineKindWeb},
+		{"/collections/foo/points/search", naming.TimelineKindVectorstore},
+		{"", naming.TimelineKindWeb},
 	}
 	for _, tc := range cases {
 		if got := timelineKindForGatewayHTTPPath(tc.path); got != tc.want {

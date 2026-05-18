@@ -1,0 +1,4 @@
+# Phase 8: request/response witness and trace-only payload sample with correlation + turn_index.
+time=2026-05-09T12:00:00.000Z level=INFO msg=conversation.request.witness request_id=p8-req-1 conversation_id=p8-conv-1 principal_id=p8-principal-1 turn_index=1 message_count=2 tool_count=0 body_bytes=256
+time=2026-05-09T12:00:00.010Z level=INFO msg=conversation.response.witness request_id=p8-req-1 conversation_id=p8-conv-1 principal_id=p8-principal-1 turn_index=1 finish_reason=stop body_bytes=64 chunk_count=1
+time=2026-05-09T12:00:00.020Z level=DEBUG msg=conversation.payload.sample request_id=p8-req-1 conversation_id=p8-conv-1 principal_id=p8-principal-1 turn_index=1 redacted=true sample_bytes=48

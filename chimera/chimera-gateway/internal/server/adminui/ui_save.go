@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"strings"
 
-	chimeraBrokeradmin "github.com/lynn/porcelain/chimera/chimera-gateway/internal/bifrostadmin"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/brokeradmin"
 )
 
 const maxProviderErrorBody = 2048
@@ -40,18 +40,18 @@ func (a *adminUI) saveAppendProviderKey(provider string) http.HandlerFunc {
 			return
 		}
 		ctx := r.Context()
-		client := chimeraBrokerAdminClient(a.rt)
+		client := brokerAdminClient(a.rt)
 		cur, st, err := client.GetProvider(ctx, provider)
 		if err != nil {
 			writeUIJSONError(w, http.StatusBadGateway, "chimera-broker unreachable", truncateErrMsg(err.Error()))
 			return
 		}
-		cur, ok := chimeraBrokeradmin.NormalizeProviderGETForMerge(st, cur)
+		cur, ok := brokeradmin.NormalizeProviderGETForMerge(st, cur)
 		if !ok {
 			writeUIJSONError(w, http.StatusBadGateway, fmt.Sprintf("chimera-broker GET %d", st), truncateErrMsg(string(cur)))
 			return
 		}
-		merged, err := chimeraBrokeradmin.AppendProviderAPIKey(provider, cur, v)
+		merged, err := brokeradmin.AppendProviderAPIKey(provider, cur, v)
 		if err != nil {
 			writeUIJSONError(w, http.StatusInternalServerError, "merge failed", truncateErrMsg(err.Error()))
 			return
@@ -90,18 +90,18 @@ func (a *adminUI) saveRemoveProviderKey(provider string) http.HandlerFunc {
 			return
 		}
 		ctx := r.Context()
-		client := chimeraBrokerAdminClient(a.rt)
+		client := brokerAdminClient(a.rt)
 		cur, st, err := client.GetProvider(ctx, provider)
 		if err != nil {
 			writeUIJSONError(w, http.StatusBadGateway, "chimera-broker unreachable", truncateErrMsg(err.Error()))
 			return
 		}
-		cur, ok := chimeraBrokeradmin.NormalizeProviderGETForMerge(st, cur)
+		cur, ok := brokeradmin.NormalizeProviderGETForMerge(st, cur)
 		if !ok {
 			writeUIJSONError(w, http.StatusBadGateway, fmt.Sprintf("chimera-broker GET %d", st), truncateErrMsg(string(cur)))
 			return
 		}
-		merged, err := chimeraBrokeradmin.RemoveProviderKeyByName(cur, name)
+		merged, err := brokeradmin.RemoveProviderKeyByName(cur, name)
 		if err != nil {
 			writeUIJSONError(w, http.StatusBadRequest, truncateErrMsg(err.Error()), "")
 			return
@@ -144,18 +144,18 @@ func (a *adminUI) saveOllamaBaseURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	client := chimeraBrokerAdminClient(a.rt)
+	client := brokerAdminClient(a.rt)
 	cur, st, err := client.GetProvider(ctx, "ollama")
 	if err != nil {
 		writeUIJSONError(w, http.StatusBadGateway, "chimera-broker unreachable", truncateErrMsg(err.Error()))
 		return
 	}
-	cur, ok := chimeraBrokeradmin.NormalizeProviderGETForMerge(st, cur)
+	cur, ok := brokeradmin.NormalizeProviderGETForMerge(st, cur)
 	if !ok {
 		writeUIJSONError(w, http.StatusBadGateway, fmt.Sprintf("chimera-broker GET %d", st), truncateErrMsg(string(cur)))
 		return
 	}
-	merged, err := chimeraBrokeradmin.MergeOllamaBaseURL(cur, u)
+	merged, err := brokeradmin.MergeOllamaBaseURL(cur, u)
 	if err != nil {
 		writeUIJSONError(w, http.StatusInternalServerError, "merge failed", truncateErrMsg(err.Error()))
 		return

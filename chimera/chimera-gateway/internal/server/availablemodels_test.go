@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/catalog"
 	"github.com/lynn/porcelain/chimera/internal/config"
 )
@@ -225,13 +226,13 @@ func TestRefreshAvailableModels_recoversFromAuditorPanic(t *testing.T) {
 	}
 }
 
-func TestClassifyBifrostProviderResult_liveCatalogOverride(t *testing.T) {
+func TestClassifyBrokerProviderResult_liveCatalogOverride(t *testing.T) {
 	t.Parallel()
 	// Provider config says "ollama is up (base_url present)" but the live catalog has only
 	// groq + gemini → classifier must downgrade ollama to "down".
 	live := buildSnapshotForTest(time.Now(), []string{"gemini", "groq"})
 	body := []byte(`{"name":"ollama","keys":[],"network_config":{"base_url":"http://127.0.0.1:11434"}}`)
-	got := ClassifyBifrostProviderResult("ollama", body, 200, nil, live)
+	got := adminui.ClassifyBrokerProviderResult("ollama", body, 200, nil, live)
 	if got.State != "down" {
 		t.Fatalf("state=%q want down (live override): %+v", got.State, got)
 	}
@@ -239,39 +240,39 @@ func TestClassifyBifrostProviderResult_liveCatalogOverride(t *testing.T) {
 		t.Fatalf("error annotation should be set: %+v", got)
 	}
 	bodyGroq := []byte(`{"name":"groq","keys":[{"name":"k","value":"env.GROQ_API_KEY"}]}`)
-	gotGroq := ClassifyBifrostProviderResult("groq", bodyGroq, 200, nil, live)
+	gotGroq := adminui.ClassifyBrokerProviderResult("groq", bodyGroq, 200, nil, live)
 	if gotGroq.State != "up" {
 		t.Fatalf("groq state=%q want up", gotGroq.State)
 	}
 }
 
-func TestClassifyBifrostProviderResult_staleSnapshotDoesNotOverride(t *testing.T) {
+func TestClassifyBrokerProviderResult_staleSnapshotDoesNotOverride(t *testing.T) {
 	t.Parallel()
 	stale := buildSnapshotForTest(time.Now().Add(-10*time.Minute), []string{"groq"})
 	body := []byte(`{"name":"ollama","keys":[],"network_config":{"base_url":"http://127.0.0.1:11434"}}`)
-	got := ClassifyBifrostProviderResult("ollama", body, 200, nil, stale)
+	got := adminui.ClassifyBrokerProviderResult("ollama", body, 200, nil, stale)
 	if got.State != "up" {
 		t.Fatalf("stale snapshot must not override; got %q", got.State)
 	}
 }
 
-func TestClassifyBifrostProviderResult_failedSnapshotDoesNotOverride(t *testing.T) {
+func TestClassifyBrokerProviderResult_failedSnapshotDoesNotOverride(t *testing.T) {
 	t.Parallel()
 	failed := &CatalogSnapshot{FetchedAt: time.Now(), OK: false, FetchErr: "boom"}
 	body := []byte(`{"name":"ollama","keys":[],"network_config":{"base_url":"http://127.0.0.1:11434"}}`)
-	got := ClassifyBifrostProviderResult("ollama", body, 200, nil, failed)
+	got := adminui.ClassifyBrokerProviderResult("ollama", body, 200, nil, failed)
 	if got.State != "up" {
 		t.Fatalf("failed snapshot must not override; got %q", got.State)
 	}
 }
 
-func TestClassifyBifrostProviderResult_overrideOnlyAffectsUp(t *testing.T) {
+func TestClassifyBrokerProviderResult_overrideOnlyAffectsUp(t *testing.T) {
 	t.Parallel()
 	// gemini has no key → state=key_missing. Live catalog also lacks gemini, but the override
 	// must NOT promote/demote a key_missing into "down" (it already explains the failure mode).
 	live := buildSnapshotForTest(time.Now(), []string{"groq"})
 	body := []byte(`{"name":"gemini","keys":[]}`)
-	got := ClassifyBifrostProviderResult("gemini", body, 200, nil, live)
+	got := adminui.ClassifyBrokerProviderResult("gemini", body, 200, nil, live)
 	if got.State != "key_missing" {
 		t.Fatalf("state=%q want key_missing", got.State)
 	}

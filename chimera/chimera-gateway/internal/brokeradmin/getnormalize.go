@@ -1,4 +1,4 @@
-package bifrostadmin
+package brokeradmin
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 )
 
 // NormalizeProviderGETForMerge returns JSON to pass into AppendProviderAPIKey / RemoveProviderKeyByName / MergeOllamaBaseURL
-// after GET /api/providers/{name}. BiFrost may answer “not found” as HTTP 404 or as HTTP 2xx
+// after GET /api/providers/{name}. The wrapped binary (bifrost-http) may answer “not found” as HTTP 404 or as HTTP 2xx
 // with an error envelope (status_code 404 in JSON).
 func NormalizeProviderGETForMerge(st int, body []byte) (forMerge []byte, ok bool) {
 	if IsProviderMissingGET(st, body) {

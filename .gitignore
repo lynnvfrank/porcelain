@@ -18,10 +18,12 @@ config/provider-free-tier.generated.yaml
 dist/
 /packaging/qdrant-bundles/
 
-# Debugging and Building
-*.log
+# Runtime / debug log files (not test fixtures)
 temp/
 /logs/
+*.log
+!**/*.example.log
+!**/testdata/**/*.log
 
 # Root binaries (chimera-* build outputs / package desktop copy)
 bin/

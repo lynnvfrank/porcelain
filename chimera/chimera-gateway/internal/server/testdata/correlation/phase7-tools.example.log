@@ -1,0 +1,6 @@
+# Phase 7: tool router and per-call lifecycle slugs with correlation triple + turn_index.
+time=2026-05-09T12:00:00.000Z level=DEBUG msg=conversation.tool.router request_id=p7-req-1 conversation_id=p7-conv-1 principal_id=p7-principal-1 turn_index=1 tools_before=2 tools_after=1
+time=2026-05-09T12:00:00.010Z level=INFO msg=conversation.tool.call_started request_id=p7-req-1 conversation_id=p7-conv-1 principal_id=p7-principal-1 turn_index=1 tool_name=lookup arg_bytes=42
+time=2026-05-09T12:00:00.020Z level=INFO msg=conversation.tool.call_completed request_id=p7-req-1 conversation_id=p7-conv-1 principal_id=p7-principal-1 turn_index=1 tool_name=lookup result_bytes=128
+time=2026-05-09T12:00:00.030Z level=INFO msg=conversation.tool.call_started request_id=p7-req-1 conversation_id=p7-conv-1 principal_id=p7-principal-1 turn_index=1 tool_name=broken arg_bytes=10
+time=2026-05-09T12:00:00.040Z level=WARN msg=conversation.tool.call_failed request_id=p7-req-1 conversation_id=p7-conv-1 principal_id=p7-principal-1 turn_index=1 tool_name=broken result_bytes=0

@@ -19,7 +19,7 @@ type Runtime = gruntime.Runtime
 // IndexerSupervisorStatus is the gateway-owned view of supervised indexer health.
 type IndexerSupervisorStatus = gruntime.IndexerSupervisorStatus
 
-// CatalogSnapshot is a point-in-time BiFrost /v1/models view.
+// CatalogSnapshot is a point-in-time chimera-broker /v1/models view.
 type CatalogSnapshot = catalog.CatalogSnapshot
 
 // CatalogSnapshotFreshness is the default staleness window for catalog-driven health checks.
@@ -66,15 +66,3 @@ type UIOptions = adminui.UIOptions
 
 // NewUIOptions returns default UI session options.
 var NewUIOptions = adminui.NewUIOptions
-
-// ProviderHealthEntry is one provider row in the operator UI health strip.
-type ProviderHealthEntry = adminui.ProviderHealthEntry
-
-// ClassifyBifrostProviderResult classifies a BiFrost provider probe for the logs UI strip.
-var ClassifyBifrostProviderResult = adminui.ClassifyBifrostProviderResult
-
-// ProviderHealthResponse is the provider health strip JSON payload.
-type ProviderHealthResponse = adminui.ProviderHealthResponse
-
-// FetchBifrostProviderHealth queries Chimera Broker for provider health entries.
-var FetchBifrostProviderHealth = adminui.FetchBifrostProviderHealth

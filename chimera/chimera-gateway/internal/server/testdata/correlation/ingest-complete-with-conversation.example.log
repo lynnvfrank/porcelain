@@ -1,0 +1,2 @@
+# Phase 2: ingest.complete carries conversation_id when the client sends X-Chimera-Conversation-Id.
+time=2026-05-09T11:00:00.000Z level=INFO msg=ingest.complete service=gateway tenant=tenant-a source=docs/example.md chunks=3 request_id=ingest-req-1 conversation_id=ingest-linked-conv-1 principal_id=tenant-a index_run_id=run-abc timeline_kind=indexer

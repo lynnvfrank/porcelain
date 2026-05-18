@@ -1,4 +1,4 @@
-package bifrostadmin
+package brokeradmin
 
 import (
 	"net/http"

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	chimeraBrokeradmin "github.com/lynn/porcelain/chimera/chimera-gateway/internal/bifrostadmin"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/brokeradmin"
 	gruntime "github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/runtime"
 	"github.com/lynn/porcelain/chimera/internal/upstream"
 	"github.com/lynn/porcelain/internal/naming"
@@ -39,17 +39,17 @@ func ReadEmbedFile(name string) ([]byte, error) {
 	return adminEmbedUI.ReadFile(name)
 }
 
-func chimeraBrokerAdminClient(rt *gruntime.Runtime) *chimeraBrokeradmin.Client {
+func brokerAdminClient(rt *gruntime.Runtime) *brokeradmin.Client {
 	rt.Sync()
 	res, _, _ := rt.Snapshot()
 	if res == nil {
-		return &chimeraBrokeradmin.Client{}
+		return &brokeradmin.Client{}
 	}
 	tok := ""
 	if res.UpstreamAPIKeyEnv != "" {
 		tok = strings.TrimSpace(os.Getenv(res.UpstreamAPIKeyEnv))
 	}
-	return &chimeraBrokeradmin.Client{
+	return &brokeradmin.Client{
 		BaseURL:     res.UpstreamBaseURL,
 		BearerToken: tok,
 		HTTPClient:  &http.Client{Timeout: 8 * time.Second},
@@ -263,7 +263,7 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
-	client := chimeraBrokerAdminClient(a.rt)
+	client := brokerAdminClient(a.rt)
 	provOut := make(map[string]any, len(chimeraBrokerUIProviderNames))
 	for _, name := range chimeraBrokerUIProviderNames {
 		b, st, err := client.GetProvider(ctx, name)
@@ -274,11 +274,11 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 			provOut[name] = entry
 			continue
 		}
-		if chimeraBrokeradmin.IsProviderMissingGET(st, b) {
+		if brokeradmin.IsProviderMissingGET(st, b) {
 			entry["ok"] = true
 			entry["key_configured"] = false
 			entry["key_hint"] = ""
-			entry["keys"] = []chimeraBrokeradmin.KeyEntrySummary{}
+			entry["keys"] = []brokeradmin.KeyEntrySummary{}
 			if name == "ollama" {
 				entry["ollama_base_url"] = ""
 			}
@@ -295,14 +295,14 @@ func (a *adminUI) handleState(w http.ResponseWriter, r *http.Request) {
 			provOut[name] = entry
 			continue
 		}
-		sum, serr := chimeraBrokeradmin.SummarizeProvider(name, b)
+		sum, serr := brokeradmin.SummarizeProvider(name, b)
 		if serr != nil {
 			entry["ok"] = false
 			entry["error"] = serr.Error()
 			provOut[name] = entry
 			continue
 		}
-		keyRows, _ := chimeraBrokeradmin.SummarizeProviderKeys(name, b)
+		keyRows, _ := brokeradmin.SummarizeProviderKeys(name, b)
 		entry["ok"] = true
 		entry["key_hint"] = sum.KeyHint
 		entry["key_configured"] = sum.KeyConfigured

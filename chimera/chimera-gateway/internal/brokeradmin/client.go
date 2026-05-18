@@ -1,6 +1,6 @@
-// Package chimeraBrokeradmin is a minimal HTTP client for Chimera Broker chimera-broker-http management routes
-// (GET/PUT /api/providers/{provider}). Used by the gateway admin BFF; browsers never call BiFrost directly.
-package bifrostadmin
+// Package brokeradmin is a minimal HTTP client for Chimera Broker management routes
+// (GET/PUT /api/providers/{provider}) on the chimera-broker-http upstream. Used by the gateway admin BFF.
+package brokeradmin
 
 import (
 	"context"
@@ -12,12 +12,11 @@ import (
 	internalhttp "github.com/lynn/porcelain/chimera/internal/http"
 )
 
-// Client calls BiFrost management HTTP APIs on the same base URL as the OpenAI-compatible root
-// (e.g. http://127.0.0.1:8080).
+// Client calls chimera-broker-http management APIs on the same base URL as the OpenAI-compatible root.
 type Client struct {
-	// BaseURL is the upstream root without a trailing slash, e.g. http://127.0.0.1:8080
+	// BaseURL is the broker HTTP root without a trailing slash, e.g. http://127.0.0.1:8080
 	BaseURL string
-	// BearerToken is sent as Authorization: Bearer … when non-empty (BiFrost may require it when governance auth is on).
+	// BearerToken is sent as Authorization: Bearer … when non-empty.
 	BearerToken string
 	HTTPClient  *http.Client
 }
@@ -62,7 +61,7 @@ func (c *Client) GetProvider(ctx context.Context, provider string) (body []byte,
 	return b, resp.StatusCode, nil
 }
 
-// PutProvider sends PUT /api/providers/{provider} with the given JSON body (full provider config per BiFrost API).
+// PutProvider sends PUT /api/providers/{provider} with the given JSON body (full provider config per upstream API).
 // respBody is a limited snippet of the response body (for error messages).
 func (c *Client) PutProvider(ctx context.Context, provider string, jsonBody []byte) (status int, respBody []byte, err error) {
 	base := strings.TrimSuffix(strings.TrimSpace(c.BaseURL), "/")
