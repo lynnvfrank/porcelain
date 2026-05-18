@@ -103,7 +103,7 @@ func (c *capturedReqs) snapshot() [][]byte {
 
 func TestV1Chat_echoesCorrelationHeaders(t *testing.T) {
 	url, _, _ := setupRAGChatServer(t)
-	body := `{"model":"Claudia-0.2.0","messages":[{"role":"user","content":"hi"}],"stream":false}`
+	body := `{"model":"locus-0.2.0","messages":[{"role":"user","content":"hi"}],"stream":false}`
 	req, err := http.NewRequest(http.MethodPost, url+"/v1/chat/completions", strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +132,7 @@ func TestV1Chat_echoesCorrelationHeaders(t *testing.T) {
 
 func TestVirtualModelChat_InjectsRetrievedContext(t *testing.T) {
 	url, cap, _ := setupRAGChatServer(t)
-	body := `{"model":"Claudia-0.2.0","messages":[{"role":"user","content":"tell me about retrieved-knowledge"}],"stream":false}`
+	body := `{"model":"locus-0.2.0","messages":[{"role":"user","content":"tell me about retrieved-knowledge"}],"stream":false}`
 	req, _ := http.NewRequest(http.MethodPost, url+"/v1/chat/completions", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer rag-tok")
 	req.Header.Set("Content-Type", "application/json")
@@ -207,7 +207,7 @@ func TestVirtualModelChat_NoContextWhenRAGDisabled(t *testing.T) {
 	srv := httptest.NewServer(NewMux(rt, testLog(), nil, nil))
 	t.Cleanup(srv.Close)
 
-	body := `{"model":"Claudia-0.1.0","messages":[{"role":"user","content":"hi"}],"stream":false}`
+	body := `{"model":"locus-0.1.0","messages":[{"role":"user","content":"hi"}],"stream":false}`
 	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/v1/chat/completions", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer tok")
 	req.Header.Set("Content-Type", "application/json")

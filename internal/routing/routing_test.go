@@ -44,7 +44,7 @@ rules:
 
 	p := NewPolicy(policyPath, discardLog())
 	chain := []string{"groq/small", "groq/big", "gemini/default"}
-	vm := "Claudia-0.1.0"
+	vm := "locus-0.1.0"
 
 	shortBody := map[string]json.RawMessage{
 		"model":    mustRaw(t, vm),
@@ -82,7 +82,7 @@ rules:
 		t.Fatal(err)
 	}
 	p := NewPolicy(policyPath, discardLog())
-	vm := "Claudia-0.1.0"
+	vm := "locus-0.1.0"
 	body := map[string]json.RawMessage{
 		"model":    mustRaw(t, vm),
 		"messages": mustRaw(t, []map[string]string{{"role": "user", "content": "a"}}),
@@ -100,7 +100,7 @@ func TestPickInitialModel_FallbackChainFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := NewPolicy(policyPath, discardLog())
-	vm := "Claudia-1.0.0"
+	vm := "locus-1.0.0"
 	body := map[string]json.RawMessage{
 		"model": mustRaw(t, vm),
 	}
@@ -124,7 +124,7 @@ rules:
     models:
       - "groq/small"
 `)
-	vm := "Claudia-0.1.0"
+	vm := "locus-0.1.0"
 	chain := []string{"groq/small", "groq/big", "gemini/default"}
 	shortBody := map[string]json.RawMessage{
 		"model":    mustRaw(t, vm),

@@ -66,7 +66,7 @@ func TestModelsList_VirtualModelFirst(t *testing.T) {
 	if len(payload.Data) < 2 {
 		t.Fatalf("want virtual + upstream, got %#v", payload.Data)
 	}
-	if payload.Data[0].ID != "Claudia-0.1.0" {
+	if payload.Data[0].ID != "locus-0.1.0" {
 		t.Fatalf("virtual first: %q", payload.Data[0].ID)
 	}
 	if payload.Data[1].ID != "groq/x" {
@@ -192,7 +192,7 @@ func TestUIModels_NoGatewayToken(t *testing.T) {
 	if len(payload.Data) < 2 {
 		t.Fatalf("want virtual + upstream, got %#v", payload.Data)
 	}
-	if payload.Data[0].ID != "Claudia-0.1.0" {
+	if payload.Data[0].ID != "locus-0.1.0" {
 		t.Fatalf("virtual first: %q", payload.Data[0].ID)
 	}
 	if payload.Data[1].ID != "ollama/qwen" {
@@ -272,7 +272,7 @@ func TestModelsList_FreeTierFilter(t *testing.T) {
 	if len(payload.Data) != 2 {
 		t.Fatalf("want virtual + groq/x only, got %#v", payload.Data)
 	}
-	if payload.Data[0].ID != "Claudia-0.1.0" || payload.Data[1].ID != "groq/x" {
+	if payload.Data[0].ID != "locus-0.1.0" || payload.Data[1].ID != "groq/x" {
 		t.Fatalf("ids: %#v", payload.Data)
 	}
 }

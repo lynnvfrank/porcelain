@@ -493,7 +493,7 @@ func LoadGatewayYAML(filePath string, log *slog.Logger) (*Resolved, error) {
 
 	return &Resolved{
 		Semver:                                semver,
-		VirtualModelID:                        "Claudia-" + semver,
+		VirtualModelID:                        "locus-" + semver,
 		ListenPort:                            listenPort,
 		ListenHost:                            listenHost,
 		LogLevel:                              logLevel,

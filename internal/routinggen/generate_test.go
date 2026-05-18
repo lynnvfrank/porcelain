@@ -8,8 +8,8 @@ import (
 )
 
 func TestExtractCatalogModelIDs(t *testing.T) {
-	raw := []byte(`{"data":[{"id":"Claudia-0.1.0"},{"id":"groq/a"},{"id":"groq/b"},{"id":"groq/a"}]}`)
-	ids, err := ExtractCatalogModelIDs(raw, "Claudia-0.1.0")
+	raw := []byte(`{"data":[{"id":"locus-0.1.0"},{"id":"groq/a"},{"id":"groq/b"},{"id":"groq/a"}]}`)
+	ids, err := ExtractCatalogModelIDs(raw, "locus-0.1.0")
 	if err != nil {
 		t.Fatal(err)
 	}

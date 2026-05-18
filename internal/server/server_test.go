@@ -145,7 +145,7 @@ func TestUILoginAndState(t *testing.T) {
 		t.Fatal(err)
 	}
 	gw, _ := st["gateway"].(map[string]any)
-	if gw["virtual_model_id"] != "Claudia-0.1.0" {
+	if gw["virtual_model_id"] != "locus-0.1.0" {
 		t.Fatalf("gateway: %+v", gw)
 	}
 	ov, _ := gw["service_overview"].(map[string]any)
@@ -544,7 +544,7 @@ func TestChatVirtualModelFallback429(t *testing.T) {
 	front := httptest.NewServer(h)
 	t.Cleanup(front.Close)
 
-	reqBody := `{"model":"Claudia-0.1.0","messages":[{"role":"user","content":"hi"}],"stream":false}`
+	reqBody := `{"model":"locus-0.1.0","messages":[{"role":"user","content":"hi"}],"stream":false}`
 	req, _ := http.NewRequest(http.MethodPost, front.URL+"/v1/chat/completions", strings.NewReader(reqBody))
 	req.Header.Set("Authorization", "Bearer secret-gw")
 	req.Header.Set("Content-Type", "application/json")
