@@ -74,7 +74,7 @@ else
   LOCUS_DESKTOP_STAGE_OUT := $(BIN_STAGE_DIR)/locus-desktop
 endif
 
-# Linux/macOS GNU Make uses /bin/sh (dash on Ubuntu). Unquoted () in @echo are subshell syntax there.
+# Linux/macOS: use bash for recipes; unquoted () in @echo are subshell syntax in sh/bash.
 ifneq ($(OS),Windows_NT)
 SHELL := /bin/bash
 endif
@@ -112,12 +112,12 @@ help:
 up: configure install build locus-desktop-run
 
 install:
-	@echo [STEP] Installing all products (Chimera + Locus desktop)
+	@echo '[STEP] Installing all products (Chimera + Locus desktop)'
 	@$(MAKE) --no-print-directory chimera-install
 	@$(MAKE) --no-print-directory locus-desktop-install
 
 build:
-	@echo [STEP] Building all products (Chimera + Locus)
+	@echo '[STEP] Building all products (Chimera + Locus)'
 	@$(MAKE) --no-print-directory chimera-build
 	@$(MAKE) --no-print-directory locus-build
 
@@ -130,7 +130,7 @@ configure:
 	$(MAKE) --no-print-directory chimera-configure
 
 run:
-	@echo [STEP] Running full stack (Locus)
+	@echo '[STEP] Running full stack (Locus)'
 	@$(MAKE) --no-print-directory build
 	@$(MAKE) --no-print-directory locus-run
 
@@ -146,28 +146,28 @@ vet-desktop:
 
 locus-vet-if-enabled:
 ifeq ($(SKIP_DESKTOP),1)
-	@echo [SKIP] locus-vet (SKIP_DESKTOP=1)
+	@echo '[SKIP] locus-vet (SKIP_DESKTOP=1)'
 else
 	@$(MAKE) --no-print-directory locus-vet
 endif
 
 locus-test-if-enabled:
 ifeq ($(SKIP_DESKTOP),1)
-	@echo [SKIP] locus-test (SKIP_DESKTOP=1)
+	@echo '[SKIP] locus-test (SKIP_DESKTOP=1)'
 else
 	@$(MAKE) --no-print-directory locus-test
 endif
 
 locus-test-unit-if-enabled:
 ifeq ($(SKIP_DESKTOP),1)
-	@echo [SKIP] locus-test-unit (SKIP_DESKTOP=1)
+	@echo '[SKIP] locus-test-unit (SKIP_DESKTOP=1)'
 else
 	@$(MAKE) --no-print-directory locus-test-unit
 endif
 
 locus-test-e2e-if-enabled:
 ifeq ($(SKIP_DESKTOP),1)
-	@echo [SKIP] locus-test-e2e (SKIP_DESKTOP=1)
+	@echo '[SKIP] locus-test-e2e (SKIP_DESKTOP=1)'
 else
 	@$(MAKE) --no-print-directory locus-test-e2e
 endif
@@ -190,14 +190,14 @@ clean-all:
 	$(GITBASH) scripts/clean-all.sh $(CONFIRM)
 
 chimera-install:
-	@echo [STEP] Installing Chimera products (broker, gateway, indexer, vectorstore)
+	@echo '[STEP] Installing Chimera products (broker, gateway, indexer, vectorstore)'
 	@$(MAKE) --no-print-directory chimera-broker-install
 	@$(MAKE) --no-print-directory chimera-gateway-install
 	@$(MAKE) --no-print-directory chimera-indexer-install
 	@$(MAKE) --no-print-directory chimera-vectorstore-install
 
 chimera-build:
-	@echo [STEP] Building Chimera products (broker, gateway, indexer, supervisor, vectorstore)
+	@echo '[STEP] Building Chimera products (broker, gateway, indexer, supervisor, vectorstore)'
 	@$(MAKE) --no-print-directory chimera-broker-build
 	@$(MAKE) --no-print-directory chimera-gateway-build
 	@$(MAKE) --no-print-directory chimera-indexer-build
@@ -252,7 +252,7 @@ chimera-clean-run: chimera-gateway-clean-run chimera-supervisor-clean-run chimer
 
 # --- Chimera broker ---
 chimera-broker-install:
-	@echo [STEP] Installing Chimera broker runtime dependency (BiFrost HTTP)
+	@echo '[STEP] Installing Chimera broker runtime dependency (BiFrost HTTP)'
 	@$(GITBASH) -lc 'mkdir -p "$(CHIMERA_RUNTIME_DEPS_DIR)"'
 	@$(GITBASH) -lc 'CHIMERA_BROKER_BIN_DIR="$(CHIMERA_RUNTIME_BIN_DIR)" DEPS_DIR="$(CHIMERA_RUNTIME_DEPS_DIR)" BIFROST_SKIP_UI="$(BIFROST_SKIP_UI)" bash scripts/chimera-broker-install.sh'
 
@@ -408,7 +408,7 @@ chimera-supervisor-clean-run:
 
 # --- Chimera vectorstore ---
 chimera-vectorstore-install:
-	@echo [STEP] Installing Chimera vectorstore runtime dependency (Qdrant)
+	@echo '[STEP] Installing Chimera vectorstore runtime dependency (Qdrant)'
 	@$(GITBASH) -lc 'QDRANT_BIN_DIR="$(CHIMERA_RUNTIME_BIN_DIR)" DEPS_DIR="$(CHIMERA_RUNTIME_DEPS_DIR)" bash scripts/chimera-vectorstore-install.sh'
 
 chimera-vectorstore-build: chimera-vectorstore-install
@@ -509,7 +509,7 @@ locus-desktop-build:
 	@$(GITBASH) -lc 'cp -f "$(LOCUS_RUNTIME_BIN_DIR)/$(LOCUS_DESKTOP_BIN)" "$(LOCUS_DESKTOP_STAGE_OUT)"'
 
 locus-desktop-run:
-	@echo [STEP] Running Locus desktop (with Chimera runtime dependencies)
+	@echo '[STEP] Running Locus desktop (with Chimera runtime dependencies)'
 	@$(GITBASH) -lc '"$(LOCUS_DESKTOP_STAGE_OUT)" desktop \
 		-broker-bin "$(CHIMERA_BROKER_STAGE_OUT)" \
 		-vectorstore-bin "$(CHIMERA_VECTORSTORE_STAGE_OUT)" \
@@ -562,11 +562,11 @@ catalog-calculate: catalog-available
 # --- Release (install → build → package) ---
 
 release-install:
-	@echo [STEP] Installing release tooling (GoReleaser)
+	@echo '[STEP] Installing release tooling (GoReleaser)'
 	@$(GITBASH) scripts/release-install.sh
 
 release-build: release-install
-	@echo [STEP] Building release archives (GoReleaser snapshot)
+	@echo '[STEP] Building release archives (GoReleaser snapshot)'
 	@$(GITBASH) scripts/release-build.sh
 
 release-package: chimera-build locus-desktop-build
