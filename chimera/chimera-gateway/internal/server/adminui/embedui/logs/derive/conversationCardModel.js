@@ -26,8 +26,8 @@ function conversationRequestIdTier2Eligible(flat) {
   if (
     globalThis.ChimeraLogs &&
     ChimeraLogs.Derive &&
-    typeof ChimeraLogs.Derive.conversationBifrostTimelineFlat === "function" &&
-    ChimeraLogs.Derive.conversationBifrostTimelineFlat(flat)
+    typeof ChimeraLogs.Derive.conversationBrokerTimelineFlat === "function" &&
+    ChimeraLogs.Derive.conversationBrokerTimelineFlat(flat)
   ) {
     return true;
   }

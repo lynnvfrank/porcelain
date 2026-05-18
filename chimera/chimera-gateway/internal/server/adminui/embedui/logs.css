@@ -1459,15 +1459,15 @@ a.sum-ext-link {
   text-transform: lowercase;
 }
 .sum-svc-web { border-color: var(--embed-svc-web-border); color: var(--embed-link-accent); }
-.sum-svc-qdrant { border-color: var(--embed-svc-qdrant-border); color: var(--embed-semantic-success-fg); }
-.sum-svc-upstream { border-color: var(--embed-svc-upstream-border); color: var(--embed-strip-inflight); }
+.sum-svc-vectorstore { border-color: var(--embed-svc-qdrant-border); color: var(--embed-semantic-success-fg); }
+.sum-svc-broker { border-color: var(--embed-svc-upstream-border); color: var(--embed-strip-inflight); }
 .sum-svc-indexer { border-color: var(--embed-svc-indexer-border); color: var(--embed-tier-ingest-fg); }
 .sum-svc-gateway { border-color: var(--embed-svc-gateway-border); color: var(--embed-text-bluegrey-455); }
 /* Filled pills (indexer run + chimera-broker upstream narrative) */
 .sum-svc-badge-filled { border: none !important; }
-.sum-svc-upstream-filled { background: var(--embed-svc-upstream-filled-bg); color: var(--embed-text-on-inverse); }
+.sum-svc-broker-filled { background: var(--embed-svc-upstream-filled-bg); color: var(--embed-text-on-inverse); }
 .sum-svc-indexer-filled { background: var(--embed-svc-indexer-filled-bg); color: var(--embed-text-on-inverse); }
-.sum-svc-qdrant-filled { background: var(--embed-svc-qdrant-filled-bg); color: var(--embed-text-on-inverse); }
+.sum-svc-vectorstore-filled { background: var(--embed-svc-qdrant-filled-bg); color: var(--embed-text-on-inverse); }
 .sum-mono-id { font-family: ui-monospace, monospace; font-weight: 500; }
 .sum-timeline-bar { display: flex; height: 0.45rem; border-radius: 4px; overflow: hidden; margin: 0.35rem 0 0.5rem; background: var(--embed-surface-table-header); }
 .gw-panel-timeline .sum-timeline-bar { margin-bottom: 0.28rem; }

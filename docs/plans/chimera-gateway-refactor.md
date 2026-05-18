@@ -19,7 +19,7 @@ Make **chimera-gateway** easier to change by using one vocabulary everywhere ope
 | [Phase 2 — Go package and facade cleanup](#phase-2--go-package-and-facade-cleanup) | `brokeradmin`, slimmer `server` package, no duplicate UI paths | `done` |
 | [Phase 3 — Broker vocabulary (Go)](#phase-3--broker-vocabulary-go) | Operator logs, APIs, and config language say **broker**, not bifrost/upstream | `done` |
 | [Phase 4 — Vectorstore vocabulary (Go)](#phase-4--vectorstore-vocabulary-go) | RAG and timeline use **vectorstore**; Qdrant is an implementation detail | `done` |
-| [Phase 5 — Logs UI structure and naming](#phase-5--logs-ui-structure-and-naming) | Modular logs app, honest asset names, broker/vectorstore in JS | `todo` |
+| [Phase 5 — Logs UI structure and naming](#phase-5--logs-ui-structure-and-naming) | Modular logs app, honest asset names, broker/vectorstore in JS | `done` |
 | [Phase 6 — Validation and doc sync](#phase-6--validation-and-doc-sync) | Tests green; operator docs match code | `todo` |
 
 ---
@@ -244,7 +244,14 @@ Pure derive modules and goja tests exist ([`logs_components_test.go`](../../chim
 - `go test` logs component tests pass; manual checklist from log-view plan still passes on `/ui/logs`.
 - Browser-visible service strip uses **chimera-broker** / **chimera-vectorstore** labels; timeline bar kinds match Go `timeline_kind` constants.
 
-**Status:** `todo`
+**Status:** `done`
+
+**Shipped (2026-05-18)**
+
+- Honest embed names: `logs_app.js` (main), `logs_entry.js` (bootstrap); derive renames `conversationBroker.js`, `vectorstoreCollection.js`, `vectorstoreRagMetrics.js`.
+- `logs/contracts.js` mirrors `internal/naming/gateway_logs.go`; CSS classes `sum-svc-broker` / `sum-svc-vectorstore`.
+- Split monolith: `app/summarizedFeed.js`, `app/wireHandlers.js`, `render/sumEvlog.js`; `logs_app.js` ~1.3k lines (boot + transport).
+- `embedui/logs/README.md` (URL map, APIs, module owners); `data-testid` on logs chrome regions.
 
 ---
 

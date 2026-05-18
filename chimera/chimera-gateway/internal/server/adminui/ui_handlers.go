@@ -31,7 +31,7 @@ func sanitizeLoginNext(next string) string {
 	return next
 }
 
-//go:embed embedui/login.html embedui/panel.html embedui/logs.html embedui/logs.css embedui/theme-tokens.css embedui/logs.js embedui/logs_bootstrap.js embedui/logs/* embedui/logs/*/* embedui/metrics.html embedui/shell.html embedui/pwa.html embedui/reload.svg embedui/setup.html
+//go:embed embedui/login.html embedui/panel.html embedui/logs.html embedui/logs.css embedui/theme-tokens.css embedui/logs_app.js embedui/logs_entry.js embedui/logs/* embedui/logs/*/* embedui/metrics.html embedui/shell.html embedui/pwa.html embedui/reload.svg embedui/setup.html
 var adminEmbedUI embed.FS
 
 // ReadEmbedFile returns bytes for an embedded operator UI asset (e.g. embedui/setup.html).
@@ -465,8 +465,8 @@ func Register(mux *http.ServeMux, rt *gruntime.Runtime, log *slog.Logger, ui *UI
 		mux.HandleFunc("GET /ui/assets/reload.svg", a.requireAuthPage(a.serveEmbedAsset("embedui/reload.svg", "image/svg+xml; charset=utf-8")))
 		mux.HandleFunc("GET /ui/assets/logs.css", a.requireAuthPage(a.serveEmbedAsset("embedui/logs.css", "text/css; charset=utf-8")))
 		mux.HandleFunc("GET /ui/assets/theme-tokens.css", a.requireAuthPage(a.serveEmbedAsset("embedui/theme-tokens.css", "text/css; charset=utf-8")))
-		mux.HandleFunc("GET /ui/assets/logs.js", a.requireAuthPage(a.serveEmbedAsset("embedui/logs_bootstrap.js", "application/javascript; charset=utf-8")))
-		mux.HandleFunc("GET /ui/assets/logs/main.js", a.requireAuthPage(a.serveEmbedAsset("embedui/logs.js", "application/javascript; charset=utf-8")))
+		mux.HandleFunc("GET /ui/assets/logs.js", a.requireAuthPage(a.serveEmbedAsset("embedui/logs_entry.js", "application/javascript; charset=utf-8")))
+		mux.HandleFunc("GET /ui/assets/logs/main.js", a.requireAuthPage(a.serveEmbedAsset("embedui/logs_app.js", "application/javascript; charset=utf-8")))
 		mux.HandleFunc("GET /ui/assets/logs/", a.requireAuthPage(a.serveLogsModuleAsset()))
 		mux.HandleFunc("GET /ui/logs", a.requireAuthPage(a.serveEmbed("embedui/logs.html")))
 	}

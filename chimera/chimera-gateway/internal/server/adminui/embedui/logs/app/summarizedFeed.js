@@ -1,1549 +1,46 @@
+/**
+ * Summarized panel rebuild, service/conversation cards, and unified feed render.
+ *
+ * Exports: ChimeraLogs.App.mountSummarizedFeed(ctx)
+ */
+
 globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};
-globalThis.ChimeraLogs.Main = function () {
-  var params = new URLSearchParams(window.location.search);
-  var embedded = params.get("embed") === "1" || window.self !== window.top;
-  if (embedded) {
-    document.documentElement.classList.add("logs-embedded");
-    document.body.classList.add("logs-embedded");
-    (function openLogsChromeLinksInNewTab() {
-      var nav = document.querySelector(".logs-chrome__nav");
-      if (!nav) return;
-      var as = nav.querySelectorAll("a");
-      for (var ai = 0; ai < as.length; ai++) {
-        as[ai].setAttribute("target", "_blank");
-        as[ai].setAttribute("rel", "noopener noreferrer");
-      }
-    })();
-  }
-  var focusPrincipal = (params.get("principal") || "").trim();
-  var focusConv = (params.get("conversation") || params.get("conv") || "").trim();
-  var focusSeq = (params.get("seq") || "").trim();
-  var focusCard = (params.get("focus") || params.get("card") || "").trim().toLowerCase();
-  var tbody = document.getElementById("log-body");
-  var statusEl = document.getElementById("status");
-  var statusLine =
-    globalThis.ChimeraLogs && typeof globalThis.ChimeraLogs.StatusLine === "function"
-      ? globalThis.ChimeraLogs.StatusLine(statusEl)
-      : null;
-  var fltApp = document.getElementById("flt-app");
-  var fltLevel = document.getElementById("flt-level");
-  var VIEW_LS = "chimera_logs_view_mode";
-  var FLT_APP_LS = "chimera_logs_flt_app";
-  var FLT_LEVEL_LS = "chimera_logs_flt_level";
-  /**
-   * Persist watch roots per summarized indexer card (partition bucket id) + index_run_id.
-   * v1 used project+flavor only — multiple indexers sharing scope showed each other's roots.
-   */
-  var INDEXER_WATCH_ROOTS_LS = "chimera.indexer.watchRoots.v2";
-  /** Gateway expanded panel: show 2xx HTTP rows for /health, /status, logs poll/stream, etc. */
-  var GW_PROBES_LS = "chimera.logs.gateway.showProbes";
-  var gatewayPanelShowProbes = false;
-  try {
-    gatewayPanelShowProbes = localStorage.getItem(GW_PROBES_LS) === "1";
-  } catch (eGwLs) {}
-  var CONV_RECENT_N = 5;
-  /** Last N events used for summary-strip status pills ("error" vs active/complete). Matches Last-events preview depth. */
-  var RECENT_CARD_STATUS_N = 3;
-  var entryCache = [];
-  /** Maps gateway tenant_id → token label from api-keys.yaml (via GET /api/ui/tokens). */
-  var tokenLabelByTenant = {};
-  var storyRebuildTimer = null;
-  /** Full summarized `innerHTML` refresh is deferred while evlog UI is in use (see `summarizedEvlogInteractionBlocksRebuild`). */
-  var sumEvlogUiDeferTimer = null;
-  /** After pointer interaction in a card event log, suppress full panel rebuild briefly so row select / click completes. */
-  var sumEvlogPointerSuppressedUntil = 0;
-  var maxSeq = 0;
-  var stickPx = 160;
-  var es = null;
-  var pollTimer = null;
-  /** SQLite gateway metrics snapshot for summarized “Gateway usage” card (/api/ui/metrics). */
-  var metricsCache = null;
-  var metricsPollTimer = null;
-  var METRICS_POLL_MS = 12000;
-  /** Gateway overview snapshot for Main-parity cards (/api/ui/state). */
-  var gatewayOverviewCache = null;
-  var gatewayOverviewPollTimer = null;
-  var GATEWAY_OVERVIEW_POLL_MS = 12000;
-  /** Admin workflows cache: /api/ui/state + /api/ui/tokens snapshots. */
-  var adminStateCache = null;
-  var tokenListCache = [];
-  var adminStatePollTimer = null;
-  var ADMIN_STATE_POLL_MS = 12000;
-  var routingPolicyTouched = false;
-  var routingPolicyDraft = null;
-  var fallbackTouched = false;
-  var routerModelsTouched = false;
-  var routerModelsDraft = null;
-  var routerThresholdTouched = false;
-  var routerThresholdDraft = null;
-  var routerEnabledTouched = false;
-  var routerEnabledDraft = null;
-  var adminUserDrafts = [];
-  var nextAdminUserDraftId = 1;
-  var adminRoutingEditing = false;
-  var adminFallbackEditing = false;
-  var adminRouterEditing = false;
-  /** Ephemeral token secrets from POST /api/ui/tokens, keyed by tenant_id for in-card masked display + copy. */
-  var adminCreatedTokenByTenant = {};
-  /** Live backend-provider snapshot (/api/ui/chimera-broker/providers) — drives the Provider health strip on the chimera-broker card. */
-  var chimeraBrokerProviderSnapshot = null;
-  var chimeraBrokerProviderPollTimer = null;
-  var CHIMERA_BROKER_PROVIDER_POLL_MS = 30000;
-  /** Snapshots older than this are treated as stale and the strip falls back to log-derived state. */
-  var CHIMERA_BROKER_PROVIDER_STALE_MS = 90000;
-  /** Latest indexer partition map from the last summarized panel render (hydrate ↔ supervised YAML roots). */
-  var lastIndexerSummarizeByRun = null;
-  var lastIndexerSummarizePartitionRegistry = null;
-  /** Flat roots from GET /api/ui/indexer/config — fills watched paths when indexer.run.start is outside the log buffer. */
-  var lastIndexerOperatorRoots = [];
-  var lastIndexerOperatorRootsJson = "";
-  /** Nested workspaces from GET /api/ui/indexer/config (or POST save / derived from roots). Drives cards when logs have no bucket yet. */
-  var lastIndexerOperatorWorkspacesNested = [];
-  /** Populated during Workspaces card render: watched paths per synthetic `opws\x1e…` bucket id for full-log filtering. */
-  var operatorWsFullLogCtx = {};
-  /** From latest indexer.run.start root_scopes in buffer: root_id slug → { workspace_id, path, … }. */
-  var indexerRootScopeByRootId = {};
-  var indexerOperatorRootsRefreshQueued = false;
-  /** Unsaved workspace rows created from Workspaces → Create (Phase 3). */
-  var workspaceDrafts = [];
-  var nextWorkspaceDraftId = 1;
-  /** Phase 4: operator-managed workspace row in edit mode (numeric workspace id). */
-  var workspaceManagedEditId = null;
-  /** { wsNum: number, paths: { id: number|null, path: string }[] } — only valid while workspaceManagedEditId matches wsNum. */
-  var workspaceManagedStaging = null;
-  var started = false;
-  /** Dedup live + historical loads (seq may overlap SSE vs initial tail fetch). */
-  var seenSeq = {};
-  /** Match server ring + UI budget; trim oldest when exceeded. */
-  var CLIENT_CACHE_MAX = 5500;
-  /** First poll chunk; indexer queue snapshots can crowd the tail — keep overlap with scrolling backfill (#panel-summarized / raw modes). */
-  var INITIAL_TAIL_LIMIT = 720;
-  var BACKFILL_CHUNK = 300;
-  var RENDER_CHUNK = 160;
-  var minLoadedSeq = 0;
-  var bufferMinSeqFromServer = 0;
-  var olderFetchBusy = false;
-  var ssePending = [];
-  var sseFlushScheduled = false;
-  var levelOptionSet = { "": true, "(none)": true, DEBUG: true, INFO: true, WARN: true, ERROR: true };
-
-  // Summarized-only logs UI (structured/raw modes removed).
-  var viewMode = "summarized";
-  var viewModeEl = null;
-  var filtersBar = null;
-  function inferShape(flat, source, rawText) {
-    if (!flat) {
-      if (source === "chimera-vectorstore" || source === "chimera-broker" || source === "chimera-indexer") return "service." + source;
-      return "generic";
-    }
-    var msg = String(flat.msg != null ? flat.msg : flat.message != null ? flat.message : "").toLowerCase();
-    if (msg === "http response" || msg === "gateway.http.access" || (flat.method && flat.path != null && flat.statusCode !== undefined && flat.statusCode !== null))
-      return "http.access";
-    if (msg === "chat.request") return "chat.request";
-    if (msg.indexOf("chat.chimera-broker") === 0 || msg.indexOf("upstream chat") >= 0) return "chat.chimera-broker";
-    if (
-      msg === "chat.routing.attempt" ||
-      msg === "chat.routing.resolved" ||
-      msg === "chat.routing.fallback" ||
-      msg === "chat.provider_limits.blocked" ||
-      msg.indexOf("virtual model fallback attempt") >= 0 ||
-      msg.indexOf("virtual model routing resolved") >= 0
-    )
-      return "chat.routing";
-    if (msg.indexOf("rag.") === 0) return "rag";
-    if (msg === "ingest.complete" || (msg.indexOf("ingest") === 0 && msg !== "ingest complete")) return "ingest";
-    if (msg.indexOf("indexer.run") === 0) return "indexer.run";
-    if (
-      flat.service &&
-      String(flat.service) !== "gateway" &&
-      String(flat.service) !== "chimera-gateway"
-    )
-      return "service." + flat.service;
-    if (source === "chimera-vectorstore" || source === "chimera-broker" || source === "chimera-indexer") return "service." + source;
-    return "generic";
-  }
-
-  function statusPillClass(code) {
-    var sc = Number(code);
-    if (isNaN(sc)) return "pill-4xx";
-    if (sc >= 500) return "pill-5xx";
-    if (sc >= 400) return "pill-4xx";
-    return "pill-2xx";
-  }
-
-  function buildHeadlineHtml(flat, shape) {
-    if (!flat) return '<span class="muted">—</span>';
-    if (shape === "http.access") {
-      var sc = flat.statusCode;
-      var auth = flat.authorization ? ' <span class="muted">' + escapeHtml(String(flat.authorization)) + "</span>" : "";
-      return (
-        '<div class="summary-headline"><span class="' +
-        statusPillClass(sc) +
-        '">' +
-        escapeHtml(String(sc)) +
-        "</span> <strong>" +
-        escapeHtml(String(flat.method || "")) +
-        '</strong> <code class="path-em">' +
-        escapeHtml(String(flat.path || "")) +
-        '</code> <span class="muted">' +
-        (flat.responseTimeMs != null ? escapeHtml(String(flat.responseTimeMs)) + " ms" : "") +
-        "</span>" +
-        auth +
-        "</div>"
-      );
-    }
-    if (
-      globalThis.ChimeraLogs &&
-      ChimeraLogs.Derive &&
-      typeof ChimeraLogs.Derive.chimeraBrokerOperatorLine === "function"
-    ) {
-      var boHead = ChimeraLogs.Derive.chimeraBrokerOperatorLine(flat);
-      if (boHead && String(boHead).trim() !== "") {
-        return '<div class="summary-headline">' + escapeHtml(String(boHead).trim()) + "</div>";
-      }
-    }
-    var m = flat.msg != null ? flat.msg : flat.message != null ? flat.message : "";
-    var one = [m && String(m), flat.upstreamModel && ("model " + flat.upstreamModel), flat.source && ("source " + flat.source)]
-      .filter(Boolean)
-      .join(" · ");
-    if (!one) one = shape;
-    return '<div class="summary-headline">' + escapeHtml(one) + "</div>";
-  }
-
-  var headlineKeys = {
-    "http.access": { method: true, path: true, statusCode: true, responseTimeMs: true, authorization: true, msg: true, message: true }
-  };
-
-  function filterExtrasForSummary(shape, extras, flat) {
-    var drop = headlineKeys[shape] || null;
-    if (!drop) return extras;
-    var out = [];
-    for (var i = 0; i < extras.length; i++) {
-      if (drop[extras[i].k]) continue;
-      out.push(extras[i]);
-    }
-    return out;
-  }
-
-  function buildDetailsColumn(parsed, entryTs, rawText, badgeOpt, opts) {
-    opts = opts || {};
-    var evLike = { parsed: parsed, text: rawText != null && rawText !== undefined ? rawText : "", ts: entryTs };
-    var top = logSummaryHtml(evLike, badgeOpt !== undefined ? badgeOpt : null, opts);
-    var grid = buildDetailsCell(parsed.extras);
-    return top + '<div class="log-fields-block">' + grid + "</div>";
-  }
-
-  function nearBottom() {
-    var el = document.documentElement;
-    var sh = el.scrollHeight;
-    var y = window.scrollY + window.innerHeight;
-    return sh - y <= stickPx;
-  }
-
-  function nearBottomTextarea(ta) {
-    if (!ta) return true;
-    return ta.scrollHeight - ta.scrollTop - ta.clientHeight <= stickPx;
-  }
-
-  var escapeHtml =
-    globalThis.ChimeraLogs && globalThis.ChimeraLogs.escapeHtml
-      ? globalThis.ChimeraLogs.escapeHtml
-      : function (s) {
-        if (s === null || s === undefined) return "";
-        var d = document.createElement("div");
-        d.textContent = String(s);
-        return d.innerHTML;
-      };
-
-  // Expose selected helpers for parsing modules (Phase 4 extraction).
-  globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};
-  globalThis.ChimeraLogs.buildDateTimeCells = buildDateTimeCells;
-  globalThis.ChimeraLogs.inferShape = inferShape;
-
-  function formatHumanDateTimeUTC(tsOrDate) {
-    if (tsOrDate === null || tsOrDate === undefined || tsOrDate === "") return "";
-    var d = tsOrDate instanceof Date ? tsOrDate : new Date(tsOrDate);
-    if (isNaN(d.getTime())) return String(tsOrDate).replace("T", " ");
-    try {
-      return new Intl.DateTimeFormat("en-US", {
-        timeZone: "UTC",
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true
-      }).format(d) + " UTC";
-    } catch (err) {
-      return d.toUTCString();
-    }
-  }
-
-  function formatStackedDateTimeCell(d, timeZone) {
-    var optsTime = {
-      hour: "numeric",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true
-    };
-    var optsDate = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric"
-    };
-    if (timeZone) {
-      optsTime.timeZone = timeZone;
-      optsDate.timeZone = timeZone;
-    }
-    var timeStr = new Intl.DateTimeFormat("en-US", optsTime).format(d);
-    var dateStr = new Intl.DateTimeFormat("en-US", optsDate).format(d);
-    return (
-      '<div class="dt-stack">' +
-      '<span class="dt-line dt-time">' +
-      escapeHtml(timeStr) +
-      "</span>" +
-      '<span class="dt-line dt-date">' +
-      escapeHtml(dateStr) +
-      "</span></div>"
-    );
-  }
-
-  function buildDateTimeCells(instant, entryTS) {
-    if (instant && !isNaN(instant.getTime())) {
-      return {
-        utc: formatStackedDateTimeCell(instant, "UTC"),
-        local: formatStackedDateTimeCell(instant, undefined)
-      };
-    }
-    var raw = "";
-    if (entryTS !== null && entryTS !== undefined && entryTS !== "") {
-      raw = formatHumanDateTimeUTC(entryTS);
-    }
-    if (!raw) {
-      var dash = '<div class="dt-stack"><span class="dt-line muted">—</span></div>';
-      return { utc: dash, local: dash };
-    }
-    return {
-      utc:
-        '<div class="dt-stack dt-fallback"><span class="dt-line dt-time">' +
-        escapeHtml(raw) +
-        "</span></div>",
-      local: '<div class="dt-stack"><span class="dt-line muted">—</span></div>'
-    };
-  }
-
-  var parseLogText =
-    globalThis.ChimeraLogs && globalThis.ChimeraLogs.parseLogText
-      ? globalThis.ChimeraLogs.parseLogText
-      : function (source, text, entryTS) {
-        // If parse module didn't load, keep a minimal fallback.
-        return {
-          app: source || "—",
-          dtUtcHtml: "",
-          dtLocalHtml: "",
-          levelCanon: null,
-          levelLabel: "—",
-          extras: [{ k: "text", v: text }],
-          rawFlat: null,
-          shape: "generic"
-        };
-      };
-  var filtersCtx = {
-    fltAppEl: fltApp,
-    fltLevelEl: fltLevel,
-    tbodyEl: tbody,
-    levelOptionSet: levelOptionSet,
-    FLT_APP_LS: FLT_APP_LS,
-    FLT_LEVEL_LS: FLT_LEVEL_LS,
-    viewModeGetter: function () { return viewMode; },
-    rebuildRawLogsTextarea: function (opts) { return rebuildRawLogsTextarea(opts); },
-    nearBottomTextarea: nearBottomTextarea
-  };
-
-  function ensureAppOption(app) {
-    if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.Filters) {
-      return globalThis.ChimeraLogs.Filters.ensureAppOption(filtersCtx, app);
-    }
-  }
-  function ensureLevelOption(lvl) {
-    if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.Filters) {
-      return globalThis.ChimeraLogs.Filters.ensureLevelOption(filtersCtx, lvl);
-    }
-  }
-  function entryMatchesFilters(parsed) {
-    if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.Filters) {
-      return globalThis.ChimeraLogs.Filters.entryMatches(filtersCtx, parsed);
-    }
-    return true;
-  }
-
-  function rebuildRawLogsTextarea(opts) {
-    if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.RawLogs) {
-      return globalThis.ChimeraLogs.RawLogs.rebuild({ entryCache: entryCache, entryMatchesFilters: entryMatchesFilters }, opts);
-    }
-  }
-
-  function appendRawLineToTextarea(ent, follow) {
-    if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.RawLogs) {
-      return globalThis.ChimeraLogs.RawLogs.appendRawLine({}, ent, follow);
-    }
-  }
-
-  function copyRawLogsToClipboard() {
-    if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.RawLogs) {
-      return globalThis.ChimeraLogs.RawLogs.copyToClipboard({});
-    }
-  }
-
-  function applyFilters() { }
-
-  function applyViewLayout() {
-    var psu = document.getElementById("panel-summarized");
-    if (!psu) return;
-    syncChimeraBrokerProviderPolling();
-    syncGatewayOverviewPolling();
-    syncAdminStatePolling();
-    try {
-      document.body.classList.toggle("logs-summarized", true);
-      document.body.classList.toggle("logs-raw", false);
-      document.body.classList.toggle("logs-raw-logs", false);
-    } catch (x) { }
-    viewMode = "summarized";
-    refreshSummarizedPanel();
-    syncMetricsPolling();
-  }
-
-  function getFlat(parsed) {
-    return parsed.rawFlat || {};
-  }
-
-  /** Map legacy + normalized log service/source strings to summarized Services bucket keys. */
-  function normalizeServiceBucketKey(svc, source) {
-    var s = String(svc || "").trim().toLowerCase();
-    var src = String(source || "").trim().toLowerCase();
-    var alias = {
-      gateway: "chimera-gateway",
-      vectorstore: "chimera-vectorstore",
-      broker: "chimera-broker",
-      indexer: "chimera-indexer",
-    };
-    if (alias[s]) return alias[s];
-    if (alias[src]) return alias[src];
-    return "";
-  }
-
-  var strHash =
-    globalThis.ChimeraLogs && globalThis.ChimeraLogs.strHash
-      ? globalThis.ChimeraLogs.strHash
-      : function (s) {
-        var h = 0;
-        var t = String(s);
-        for (var i = 0; i < t.length; i++) h = ((h << 5) - h) + t.charCodeAt(i) | 0;
-        return "fc" + (h >>> 0).toString(16);
-      };
-
-  var entryInstant =
-    globalThis.ChimeraLogs && globalThis.ChimeraLogs.entryInstant
-      ? globalThis.ChimeraLogs.entryInstant
-      : function (entry) {
-        if (!entry || entry.ts === null || entry.ts === undefined || entry.ts === "") return null;
-        var d = entry.ts instanceof Date ? entry.ts : new Date(entry.ts);
-        return isNaN(d.getTime()) ? null : d;
-      };
-
-  var humanDurationMs =
-    globalThis.ChimeraLogs && globalThis.ChimeraLogs.humanDurationMs
-      ? globalThis.ChimeraLogs.humanDurationMs
-      : function (ms) {
-        if (ms == null || isNaN(ms) || ms < 0) return "—";
-        if (ms < 1000) return Math.round(ms) + " ms";
-        if (ms < 60000) return (ms / 1000).toFixed(1) + " s";
-        if (ms < 3600000) return Math.round(ms / 60000) + " min";
-        return (ms / 3600000).toFixed(1) + " h";
-      };
-
-  function rollupHTTPInConversation(events) {
-    var count = 0,
-      sumMs = 0;
-    var maxStatus = 0;
-    for (var i = 0; i < events.length; i++) {
-      if (events[i].parsed.shape !== "http.access") continue;
-      var f = getFlat(events[i].parsed);
-      if (f.statusCode === undefined || f.statusCode === null) continue;
-      count++;
-      var sc = Number(f.statusCode);
-      if (!isNaN(sc) && sc > maxStatus) maxStatus = sc;
-      var rt = Number(f.responseTimeMs);
-      if (!isNaN(rt)) sumMs += rt;
-    }
-    if (count === 0) return null;
-    return { count: count, sumMs: sumMs, worst: maxStatus };
-  }
-
-  function serviceStripHtml(events) {
-    var ragN = 0,
-      vectorstoreEvt = 0,
-      ingestN = 0;
-    var ragMs = 0;
-    var chimeraBrokerN = 0;
-    if (
-      globalThis.ChimeraLogs &&
-      ChimeraLogs.Derive &&
-      typeof ChimeraLogs.Derive.conversationChimeraBrokerRelayCount === "function"
-    ) {
-      chimeraBrokerN = ChimeraLogs.Derive.conversationChimeraBrokerRelayCount(events, function (p) { return getFlat(p); });
-    }
-    for (var i = 0; i < events.length; i++) {
-      var sh = events[i].parsed.shape || "";
-      var f = getFlat(events[i].parsed);
-      if (sh === "rag" || (sh.indexOf("rag.") === 0 && sh !== "rag")) {
-        ragN++;
-        var lm = Number(f.latencyMs != null ? f.latencyMs : f.latency_ms != null ? f.latency_ms : f.elapsedMs);
-        if (!isNaN(lm)) ragMs += lm;
-      } else if (
-        sh === "service.vectorstore" ||
-        sh === "service.chimera-vectorstore" ||
-        f.service === "chimera-vectorstore"
-      ) {
-        vectorstoreEvt++;
-      } else if (sh === "ingest") {
-        ingestN++;
-      }
-    }
-    var parts = [];
-    if (ragN) parts.push("RAG · " + ragN + (ragMs ? " · ~" + Math.round(ragMs) + " ms" : ""));
-    if (vectorstoreEvt) parts.push("chimera-vectorstore · " + vectorstoreEvt);
-    if (ingestN) parts.push("ingest · " + ingestN);
-    if (chimeraBrokerN) parts.push("chimera-broker · " + chimeraBrokerN);
-    if (!parts.length) return "";
-    return (
-      '<div class="service-chips">' +
-      parts
-        .map(function (p) {
-          return '<span class="chip">' + escapeHtml(p) + "</span>";
-        })
-        .join("") +
-      "</div>"
-    );
-  }
-
-  function contextGrowthStripHtml(events) {
-    var keys = [
-      "turn_index",
-      "turnIndex",
-      "context_tokens_est",
-      "context_chars_est",
-      "rag_hits",
-      "hits",
-      "chunks",
-      "tool_rounds",
-      "response_tokens_est"
-    ];
-    for (var i = events.length - 1; i >= 0; i--) {
-      var f = getFlat(events[i].parsed);
-      var bits = [];
-      for (var k = 0; k < keys.length; k++) {
-        var key = keys[k];
-        if (f[key] !== undefined && f[key] !== null && f[key] !== "") {
-          bits.push(key.replace(/_/g, " ") + ": " + formatExtraValue(f[key]));
-        }
-      }
-      if (bits.length)
-        return '<div class="context-strip">' + escapeHtml(bits.join(" · ")) + "</div>";
-    }
-    return "";
-  }
-
-  var MAX_PRIMARY_MSG_CHARS = 900;
-  /** Conversation expanded card: show Context strip (contextGrowthStripHtml). Off until UI is refined. */
-  var SHOW_CONV_EXPANDED_CONTEXT_STRIP = false;
-
-  function pad2(n) {
-    return n < 10 ? "0" + n : String(n);
-  }
-
-  function formatLogDateTimeLocal(ts) {
-    if (ts === null || ts === undefined || ts === "") return "—";
-    var d = ts instanceof Date ? ts : new Date(ts);
-    if (isNaN(d.getTime())) return String(ts).replace("T", " ").slice(0, 23);
-    return (
-      d.getFullYear() +
-      "-" +
-      pad2(d.getMonth() + 1) +
-      "-" +
-      pad2(d.getDate()) +
-      " " +
-      pad2(d.getHours()) +
-      ":" +
-      pad2(d.getMinutes()) +
-      ":" +
-      pad2(d.getSeconds())
-    );
-  }
-
-  function toIsoDatetimeAttr(ts) {
-    if (ts === null || ts === undefined || ts === "") return "";
-    var d = ts instanceof Date ? ts : new Date(ts);
-    if (isNaN(d.getTime())) return "";
-    try {
-      return d.toISOString();
-    } catch (e) {
-      return "";
-    }
-  }
-
-  /** Short hint for gateway lifecycle errorType (conversation.errored). */
-  function gatewayLifecycleErrorHint(errorType) {
-    var e = String(errorType || "").trim().toLowerCase();
-    if (e === "invalid_request") return "Check the request body (model, messages, parameters).";
-    if (e === "invalid_api_key") return "Verify the API key or gateway credentials.";
-    if (e === "gateway_provider_limits") return "Provider or gateway quota blocked this request.";
-    if (e === "gateway_config") return "Gateway routing or configuration could not satisfy this request.";
-    if (e === "gateway_upstream") return "The upstream LLM or network returned an error.";
-    return "";
-  }
-
-  /** Compress raw RAG/embed errors for the summarized column (avoid huge JSON blobs). */
-  function summarizeRagRetrieveErr(rawErr) {
-    var er = String(rawErr || "").replace(/\s+/g, " ").trim();
-    if (!er) return "";
-    var low = er.toLowerCase();
-    if (low.indexOf("context length") >= 0 || low.indexOf("exceeds the context") >= 0)
-      return "Embedding input too long for the model context window.";
-    var msgMatch = er.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    if (msgMatch && msgMatch[1]) {
-      var inner = msgMatch[1].replace(/\\"/g, '"').replace(/\\n/g, " ").trim();
-      if (inner.length > 220) inner = inner.slice(0, 219) + "…";
-      return inner;
-    }
-    er = er.replace(/^embed query:\s*embed:\s*/i, "").trim();
-    var stMatch = er.match(/\bstatus\s+(\d{3})\b/i);
-    if (stMatch) {
-      var code = stMatch[1];
-      var idx = er.toLowerCase().indexOf("status " + code);
-      var tail = idx >= 0 ? er.slice(idx + ("status " + code).length).replace(/^:\s*/, "").trim() : "";
-      if (tail.charAt(0) === "{") {
-        var nested = summarizeRagRetrieveErr(tail);
-        if (nested) return "Embedding API rejected the query (HTTP " + code + "): " + nested;
-      }
-      if (tail.length > 120) tail = tail.slice(0, 119) + "…";
-      return tail ? "Embedding API HTTP " + code + ": " + tail : "Embedding API returned HTTP " + code + ".";
-    }
-    if (er.length > 140) er = er.slice(0, 139) + "…";
-    return er;
-  }
-
-  /** Plain-language one-liners for gateway lifecycle / RAG slugs (summarized logs primary column). */
-  function operatorFriendlyGatewayMsg(flat) {
-    if (!flat || typeof flat !== "object") return "";
-    var raw = flat.msg != null ? flat.msg : flat.message != null ? flat.message : "";
-    var slug = String(raw).trim();
-    if (!slug) return "";
-    switch (slug) {
-      case "conversation.merge.embed_failed":
-        return "Embedding failed so this turn cannot be associated with any current conversation; storing as a new conversation";
-      case "rag.query": {
-        var rq =
-          "Vector search for this request: querying the index for chunks relevant to the user message.";
-        var collRaw = flat.collection != null ? String(flat.collection).trim() : "";
-        if (collRaw) {
-          var collLab =
-            typeof ragCollectionLabelForUi === "function" ? ragCollectionLabelForUi(collRaw) : collRaw;
-          rq += " Reading collection " + collLab + ".";
-        }
-        return rq;
-      }
-      case "conversation.received":
-        return "Inbound chat message recorded for this conversation.";
-      case "chat.request":
-        return "Chat completion request accepted and prepared for upstream routing.";
-      case "conversation.rag.span": {
-        var spanBase =
-          "RAG retrieval span recorded for this conversation turn (links retrieval to the chat scope).";
-        var collSpan = flat.collection != null ? String(flat.collection).trim() : "";
-        if (collSpan && typeof ragCollectionLabelForUi === "function") {
-          var spanLab = ragCollectionLabelForUi(collSpan);
-          if (spanLab) spanBase += " Reading collection " + spanLab + ".";
-        }
-        return spanBase;
-      }
-      case "upstream.models.ok": {
-        var n = flat.count != null ? Number(flat.count) : NaN;
-        var base = "Upstream model catalog responded successfully.";
-        if (!isNaN(n) && n >= 0) return base + " Models listed: " + Math.round(n) + ".";
-        return base;
-      }
-      case "conversation.request.witness":
-        return (
-          "Request witness logged: structured snapshot of the chat payload after normalization " +
-          "(message counts, roles, prompt size, tools) for correlation and auditing."
-        );
-      case "rag.retrieve.error": {
-        var baseErr = "RAG retrieval failed; continuing without injected chunks.";
-        var rawEr = flat.err != null ? String(flat.err) : "";
-        var sum = summarizeRagRetrieveErr(rawEr);
-        return sum ? baseErr + " Cause: " + sum : baseErr;
-      }
-      case "conversation.errored": {
-        var baseConvErr =
-          "This conversation turn ended with an error (no successful completion delivered).";
-        var scErr = flat.statusCode != null ? Number(flat.statusCode) : NaN;
-        var etErr = flat.errorType != null ? String(flat.errorType).trim() : "";
-        var bitsErr = [];
-        if (!isNaN(scErr)) bitsErr.push("HTTP " + Math.round(scErr));
-        var hintErr = gatewayLifecycleErrorHint(etErr);
-        if (hintErr) bitsErr.push(hintErr);
-        return bitsErr.length ? baseConvErr + " · " + bitsErr.join(" · ") : baseConvErr;
-      }
-      case "conversation.delivered": {
-        var baseD = "Completion delivered to the client (this turn finished successfully).";
-        var sc = flat.statusCode != null ? Number(flat.statusCode) : NaN;
-        var ms = flat.total_ms != null ? Number(flat.total_ms) : flat.totalMs != null ? Number(flat.totalMs) : NaN;
-        var bitsD = [];
-        if (!isNaN(sc)) bitsD.push("HTTP " + Math.round(sc));
-        if (!isNaN(ms) && ms >= 0) bitsD.push(Math.round(ms) + " ms");
-        return bitsD.length ? baseD + " · " + bitsD.join(" · ") : baseD;
-      }
-      case "conversation.routing.resolved":
-      case "conversation.routing.resolve": {
-        var partsR = ["Routing resolved: upstream model chosen for this completion."];
-        var modR = flat.upstreamModel != null ? String(flat.upstreamModel).trim() : "";
-        if (modR) partsR.push("Model " + modR);
-        var att = flat.attempt != null ? Number(flat.attempt) : NaN;
-        var chain = flat.chainLen != null ? Number(flat.chainLen) : NaN;
-        if (!isNaN(att) && !isNaN(chain) && chain > 1)
-          partsR.push("attempt " + Math.round(att) + "/" + Math.round(chain));
-        return partsR.join(" · ");
-      }
-      case "conversation.broker.started": {
-        var baseUp = "chimera-broker request started (POST to chat/completions).";
-        var modUp = flat.upstreamModel != null ? String(flat.upstreamModel).trim() : "";
-        return modUp ? baseUp + " Model: " + modUp + "." : baseUp;
-      }
-      case "ingest.complete": {
-        var bitsIc = ["Ingest finished — document indexed."];
-        var ch = flat.chunks != null ? Number(flat.chunks) : NaN;
-        if (!isNaN(ch) && ch >= 0) bitsIc.push(Math.round(ch) + " chunk" + (ch === 1 ? "" : "s"));
-        var srcIc = flat.source != null ? String(flat.source).trim() : "";
-        if (srcIc) bitsIc.push("source: " + (srcIc.length > 80 ? srcIc.slice(0, 79) + "…" : srcIc));
-        var tenIc = flat.tenant != null ? String(flat.tenant).trim() : "";
-        if (tenIc) bitsIc.push("tenant " + tenIc);
-        return bitsIc.join(" · ");
-      }
-      case "gateway.auth.reloaded": {
-        var baseAuth = "Client credentials reloaded from disk.";
-        var nAuth = flat.count != null ? Number(flat.count) : NaN;
-        if (!isNaN(nAuth) && nAuth >= 0) return baseAuth + " Active keys: " + Math.round(nAuth) + ".";
-        return baseAuth;
-      }
-      case "gateway.health.upstream": {
-        var okH = flat.ok === true || flat.ok === "true" || flat.ok === 1;
-        var baseH = okH ? "Upstream health OK" : "Upstream health failed";
-        var bitsH = [];
-        var stH = flat.status != null ? Number(flat.status) : NaN;
-        if (!isNaN(stH)) bitsH.push("probe HTTP " + Math.round(stH));
-        var detH = flat.detail != null ? String(flat.detail).replace(/\s+/g, " ").trim() : "";
-        if (detH.length > 100) detH = detH.slice(0, 99) + "…";
-        if (!okH && detH) bitsH.push(detH);
-        var tgtH = flat.target != null ? String(flat.target).trim() : "";
-        if (tgtH) {
-          var hostH = "";
-          try {
-            hostH = new URL(tgtH).host || "";
-          } catch (eH) {
-            hostH = "";
-          }
-          if (!hostH && tgtH) hostH = tgtH.length > 72 ? tgtH.slice(0, 71) + "…" : tgtH;
-          if (hostH) bitsH.push(hostH);
-        }
-        return bitsH.length ? baseH + " · " + bitsH.join(" · ") : baseH;
-      }
-      case "gateway.startup.listening": {
-        var bitsL = ["Gateway listening for HTTP requests."];
-        var addrL = flat.addr != null ? String(flat.addr).trim() : "";
-        if (addrL) bitsL.push("bind " + addrL);
-        var brL = flat.broker != null ? String(flat.broker).trim() : "";
-        if (brL) {
-          var brShort = brL;
-          try {
-            brShort = new URL(brL).host || brL;
-          } catch (eL) {
-            brShort = brL;
-          }
-          if (brShort.length > 56) brShort = brShort.slice(0, 55) + "…";
-          bitsL.push("chimera-broker " + brShort);
-        }
-        return bitsL.join(" · ");
-      }
-      case "chimera-supervisor.indexer.starting":
-      case "gateway.supervisor.indexer.starting": {
-        var bitsIxS = ["Supervised indexer process starting."];
-        if (flat.bin != null && String(flat.bin).trim() !== "") {
-          var bn = String(flat.bin).replace(/\\/g, "/");
-          var leaf = bn.split("/").pop();
-          bitsIxS.push(leaf || bn);
-        }
-        var cfgIxS = flat.config != null ? String(flat.config).trim() : "";
-        if (cfgIxS) bitsIxS.push("config " + (cfgIxS.length > 48 ? cfgIxS.slice(0, 47) + "…" : cfgIxS));
-        return bitsIxS.join(" · ");
-      }
-      case "chimera-supervisor.chimera-broker.ready":
-      case "gateway.supervisor.chimera-broker.ready": {
-        var baseBr = "chimera-broker passed health check — ready.";
-        var urlBr = flat.url != null ? String(flat.url).trim() : "";
-        if (!urlBr) return baseBr;
-        try {
-          var uBr = new URL(urlBr);
-          var tailBr = (uBr.host + (uBr.pathname === "/" ? "" : uBr.pathname)).slice(0, 96);
-          return baseBr + " · " + tailBr;
-        } catch (eBr) {
-          return baseBr + " · " + (urlBr.length > 96 ? urlBr.slice(0, 95) + "…" : urlBr);
-        }
-      }
-      case "chimera-supervisor.chimera-vectorstore.ready":
-      case "chimera-supervisor.chimera-vectorstore.ready":
-      case "chimera-supervisor.vectorstore.ready": {
-        var baseQr = "chimera-vectorstore passed health check — ready.";
-        var urlQr = flat.url != null ? String(flat.url).trim() : "";
-        if (!urlQr) return baseQr;
-        try {
-          var uQr = new URL(urlQr);
-          var tailQr = (uQr.host + (uQr.pathname === "/" ? "" : uQr.pathname)).slice(0, 96);
-          return baseQr + " · " + tailQr;
-        } catch (eQr) {
-          return baseQr + " · " + (urlQr.length > 96 ? urlQr.slice(0, 95) + "…" : urlQr);
-        }
-      }
-      case "chimera-supervisor.chimera-broker.starting":
-      case "gateway.supervisor.chimera-broker.starting": {
-        var bitsBs = ["chimera-broker subprocess starting."];
-        if (flat.bin != null && String(flat.bin).trim() !== "") {
-          var bbs = String(flat.bin).replace(/\\/g, "/").split("/").pop();
-          if (bbs) bitsBs.push(bbs);
-        }
-        var appD = flat.app_dir != null ? String(flat.app_dir).trim() : flat.dir != null ? String(flat.dir).trim() : "";
-        if (appD) bitsBs.push("data " + (appD.length > 40 ? appD.slice(0, 39) + "…" : appD));
-        if (flat.host != null && String(flat.host).trim() !== "") bitsBs.push("host " + String(flat.host).trim());
-        if (flat.port != null && String(flat.port).trim() !== "") bitsBs.push("port " + String(flat.port).trim());
-        return bitsBs.join(" · ");
-      }
-      case "chimera-supervisor.chimera-vectorstore.starting":
-      case "chimera-supervisor.vectorstore.starting":
-      case "chimera-supervisor.chimera-vectorstore.starting": {
-        var bitsQs = ["chimera-vectorstore subprocess starting."];
-        if (flat.bin != null && String(flat.bin).trim() !== "") {
-          var bqs = String(flat.bin).replace(/\\/g, "/").split("/").pop();
-          if (bqs) bitsQs.push(bqs);
-        }
-        var stor = flat.storage != null ? String(flat.storage).trim() : "";
-        if (stor) bitsQs.push("storage " + (stor.length > 40 ? stor.slice(0, 39) + "…" : stor));
-        if (flat.http_port != null) bitsQs.push("http " + String(flat.http_port));
-        if (flat.grpc_port != null) bitsQs.push("grpc " + String(flat.grpc_port));
-        if (flat.host != null && String(flat.host).trim() !== "") bitsQs.push("host " + String(flat.host).trim());
-        return bitsQs.join(" · ");
-      }
-      case "gateway.startup.seed":
-        return "Gateway startup seed (early init before full serve).";
-      case "gateway.startup.disk_log": {
-        var phaseD = flat.phase != null ? String(flat.phase).trim() : "";
-        var pathD = flat.path != null ? String(flat.path).trim() : "";
-        var dirD = flat.dir != null ? String(flat.dir).trim() : "";
-        var errD = flat.err != null ? String(flat.err).replace(/\s+/g, " ").trim() : "";
-        if (errD.length > 120) errD = errD.slice(0, 119) + "…";
-        if (phaseD === "mkdir" || phaseD === "open") {
-          var locD = pathD || dirD || "";
-          if (locD.length > 72) locD = locD.slice(0, 71) + "…";
-          return (
-            "Disk log setup failed (" +
-            phaseD +
-            ")" +
-            (locD ? " · " + locD : "") +
-            (errD ? " · " + errD : "")
-          );
-        }
-        if (pathD) return "Disk logging enabled · " + (pathD.length > 100 ? pathD.slice(0, 99) + "…" : pathD);
-        return "Disk logging enabled.";
-      }
-      case "gateway.startup.config_resolved": {
-        var bitsCfg = ["Gateway configuration paths resolved."];
-        var fpCfg = flat.filePath != null ? String(flat.filePath).trim() : "";
-        if (fpCfg) bitsCfg.push("gateway " + (fpCfg.length > 56 ? fpCfg.slice(0, 55) + "…" : fpCfg));
-        var akCfg =
-          flat.api_keys_path != null
-            ? String(flat.api_keys_path).trim()
-            : flat.tokens_path != null
-              ? String(flat.tokens_path).trim()
-              : "";
-        if (akCfg) bitsCfg.push("keys " + (akCfg.length > 48 ? akCfg.slice(0, 47) + "…" : akCfg));
-        var rpCfg = flat.routingPolicyPath != null ? String(flat.routingPolicyPath).trim() : "";
-        if (rpCfg) bitsCfg.push("routing " + (rpCfg.length > 48 ? rpCfg.slice(0, 47) + "…" : rpCfg));
-        return bitsCfg.join(" · ");
-      }
-      default:
-        return "";
-    }
-  }
-
-  function primaryLogMessage(parsed, rawText, opts) {
-    opts = opts || {};
-    var forEventLog = opts.forEventLog === true;
-    var rf = getFlat(parsed);
-    var sh = parsed.shape || "";
-    if (sh === "http.access" && rf.statusCode !== undefined && rf.statusCode !== null) {
-      var line =
-        (rf.method || "?") +
-        " " +
-        (rf.path || "") +
-        (forEventLog ? "" : " → " + rf.statusCode) +
-        (rf.responseTimeMs != null ? " · " + rf.responseTimeMs + " ms" : "");
-      return line.length > MAX_PRIMARY_MSG_CHARS ? line.slice(0, MAX_PRIMARY_MSG_CHARS - 1) + "…" : line;
-    }
-    var gatewayOp = operatorFriendlyGatewayMsg(rf);
-    if (gatewayOp) {
-      return gatewayOp.length > MAX_PRIMARY_MSG_CHARS ? gatewayOp.slice(0, MAX_PRIMARY_MSG_CHARS - 1) + "…" : gatewayOp;
-    }
-    if (
-      globalThis.ChimeraLogs &&
-      ChimeraLogs.Derive &&
-      typeof ChimeraLogs.Derive.chimeraBrokerOperatorLine === "function"
-    ) {
-      var chimeraBrokerLine = ChimeraLogs.Derive.chimeraBrokerOperatorLine(rf, forEventLog ? { forEventLog: true } : undefined);
-      if (chimeraBrokerLine && String(chimeraBrokerLine).trim() !== "") {
-        var bl = String(chimeraBrokerLine).trim();
-        return bl.length > MAX_PRIMARY_MSG_CHARS ? bl.slice(0, MAX_PRIMARY_MSG_CHARS - 1) + "…" : bl;
-      }
-    }
-    if (sh === "chat.chimera-broker" || (rf.upstreamModel && (rf.statusCode != null || rf.status != null))) {
-      var scB = rf.statusCode != null ? rf.statusCode : rf.status;
-      var parts = [];
-      if (!forEventLog && scB !== undefined && scB !== null && scB !== "") parts.push(String(scB));
-      if (rf.upstreamModel) parts.push(String(rf.upstreamModel));
-      var pathHint = rf.path || "";
-      if (!pathHint && rf.target) {
-        try {
-          pathHint = new URL(String(rf.target)).pathname || "";
-        } catch (e) {
-          pathHint = "";
-        }
-      }
-      if (pathHint) parts.push(String(pathHint));
-      var baseMsg = rf.msg != null ? String(rf.msg) : rf.message != null ? String(rf.message) : "";
-      if (!baseMsg && rawText) baseMsg = String(rawText).trim();
-      var lineB = parts.length ? parts.join(" · ") : baseMsg || "—";
-      return lineB.length > MAX_PRIMARY_MSG_CHARS ? lineB.slice(0, MAX_PRIMARY_MSG_CHARS - 1) + "…" : lineB;
-    }
-    if (sh === "chat.routing" || (rf.attempt != null && rf.chainLen != null && rf.upstreamModel)) {
-      var bitsR = [];
-      if (rf.msg != null || rf.message != null) bitsR.push(String(rf.msg != null ? rf.msg : rf.message));
-      if (rf.upstreamModel) bitsR.push("model " + rf.upstreamModel);
-      if (rf.attempt != null) bitsR.push("attempt " + rf.attempt);
-      if (!forEventLog && rf.statusCode != null) bitsR.push("HTTP " + rf.statusCode);
-      var lineR = bitsR.filter(Boolean).join(" · ") || "routing";
-      return lineR.length > MAX_PRIMARY_MSG_CHARS ? lineR.slice(0, MAX_PRIMARY_MSG_CHARS - 1) + "…" : lineR;
-    }
-    if (
-      String(rf.service || "").toLowerCase() === "chimera-vectorstore" &&
-      rf.msg != null &&
-      String(rf.msg).indexOf("chimera-vectorstore.") === 0 &&
-      globalThis.ChimeraLogs &&
-      ChimeraLogs.Derive &&
-      typeof ChimeraLogs.Derive.chimeraVectorstoreOperatorLine === "function"
-    ) {
-      var vOpLine = ChimeraLogs.Derive.chimeraVectorstoreOperatorLine(
-        rf,
-        chimeraVectorstoreCollectionScopeLabelForLogs,
-        forEventLog ? { forEventLog: true } : undefined
-      );
-      if (qOpLine && String(qOpLine).trim() !== "") {
-        var mqQ = String(qOpLine).trim();
-        return mqQ.length > MAX_PRIMARY_MSG_CHARS ? mqQ.slice(0, MAX_PRIMARY_MSG_CHARS - 1) + "…" : mqQ;
-      }
-    }
-    var m = "";
-    if (rf.msg != null && rf.msg !== "") m = String(rf.msg);
-    else if (rf.message != null && rf.message !== "") m = String(rf.message);
-    else if (rawText) m = String(rawText).trim();
-    if (!m) m = "—";
-    var slug = m.toLowerCase();
-    var slugIx = indexerFlatMsg(rf);
-    if (
-      rf.service === "indexer" ||
-      slug.indexOf("indexer.") === 0 ||
-      slugIx.indexOf("indexer.") === 0 ||
-      slugIx.indexOf("gateway.indexer") === 0 ||
-      slugIx === "rag.retrieve.source"
-    ) {
-      var prose =
-        globalThis.ChimeraLogs &&
-          ChimeraLogs.Derive &&
-          typeof ChimeraLogs.Derive.indexerProseSummary === "function"
-          ? ChimeraLogs.Derive.indexerProseSummary(rf)
-          : null;
-      if (prose && String(prose).trim() !== "") m = String(prose).trim();
-      else {
-        var bitsIx = [m];
-        if (rf.phase) bitsIx.push("phase " + rf.phase);
-        if (rf.rel) bitsIx.push(String(rf.rel));
-        if (rf.root != null && String(rf.root).trim() !== "") bitsIx.push("root " + rf.root);
-        if (rf.chunks != null && rf.chunks !== "") bitsIx.push("chunks " + rf.chunks);
-        if (rf.candidates_enqueued != null) bitsIx.push("candidates " + rf.candidates_enqueued);
-        if (rf.candidates_discovered != null) bitsIx.push("discovered " + rf.candidates_discovered);
-        if (slug.indexOf("indexer.run.done") === 0 && rf.mode) bitsIx.push("mode " + rf.mode);
-        if (slug.indexOf("indexer.run.done") === 0 && rf.ingest_completed != null)
-          bitsIx.push("ingested " + rf.ingest_completed);
-        if (slug.indexOf("indexer.run.done") === 0 && rf.ingest_failed_dropped != null)
-          bitsIx.push("failed " + rf.ingest_failed_dropped);
-        if (rf.collection) bitsIx.push("collection " + rf.collection);
-        if (rf.flavor_id) bitsIx.push("flavor " + rf.flavor_id);
-        if (rf.ingest_project) bitsIx.push("project " + rf.ingest_project);
-        if (rf.roots != null) bitsIx.push("roots " + rf.roots);
-        if (rf.root_ids) bitsIx.push("root_ids " + rf.root_ids);
-        if (rf.queue_depth != null) bitsIx.push("queue_depth " + rf.queue_depth);
-        if (rf.worker != null) bitsIx.push("worker " + rf.worker);
-        if (rf.attempt != null) bitsIx.push("attempt " + rf.attempt);
-        if (rf.delay_ms != null) bitsIx.push("delay_ms " + rf.delay_ms);
-        if (rf.err) bitsIx.push("err " + String(rf.err).replace(/\s+/g, " ").slice(0, 200));
-        m = bitsIx.join(" · ");
-      }
-    }
-    if (m.length > MAX_PRIMARY_MSG_CHARS) m = m.slice(0, MAX_PRIMARY_MSG_CHARS - 1) + "…";
-    return m;
-  }
-
-  function levelBadgeClassForSummary(parsed) {
-    var can = parsed.levelCanon;
-    if (!can) return "log-line-sum__lvl--none";
-    var safe = String(can).replace(/[^A-Z0-9_-]/gi, "");
-    return safe ? "lvl-" + safe : "log-line-sum__lvl--none";
-  }
-
-  function logSummaryHtml(ev, badgeOpt, opts) {
-    opts = opts || {};
-    var parsed = ev.parsed;
-    var dt = formatLogDateTimeLocal(ev.ts);
-    var iso = toIsoDatetimeAttr(ev.ts);
-    var lvlRaw = parsed.levelCanon || (parsed.levelLabel && parsed.levelLabel !== "—" ? parsed.levelLabel : "");
-    var lvlStr = lvlRaw ? String(lvlRaw).trim() : "";
-    var lvlClass = lvlStr ? levelBadgeClassForSummary(parsed) : "log-line-sum__lvl--none";
-    var lvlHtml = lvlStr
-      ? '<span class="log-line-sum__lvl ' + lvlClass + '">' + escapeHtml(lvlStr) + "</span>"
-      : '<span class="log-line-sum__lvl log-line-sum__lvl--none">—</span>';
-    var badgeHtml = "";
-    var hideIndexerBadge =
-      opts.suppressIndexerBadge && badgeOpt && (badgeOpt.lab === "chimera-indexer" || badgeOpt.lab === "indexer");
-    var hideVectorstoreBadge = opts.suppressVectorstoreBadge && badgeOpt && badgeOpt.lab === "chimera-vectorstore";
-    var hideGatewayBadge =
-      opts.suppressGatewayBadge && badgeOpt && (badgeOpt.lab === "chimera-gateway" || badgeOpt.lab === "gateway");
-    if (badgeOpt && badgeOpt.lab && !hideIndexerBadge && !hideVectorstoreBadge && !hideGatewayBadge) {
-      badgeHtml =
-        '<span class="sum-svc-badge ' +
-        badgeOpt.cls +
-        '">' +
-        escapeHtml(badgeOpt.lab) +
-        "</span>";
-    }
-    var tierHtml = "";
-    if (opts.convJoinTier && opts.convJoinTier !== "direct") {
-      var tl = String(opts.convJoinTier);
-      var safeTl = tl.replace(/[^a-z0-9_-]/gi, "");
-      if (!safeTl) safeTl = "tier";
-      var tierTitle = "Join tier";
-      if (opts.vectorstoreSpanID) {
-        tierTitle += " · span " + String(opts.vectorstoreSpanID);
-      }
-      if (opts.vectorstoreTurnIndex != null && opts.vectorstoreTurnIndex !== "") {
-        tierTitle += " · turn " + String(opts.vectorstoreTurnIndex);
-      }
-      tierHtml =
-        '<span class="sum-conv-tier sum-conv-tier--' +
-        safeTl +
-        '" title="' +
-        escapeHtml(tierTitle) +
-        '">' +
-        escapeHtml(tl.replace(/_/g, " ")) +
-        "</span>";
-    }
-    var msg = escapeHtml(primaryLogMessage(parsed, ev.text));
-    return (
-      '<div class="log-line-sum">' +
-      '<span class="log-line-sum__meta">' +
-      '<time class="log-line-sum__time"' +
-      (iso ? ' datetime="' + escapeHtml(iso) + '"' : "") +
-      ">" +
-      escapeHtml(dt) +
-      "</time>" +
-      lvlHtml +
-      badgeHtml +
-      tierHtml +
-      "</span>" +
-      '<span class="log-line-sum__msg">' +
-      msg +
-      "</span></div>"
-    );
-  }
-
-  function formatLogRelativeAgo(ms) {
-    if (ms == null || !isFinite(Number(ms))) return "—";
-    var now = Date.now();
-    var sec = Math.round((now - Number(ms)) / 1000);
-    if (sec < 0) return "in the future";
-    if (sec < 10) return "just now";
-    if (sec < 60) return "about " + sec + " seconds ago";
-    if (sec < 3600) {
-      var m = Math.floor(sec / 60);
-      return m === 1 ? "about 1 minute ago" : "about " + m + " minutes ago";
-    }
-    if (sec < 86400) {
-      var h = Math.floor(sec / 3600);
-      return h === 1 ? "about 1 hour ago" : "about " + h + " hours ago";
-    }
-    var d = Math.floor(sec / 86400);
-    return d === 1 ? "about 1 day ago" : "about " + d + " days ago";
-  }
-
-  function sumEvlogHttpStatusNumber(v) {
-    if (v == null || v === "") return null;
-    var n = Number(v);
-    if (isNaN(n) || n < 100 || n > 599) return null;
-    return n;
-  }
-
-  function sumEvlogHttpCode(parsed, flatOpt) {
-    if (!parsed) return null;
-    var flat = flatOpt != null ? flatOpt : getFlat(parsed);
-    if (parsed.shape === "http.access" && flat) {
-      var sc0 = flat.statusCode;
-      if (sc0 != null && sc0 !== "") {
-        var n0 = Number(sc0);
-        if (!isNaN(n0)) return n0;
-      }
-      return null;
-    }
-    if (!flat) return null;
-    var msgRaw = flat.msg != null ? flat.msg : flat.message != null ? flat.message : "";
-    var msgL = String(msgRaw).toLowerCase();
-    if (
-      msgL === "chimera-broker.http.access" ||
-      msgL === "chimera-broker.rate_limit" ||
-      msgL === "chimra-vectorstore.http.collection_meta" ||
-      msgL === "chimra-vectorstore.http.points_upsert_ok" ||
-      msgL === "chimra-vectorstore.http.points_upsert_rejected" ||
-      msgL === "chimra-vectorstore.http.points_delete" ||
-      msgL === "chimra-vectorstore.http.vector_search"
-    ) {
-      var hs = sumEvlogHttpStatusNumber(flat.http_status != null ? flat.http_status : flat.httpStatus);
-      if (hs != null) return hs;
-    }
-    if (
-      msgL === "chat.chimera-broker.response" ||
-      msgL === "upstream chat response" ||
-      msgL === "chat.routing.fallback" ||
-      msgL === "chat.routing.resolved" ||
-      msgL === "virtual model routing resolved"
-    ) {
-      var c = sumEvlogHttpStatusNumber(
-        flat.statusCode != null ? flat.statusCode : flat.status_code != null ? flat.status_code : flat.status
-      );
-      if (c != null) return c;
-    }
-    return null;
-  }
-
-  /** Stable row id for selection across client filters: prefer log line seq, else row index + ts under card scope. */
-  function sumEvlogStableRowId(cardScope, entLike, rowIndex) {
-    var scope = String(cardScope || "s");
-    if (entLike.seq != null && entLike.seq !== "") return scope + ":n:" + String(entLike.seq);
-    return scope + ":i:" + String(rowIndex) + ":t:" + String(entLike.ts != null ? entLike.ts : "");
-  }
-
-  function sumEvlogLevelKey(levelStr) {
-    var s = levelStr == null ? "" : String(levelStr).trim();
-    return s === "" ? "_NONE" : s.toUpperCase();
-  }
-
-  function sumEvlogIsWarnish(levelCanon, http) {
-    var lk = sumEvlogLevelKey(levelCanon);
-    if (lk === "WARN") return true;
-    if (http === 429) return true;
-    return false;
-  }
-
-  function sumEvlogIsFailish(levelCanon, http) {
-    var lk = sumEvlogLevelKey(levelCanon);
-    if (lk === "ERROR") return true;
-    if (http == null) return false;
-    if (http >= 200 && http <= 299) return false;
-    return true;
-  }
-
-  function sumEvlogCountWarnFailFromEntries(entries) {
-    var warn = 0;
-    var fail = 0;
-    for (var i = 0; i < entries.length; i++) {
-      var p = entries[i].parsed;
-      var http = sumEvlogHttpCode(p, getFlat(p));
-      var lk = p.levelCanon || (p.levelLabel && p.levelLabel !== "—" ? p.levelLabel : "");
-      if (sumEvlogIsWarnish(lk, http)) warn++;
-      if (sumEvlogIsFailish(lk, http)) fail++;
-    }
-    return { warn: warn, fail: fail };
-  }
-
-  function sumEvlogStatusInnerHtml(parsed) {
-    var flat = getFlat(parsed);
-    var http = sumEvlogHttpCode(parsed, flat);
-    var lk = sumEvlogLevelKey(
-      parsed.levelCanon || (parsed.levelLabel && parsed.levelLabel !== "—" ? parsed.levelLabel : "")
-    );
-    var parts = [];
-    if (lk === "TRACE") {
-      parts.push('<span class="sum-evlog-status__pill sum-evlog-status__lvl--TRACE">TRACE</span>');
-    } else if (lk === "WARN") {
-      parts.push('<span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN">WARN</span>');
-    } else if (lk === "ERROR") {
-      parts.push('<span class="sum-evlog-status__pill sum-evlog-status__lvl--ERROR">ERROR</span>');
-    }
-    if (http != null) {
-      if (http === 304) {
-        parts.push('<span class="chip">' + escapeHtml(String(http)) + "</span>");
-      } else {
-        var pcl = statusPillClass(http);
-        parts.push('<span class="' + pcl + '">' + escapeHtml(String(http)) + "</span>");
-      }
-    }
-    if (!parts.length) {
-      return '<span class="sum-evlog-status__empty" aria-hidden="true"></span>';
-    }
-    return parts.join("");
-  }
-
-  function sumEvlogMsgCellInnerHtml(ev, badgeOpt, opts) {
-    opts = opts || {};
-    var parsed = ev.parsed;
-    var badgeHtml = "";
-    var hideIndexerBadge =
-      opts.suppressIndexerBadge && badgeOpt && (badgeOpt.lab === "chimera-indexer" || badgeOpt.lab === "indexer");
-    var hideVectorstoreBadge = opts.suppressVectorstoreBadge && badgeOpt && badgeOpt.lab === "chimera-vectorstore";
-    var hideGatewayBadge =
-      opts.suppressGatewayBadge && badgeOpt && (badgeOpt.lab === "chimera-gateway" || badgeOpt.lab === "gateway");
-    if (badgeOpt && badgeOpt.lab && !hideIndexerBadge && !hideVectorstoreBadge && !hideGatewayBadge) {
-      badgeHtml =
-        '<span class="sum-svc-badge ' +
-        badgeOpt.cls +
-        '">' +
-        escapeHtml(badgeOpt.lab) +
-        "</span>";
-    }
-    var tierHtml = "";
-    if (opts.convJoinTier && opts.convJoinTier !== "direct") {
-      var tl = String(opts.convJoinTier);
-      var safeTl = tl.replace(/[^a-z0-9_-]/gi, "");
-      if (!safeTl) safeTl = "tier";
-      var tierTitle = "Join tier";
-      if (opts.vectorstoreSpanID) {
-        tierTitle += " · span " + String(opts.vectorstoreSpanID);
-      }
-      if (opts.vectorstoreTurnIndex != null && opts.vectorstoreTurnIndex !== "") {
-        tierTitle += " · turn " + String(opts.vectorstoreTurnIndex);
-      }
-      tierHtml =
-        '<span class="sum-conv-tier sum-conv-tier--' +
-        safeTl +
-        '" title="' +
-        escapeHtml(tierTitle) +
-        '">' +
-        escapeHtml(tl.replace(/_/g, " ")) +
-        "</span>";
-    }
-    var msg = escapeHtml(primaryLogMessage(parsed, ev.text, { forEventLog: true }));
-    return badgeHtml + tierHtml + msg;
-  }
-
-  function sumEvlogRowTrHtml(entLike, cardScope, rowIndex, badgeOpt, summaryOpts) {
-    summaryOpts = summaryOpts || {};
-    var parsed = entLike.parsed;
-    var flat = getFlat(parsed);
-    var http = sumEvlogHttpCode(parsed, flat);
-    var lvlRaw = parsed.levelCanon || (parsed.levelLabel && parsed.levelLabel !== "—" ? parsed.levelLabel : "");
-    var lvlStr = lvlRaw ? String(lvlRaw).trim() : "";
-    var lvlAttr = escapeHtml(lvlStr.toUpperCase());
-    var httpAttr = http == null ? "" : ' data-evlog-http="' + escapeHtml(String(http)) + '"';
-    var rowId = escapeHtml(sumEvlogStableRowId(cardScope, entLike, rowIndex));
-    var iso = toIsoDatetimeAttr(entLike.ts);
-    var dt = formatLogDateTimeLocal(entLike.ts);
-    var rel = formatLogRelativeAgo(entLike.ts);
-    var msgInner = sumEvlogMsgCellInnerHtml(entLike, badgeOpt, summaryOpts);
-    var statusInner = sumEvlogStatusInnerHtml(parsed);
-    return (
-      '<tr class="sum-evlog__row" data-evlog-id="' +
-      rowId +
-      '" data-evlog-level="' +
-      lvlAttr +
-      '"' +
-      httpAttr +
-      ">" +
-      '<td class="sum-evlog__cell--time"><time' +
-      (iso ? ' datetime="' + escapeHtml(iso) + '"' : "") +
-      ' title="' +
-      escapeHtml(rel) +
-      '">' +
-      escapeHtml(dt) +
-      "</time></td>" +
-      '<td class="sum-evlog__cell--msg">' +
-      msgInner +
-      "</td>" +
-      '<td class="sum-evlog__cell--status"><div class="sum-evlog-status">' +
-      statusInner +
-      "</div></td></tr>"
-    );
-  }
-
-  function sumEvlogToolbarStaticHtml() {
-    return (
-      '<div class="sum-evlog__toolbar">' +
-      '<input class="sum-evlog__search" type="search" placeholder="Search…" aria-label="Search log entries" autocomplete="off" />' +
-      '<label class="sum-evlog__lvl-label" style="margin-left:auto">' +
-      '<span class="sum-evlog__level-filters-label" style="margin-right:0.35rem">Status</span>' +
-      '<select class="sum-evlog__filter-select" data-evlog-filter-status aria-label="Filter by severity">' +
-      '<option value="all">All</option>' +
-      '<option value="warnings">⚠ Warnings</option>' +
-      '<option value="errors">✖ Errors</option>' +
-      "</select></label>" +
-      '<button type="button" class="sum-evlog__copy-btn" title="Copy as TSV — selected rows, or all visible if none selected" aria-label="Copy as TSV: selected rows, or all visible if none selected">' +
-      '<svg class="sum-evlog__copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>' +
-      '<span class="sr-only"></span></button></div>'
-    );
-  }
-
-  function sumEvlogPanelHtml(o) {
-    o = o || {};
-    var scrollTbodyId = o.scrollTbodyId || "sum-evlog-tb";
-    var warnN = o.warnN != null ? o.warnN : 0;
-    var failN = o.failN != null ? o.failN : 0;
-    var tbodyInner = o.tbodyInnerHtml || "";
-    var title = o.title != null ? o.title : "Full event log";
-    var titleRightHtml = o.titleRightHtml || "";
-    var titleBlock = titleRightHtml
-      ? '<div class="sum-conv-full-log-head sum-evlog__title-row">' +
-          '<div class="sum-section-label">' + escapeHtml(title) + "</div>" +
-          '<div class="sum-conv-services-after-log-hdr">' + titleRightHtml + "</div>" +
-        "</div>"
-      : '<div class="sum-section-label">' + escapeHtml(title) + "</div>";
-    return (
-      '<div class="sum-evlog sum-evlog--in-card" data-sum-evlog-root>' +
-      titleBlock +
-      sumEvlogToolbarStaticHtml() +
-      '<div class="sum-metrics-table-wrap sum-evlog__table-scroll">' +
-      '<table class="sum-metrics-table sum-evlog__table">' +
-      '<colgroup><col class="sum-evlog__col-time" /><col class="sum-evlog__col-msg" /><col class="sum-evlog__col-status" /></colgroup>' +
-      '<thead><tr><th class="sum-evlog__cell--time" scope="col">Time</th><th scope="col">Message</th><th class="sum-evlog__th-status" scope="col">' +
-      '<div class="sum-evlog__th-status-head" role="group" aria-label="Status: warning and error counts in this slice">' +
-      '<span class="sum-evlog__th-status-label">Status</span>' +
-      '<span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN sum-evlog-metric-num" data-sum-evlog-metric-warn title="Lines with WARN or HTTP 429 in this card">' +
-      escapeHtml(String(warnN)) +
-      "</span>" +
-      '<span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN sum-evlog__metric-icon" aria-hidden="true">⚠</span>' +
-      '<span class="sum-evlog-status__pill sum-evlog-status__lvl--ERROR sum-evlog-metric-num" data-sum-evlog-metric-fail title="Lines with ERROR or HTTP non-2xx in this card">' +
-      escapeHtml(String(failN)) +
-      "</span>" +
-      '<span class="sum-evlog-status__pill sum-evlog-status__lvl--ERROR sum-evlog__metric-icon" aria-hidden="true">✖</span>' +
-      "</div></th></tr></thead>" +
-      '<tbody id="' +
-      escapeHtml(scrollTbodyId) +
-      '" data-sum-evlog-tbody>' +
-      tbodyInner +
-      "</tbody></table></div>" +
-      '<div class="sum-evlog__footer-row">' +
-      '<div class="sum-evlog__footer-left">' +
-      '<p class="sum-evlog__footer" data-sum-evlog-oldest></p></div>' +
-      '<p class="sum-evlog__toast sum-gallery-evlog__toast-align" data-sum-evlog-toast></p></div>' +
-      "</div>"
-    );
-  }
-
-  function sumEvlogBuildTbodyFromConvEvents(evs, turnGroups, cardScope) {
-    var parts = [];
-    var rowIdx = 0;
-    function pushEvent(evT) {
-      var evLine = {
-        parsed: evT.parsed,
-        text: evT.text != null && evT.text !== undefined ? evT.text : "",
-        ts: evT.ts,
-        source: evT.source,
-        seq: evT.seq
-      };
-      var bd = inferServiceBadge(evLine);
-      parts.push(
-        sumEvlogRowTrHtml(evLine, cardScope, rowIdx, bd, {
-          convJoinTier: evT.convJoinTier,
-          vectorstoreSpanID: evT.vectorstoreSpanID,
-          vectorstoreTurnIndex: evT.vectorstoreTurnIndex
-        })
-      );
-      rowIdx++;
-    }
-    if (turnGroups && turnGroups.length > 1) {
-      for (var tgi = 0; tgi < turnGroups.length; tgi++) {
-        var tg = turnGroups[tgi];
-        parts.push(
-          '<tr class="sum-evlog__section"><td colspan="3" class="sum-evlog__section-cell">' +
-          escapeHtml(tg.label) +
-          "</td></tr>"
-        );
-        for (var ti2 = tg.events.length - 1; ti2 >= 0; ti2--) {
-          pushEvent(tg.events[ti2]);
-        }
-      }
-    } else {
-      for (var u = evs.length - 1; u >= 0; u--) {
-        pushEvent(evs[u]);
-      }
-    }
-    return parts.join("");
-  }
-
-  function sumEvlogBuildTbodyFromServiceEntries(name, arr, opts) {
-    opts = opts || {};
-    var cardScope = opts.cardScope || strHash("svc:" + name);
-    var parts = [];
-    var rowIdx = 0;
-    for (var u = arr.length - 1; u >= 0; u--) {
-      var ent2 = arr[u];
-      if (
-        opts.filterGatewayProbe &&
-        !gatewayPanelShowProbes &&
-        globalThis.ChimeraLogs &&
-        ChimeraLogs.Derive &&
-        typeof ChimeraLogs.Derive.gatewayPanelHideRow === "function" &&
-        ChimeraLogs.Derive.gatewayPanelHideRow(ent2, function (p) {
-          return getFlat(p);
-        })
-      ) {
-        continue;
-      }
-      var ev2 = {
-        parsed: ent2.parsed,
-        text: ent2.text,
-        ts: ent2.ts,
-        source: ent2.source,
-        seq: ent2.seq
-      };
-      var summaryOpts =
-        name === "chimera-indexer"
-          ? { suppressIndexerBadge: true }
-          : name === "chimera-vectorstore"
-            ? { suppressVectorstoreBadge: true }
-            : name === "chimera-gateway"
-              ? { suppressGatewayBadge: true }
-              : {};
-      var bd2 = opts.indexerRunLine ? badgeForIndexerRunLine(ent2) : badgeForServicePanel(name, ev2);
-      parts.push(sumEvlogRowTrHtml(ev2, cardScope, rowIdx, bd2, summaryOpts));
-      rowIdx++;
-    }
-    return parts.join("");
-  }
-
-  function sumEvlogVisibleEntriesForService(name, arr, filterProbe) {
-    var vis = [];
-    for (var u = arr.length - 1; u >= 0; u--) {
-      var ent2 = arr[u];
-      if (
-        filterProbe &&
-        !gatewayPanelShowProbes &&
-        globalThis.ChimeraLogs &&
-        ChimeraLogs.Derive &&
-        typeof ChimeraLogs.Derive.gatewayPanelHideRow === "function" &&
-        ChimeraLogs.Derive.gatewayPanelHideRow(ent2, function (p) {
-          return getFlat(p);
-        })
-      ) {
-        continue;
-      }
-      vis.push(ent2);
-    }
-    return vis;
-  }
-
-  function eventOneLiner(ev) {
-    return primaryLogMessage(ev.parsed, ev.text);
-  }
-
-  function buildLogsHref(query) {
-    try {
-      var p = new URLSearchParams(window.location.search);
-      var q = query || {};
-      for (var k in q) {
-        if (q[k] === null || q[k] === undefined) p.delete(k);
-        else p.set(k, String(q[k]));
-      }
-      return window.location.pathname + (p.toString() ? "?" + p.toString() : "");
-    } catch (e) {
-      return "#";
-    }
-  }
-
-  function scheduleFocusTargets() {
-    window.setTimeout(function () {
-      if (focusSeq) {
-        var fs = String(focusSeq).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-        var tr = tbody ? tbody.querySelector("tr[data-log-seq=\"" + fs + '"]') : null;
-        if (tr) {
-          tr.scrollIntoView({ block: "center", behavior: "smooth" });
-          tr.style.outline = "2px solid #0b57d0";
-        }
-        return;
-      }
-      if (focusConv) {
-        var id = strHash((focusPrincipal || "") + "\0" + focusConv);
-        var el = document.getElementById(id);
-        if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
-      }
-    }, 120);
-  }
-
-  function rebuildAllRows() {
-    if (!tbody || !fltApp || !fltLevel) return;
-    var rawTa = null;
-    var rawWasAtBottom = false;
-    if (viewMode === "raw_logs") {
-      rawTa = document.getElementById("raw-logs-textarea");
-      rawWasAtBottom = nearBottomTextarea(rawTa);
-    }
-    tbody.innerHTML = "";
-    fltApp.innerHTML = '<option value="">All</option>';
-    levelOptionSet = { "": true, "(none)": true, DEBUG: true, INFO: true, WARN: true, ERROR: true };
-    for (var i = 0; i < entryCache.length; i++) {
-      var ent = entryCache[i];
-      var parsed = ent.parsed;
-      ensureAppOption(parsed.app);
-      if (parsed.levelCanon) ensureLevelOption(parsed.levelCanon);
-      if (viewMode === "raw") {
-        appendTableRow(parsed, false, ent.seq, ent.ts, ent.text);
-      }
-    }
-    syncFiltersFromStorage();
-    if (viewMode === "summarized") refreshSummarizedPanel();
-    else if (viewMode === "raw_logs") rebuildRawLogsTextarea({ scrollBottom: rawWasAtBottom });
-    else applyFilters();
-    scheduleFocusTargets();
-    if (viewMode === "raw" && !focusSeq && !focusConv) {
-      window.requestAnimationFrame(function () {
-        window.scrollTo(0, document.documentElement.scrollHeight);
-      });
-    }
-    if (viewMode === "raw_logs" && rawWasAtBottom && !focusSeq && !focusConv) {
-      window.requestAnimationFrame(function () {
-        var ta = document.getElementById("raw-logs-textarea");
-        if (ta) ta.scrollTop = ta.scrollHeight;
-      });
-    }
-  }
-
+globalThis.ChimeraLogs.App = globalThis.ChimeraLogs.App || {};
+globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
+  var C = ctx.contracts || (globalThis.ChimeraLogs && ChimeraLogs.Contracts) || {};
+  var entryCache = ctx.entryCache;
+  var getViewMode = ctx.getViewMode;
+  var getFlat = ctx.getFlat;
+  var escapeHtml = ctx.escapeHtml;
+  var strHash = ctx.strHash;
+  var entryInstant = ctx.entryInstant;
+  var inferShape = ctx.inferShape;
+  var normalizeServiceBucketKey = ctx.normalizeServiceBucketKey;
+  var logSummaryHtml = ctx.logSummaryHtml;
+  var primaryLogMessage = ctx.primaryLogMessage;
+  var operatorFriendlyGatewayMsg = ctx.operatorFriendlyGatewayMsg;
+  var buildHeadlineHtml = ctx.buildHeadlineHtml;
+  var buildDetailsColumn = ctx.buildDetailsColumn;
+  var buildLogsHref = ctx.buildLogsHref;
+  var scheduleFocusTargets = ctx.scheduleFocusTargets;
+  var stickPx = ctx.stickPx;
+  var focusPrincipal = ctx.focusPrincipal;
+  var focusConv = ctx.focusConv;
+  var focusSeq = ctx.focusSeq;
+  var focusCard = ctx.focusCard;
+  var embedded = ctx.embedded;
+  var GW_PROBES_LS = ctx.GW_PROBES_LS;
+  var INDEXER_WATCH_ROOTS_LS = ctx.INDEXER_WATCH_ROOTS_LS;
+  var RECENT_CARD_STATUS_N = ctx.RECENT_CARD_STATUS_N;
+  var CONV_RECENT_N = ctx.CONV_RECENT_N;
+  var sumEvlogRowTrHtml = ctx.sumEvlogRowTrHtml;
+  var sumEvlogPanelHtml = ctx.sumEvlogPanelHtml;
+  var sumEvlogBuildTbodyFromConvEvents = ctx.sumEvlogBuildTbodyFromConvEvents;
+  var sumEvlogBuildTbodyFromServiceEntries = ctx.sumEvlogBuildTbodyFromServiceEntries;
+  var sumEvlogVisibleEntriesForService = ctx.sumEvlogVisibleEntriesForService;
+  var sumEvlogToolbarStaticHtml = ctx.sumEvlogToolbarStaticHtml;
   function summarizedEvlogInteractionBlocksRebuild() {
-    if (Date.now() < sumEvlogPointerSuppressedUntil) return true;
+    if (Date.now() < ctx.sumEvlogPointerSuppressedUntil) return true;
     var a = document.activeElement;
     if (!a || !a.closest) return false;
     if (!a.closest("#panel-summarized")) return false;
@@ -1559,11 +56,11 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function scheduleDeferredSummarizedRefresh() {
-    if (sumEvlogUiDeferTimer) clearTimeout(sumEvlogUiDeferTimer);
-    sumEvlogUiDeferTimer = setTimeout(function deferredSumEvlogRefresh() {
-      sumEvlogUiDeferTimer = null;
+    if (ctx.sumEvlogUiDeferTimer) clearTimeout(ctx.sumEvlogUiDeferTimer);
+    ctx.sumEvlogUiDeferTimer = setTimeout(function deferredSumEvlogRefresh() {
+      ctx.sumEvlogUiDeferTimer = null;
       if (summarizedEvlogInteractionBlocksRebuild()) {
-        sumEvlogUiDeferTimer = setTimeout(deferredSumEvlogRefresh, 300);
+        ctx.sumEvlogUiDeferTimer = setTimeout(deferredSumEvlogRefresh, 300);
         return;
       }
       refreshSummarizedPanel();
@@ -1572,7 +69,7 @@ globalThis.ChimeraLogs.Main = function () {
 
   function refreshSummarizedPanel() {
     var psu = document.getElementById("panel-summarized");
-    if (viewMode !== "summarized" || !psu) return;
+    if (getViewMode() !== "summarized" || !psu) return;
     if (summarizedEvlogInteractionBlocksRebuild()) {
       scheduleDeferredSummarizedRefresh();
       return;
@@ -1720,16 +217,16 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   window.__chimeraToggleGatewayProbes = function (on) {
-    gatewayPanelShowProbes = !!on;
+    ctx.gatewayPanelShowProbes = !!on;
     try {
-      localStorage.setItem(GW_PROBES_LS, gatewayPanelShowProbes ? "1" : "0");
+      localStorage.setItem(GW_PROBES_LS, ctx.gatewayPanelShowProbes ? "1" : "0");
     } catch (eTg) {}
     refreshSummarizedPanel();
   };
 
   /** Replace only the gateway metrics card so periodic /api/ui/metrics polls do not rebuild the whole feed. */
   function patchGatewayUsageMetricsCard() {
-    if (viewMode !== "summarized") return;
+    if (getViewMode() !== "summarized") return;
     var psu = document.getElementById("panel-summarized");
     if (!psu) return;
     var oldEl = document.getElementById("gw-usage-metrics");
@@ -1761,7 +258,7 @@ globalThis.ChimeraLogs.Main = function () {
 
   /** Replace only the gateway overview card so /api/ui/state polls avoid full feed rebuilds. */
   function patchGatewayOverviewCard() {
-    if (viewMode !== "summarized") return;
+    if (getViewMode() !== "summarized") return;
     var psu = document.getElementById("panel-summarized");
     if (!psu) return;
     var oldEl = document.getElementById("gw-overview");
@@ -1779,9 +276,9 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function scheduleStoryRebuild() {
-    if (storyRebuildTimer) clearTimeout(storyRebuildTimer);
-    storyRebuildTimer = setTimeout(function () {
-      storyRebuildTimer = null;
+    if (ctx.storyRebuildTimer) clearTimeout(ctx.storyRebuildTimer);
+    ctx.storyRebuildTimer = setTimeout(function () {
+      ctx.storyRebuildTimer = null;
       refreshSummarizedPanel();
       scheduleFocusTargets();
     }, 80);
@@ -1943,15 +440,15 @@ globalThis.ChimeraLogs.Main = function () {
       })
       .then(function (data) {
         if (!data) return;
-        metricsCache = data;
-        if (viewMode === "summarized") patchGatewayUsageMetricsCard();
+        ctx.metricsCache = data;
+        if (getViewMode() === "summarized") patchGatewayUsageMetricsCard();
       })
       .catch(function (e) {
-        metricsCache = {
+        ctx.metricsCache = {
           metrics_store_open: false,
           message: e && e.message ? String(e.message) : String(e)
         };
-        if (viewMode === "summarized") patchGatewayUsageMetricsCard();
+        if (getViewMode() === "summarized") patchGatewayUsageMetricsCard();
       });
   }
 
@@ -1962,7 +459,7 @@ globalThis.ChimeraLogs.Main = function () {
       } catch (x) { }
       metricsPollTimer = null;
     }
-    if (viewMode !== "summarized") return;
+    if (getViewMode() !== "summarized") return;
     fetchGatewayMetrics();
     metricsPollTimer = setInterval(fetchGatewayMetrics, METRICS_POLL_MS);
   }
@@ -1976,14 +473,14 @@ globalThis.ChimeraLogs.Main = function () {
       })
       .then(function (data) {
         if (!data || !data.gateway) return;
-        gatewayOverviewCache = data.gateway;
-        if (viewMode === "summarized") patchGatewayOverviewCard();
+        ctx.gatewayOverviewCache = data.gateway;
+        if (getViewMode() === "summarized") patchGatewayOverviewCard();
       })
       .catch(function (e) {
-        gatewayOverviewCache = {
+        ctx.gatewayOverviewCache = {
           _error: e && e.message ? String(e.message) : String(e)
         };
-        if (viewMode === "summarized") patchGatewayOverviewCard();
+        if (getViewMode() === "summarized") patchGatewayOverviewCard();
       });
   }
 
@@ -1994,7 +491,7 @@ globalThis.ChimeraLogs.Main = function () {
       } catch (x) {}
       gatewayOverviewPollTimer = null;
     }
-    if (viewMode !== "summarized") return;
+    if (getViewMode() !== "summarized") return;
     fetchGatewayOverview();
     gatewayOverviewPollTimer = setInterval(fetchGatewayOverview, GATEWAY_OVERVIEW_POLL_MS);
   }
@@ -2008,8 +505,8 @@ globalThis.ChimeraLogs.Main = function () {
       })
       .then(function (data) {
         if (!data) return;
-        chimeraBrokerProviderSnapshot = { fetchedClientMs: Date.now(), data: data };
-        if (viewMode === "summarized") patchChimeraBrokerProviderHealthStrip();
+        ctx.chimeraBrokerProviderSnapshot = { fetchedClientMs: Date.now(), data: data };
+        if (getViewMode() === "summarized") patchChimeraBrokerProviderHealthStrip();
       })
       .catch(function () {
         // Keep any prior snapshot — staleness check in the renderer handles fallback.
@@ -2023,14 +520,14 @@ globalThis.ChimeraLogs.Main = function () {
       } catch (x) { }
       chimeraBrokerProviderPollTimer = null;
     }
-    if (viewMode !== "summarized") return;
+    if (getViewMode() !== "summarized") return;
     fetchChimeraBrokerProviderSnapshot();
     chimeraBrokerProviderPollTimer = setInterval(fetchChimeraBrokerProviderSnapshot, CHIMERA_BROKER_PROVIDER_POLL_MS);
   }
 
   /** Replace chimera-broker provider health UI after a snapshot poll (expanded strip + collapsed summary indicators). */
   function patchChimeraBrokerProviderHealthStrip() {
-    if (viewMode !== "summarized") return;
+    if (getViewMode() !== "summarized") return;
     var arr = collectChimeraBrokerBufferForStrip();
     var oldEl = document.getElementById("chimera-broker-provider-health-strip");
     if (oldEl) {
@@ -2139,18 +636,18 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function findWorkspaceDraft(id) {
-    for (var i = 0; i < workspaceDrafts.length; i++) {
-      if (workspaceDrafts[i].id === id) return workspaceDrafts[i];
+    for (var i = 0; i < ctx.workspaceDrafts.length; i++) {
+      if (ctx.workspaceDrafts[i].id === id) return ctx.workspaceDrafts[i];
     }
     return null;
   }
 
   function removeWorkspaceDraft(id) {
     var next = [];
-    for (var i = 0; i < workspaceDrafts.length; i++) {
-      if (workspaceDrafts[i].id !== id) next.push(workspaceDrafts[i]);
+    for (var i = 0; i < ctx.workspaceDrafts.length; i++) {
+      if (ctx.workspaceDrafts[i].id !== id) next.push(ctx.workspaceDrafts[i]);
     }
-    workspaceDrafts = next;
+    ctx.workspaceDrafts = next;
   }
 
   function notifyWorkspaceDraftMsg(msg, isErr) {
@@ -2322,17 +819,17 @@ globalThis.ChimeraLogs.Main = function () {
         removeWorkspaceDraft(draftId);
         notifyWorkspaceDraftMsg("Workspace saved.", false);
         if (j && Array.isArray(j.roots)) {
-          lastIndexerOperatorRoots = j.roots;
+          ctx.lastIndexerOperatorRoots = j.roots;
           try {
-            lastIndexerOperatorRootsJson = JSON.stringify(j.roots);
+            ctx.lastIndexerOperatorRootsJson = JSON.stringify(j.roots);
           } catch (_eSaveRoots) {
-            lastIndexerOperatorRootsJson = "";
+            ctx.lastIndexerOperatorRootsJson = "";
           }
         }
         if (j && j.workspace && typeof j.workspace === "object") {
           mergeWorkspaceIntoOperatorNested(j.workspace);
         } else if (j && Array.isArray(j.roots)) {
-          lastIndexerOperatorWorkspacesNested = dedupeOperatorWorkspacesNested(
+          ctx.lastIndexerOperatorWorkspacesNested = dedupeOperatorWorkspacesNested(
             deriveNestedWorkspacesFromFlatRoots(j.roots)
           );
         }
@@ -2474,7 +971,7 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function buildGatewayOverviewCardHtml() {
-    var data = gatewayOverviewCache;
+    var data = ctx.gatewayOverviewCache;
     var loading = !data;
     var hasErr = !!(data && data._error);
     var semver = data && data.semver ? String(data.semver) : "—";
@@ -2602,7 +1099,7 @@ globalThis.ChimeraLogs.Main = function () {
       })
       .then(function (j) {
         if (!j) return;
-        adminStateCache = j;
+        ctx.adminStateCache = j;
       });
   }
 
@@ -2615,12 +1112,12 @@ globalThis.ChimeraLogs.Main = function () {
       })
       .then(function (j) {
         if (!j) return;
-        tokenListCache = Array.isArray(j.tokens) ? j.tokens : [];
-        for (var i = 0; i < tokenListCache.length; i++) {
-          var row = tokenListCache[i] || {};
+        ctx.tokenListCache = Array.isArray(j.tokens) ? j.tokens : [];
+        for (var i = 0; i < ctx.tokenListCache.length; i++) {
+          var row = ctx.tokenListCache[i] || {};
           var tid = row.tenant_id != null ? String(row.tenant_id).trim() : "";
           var tok = row.token != null ? String(row.token).trim() : "";
-          if (tid && tok) adminCreatedTokenByTenant[tid] = tok;
+          if (tid && tok) ctx.adminCreatedTokenByTenant[tid] = tok;
         }
       });
   }
@@ -2630,13 +1127,13 @@ globalThis.ChimeraLogs.Main = function () {
       try { clearInterval(adminStatePollTimer); } catch (_e) {}
       adminStatePollTimer = null;
     }
-    if (viewMode !== "summarized") return;
+    if (getViewMode() !== "summarized") return;
     Promise.all([fetchAdminState(), fetchAdminTokens()])
-      .then(function () { if (viewMode === "summarized") refreshSummarizedPanel(); })
+      .then(function () { if (getViewMode() === "summarized") refreshSummarizedPanel(); })
       .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
     adminStatePollTimer = setInterval(function () {
       Promise.all([fetchAdminState(), fetchAdminTokens()])
-        .then(function () { if (viewMode === "summarized") refreshSummarizedPanel(); })
+        .then(function () { if (getViewMode() === "summarized") refreshSummarizedPanel(); })
         .catch(function () {});
     }, ADMIN_STATE_POLL_MS);
   }
@@ -2672,16 +1169,16 @@ globalThis.ChimeraLogs.Main = function () {
     if (providerId === "groq") return "sum-av-a";
     if (providerId === "gemini") return "sum-av-b";
     if (providerId === "ollama") return "sum-av-c";
-    return "sum-av-svc-upstream";
+    return "sum-av-svc-chimera-broker";
   }
 
   function adminProviderHealthEntry(providerId) {
-    if (!providerId || !chimeraBrokerProviderSnapshot || !chimeraBrokerProviderSnapshot.data || !Array.isArray(chimeraBrokerProviderSnapshot.data.providers)) {
+    if (!providerId || !ctx.chimeraBrokerProviderSnapshot || !ctx.chimeraBrokerProviderSnapshot.data || !Array.isArray(ctx.chimeraBrokerProviderSnapshot.data.providers)) {
       return null;
     }
-    var snapshotAgeMs = Date.now() - Number(chimeraBrokerProviderSnapshot.fetchedClientMs || 0);
+    var snapshotAgeMs = Date.now() - Number(ctx.chimeraBrokerProviderSnapshot.fetchedClientMs || 0);
     if (snapshotAgeMs > CHIMERA_BROKER_PROVIDER_STALE_MS) return null;
-    var list = chimeraBrokerProviderSnapshot.data.providers;
+    var list = ctx.chimeraBrokerProviderSnapshot.data.providers;
     for (var i = 0; i < list.length; i++) {
       var row = list[i] || {};
       if (String(row.id || "").toLowerCase() === String(providerId).toLowerCase()) return row;
@@ -2705,7 +1202,7 @@ globalThis.ChimeraLogs.Main = function () {
   function adminProviderModelCount(providerId) {
     var listed = adminProviderCatalogModels(providerId);
     if (listed.length) return listed.length;
-    var data = metricsCache || {};
+    var data = ctx.metricsCache || {};
     var rows = [];
     if (Array.isArray(data.day_rollups) && data.day_rollups.length) rows = data.day_rollups;
     else if (Array.isArray(data.minute_rollups) && data.minute_rollups.length) rows = data.minute_rollups;
@@ -2897,10 +1394,10 @@ globalThis.ChimeraLogs.Main = function () {
   function adminProviderCatalogModels(providerId) {
     var pid = String(providerId || "").toLowerCase();
     if (!pid) return [];
-    if (!chimeraBrokerProviderSnapshot || !chimeraBrokerProviderSnapshot.data || !Array.isArray(chimeraBrokerProviderSnapshot.data.providers)) return [];
-    var snapshotAgeMs = Date.now() - Number(chimeraBrokerProviderSnapshot.fetchedClientMs || 0);
+    if (!ctx.chimeraBrokerProviderSnapshot || !ctx.chimeraBrokerProviderSnapshot.data || !Array.isArray(ctx.chimeraBrokerProviderSnapshot.data.providers)) return [];
+    var snapshotAgeMs = Date.now() - Number(ctx.chimeraBrokerProviderSnapshot.fetchedClientMs || 0);
     if (snapshotAgeMs > CHIMERA_BROKER_PROVIDER_STALE_MS) return [];
-    var providers = chimeraBrokerProviderSnapshot.data.providers;
+    var providers = ctx.chimeraBrokerProviderSnapshot.data.providers;
     for (var i = 0; i < providers.length; i++) {
       var row = providers[i] || {};
       if (String(row.id || "").toLowerCase() !== pid) continue;
@@ -2928,7 +1425,7 @@ globalThis.ChimeraLogs.Main = function () {
       if (!listed) continue;
       out[listed] = { model_id: listed, calls: 0, errors: 0 };
     }
-    var data = metricsCache || {};
+    var data = ctx.metricsCache || {};
     var rows = Array.isArray(data.day_rollups) && data.day_rollups.length
       ? data.day_rollups
       : (Array.isArray(data.minute_rollups) ? data.minute_rollups : []);
@@ -2960,7 +1457,7 @@ globalThis.ChimeraLogs.Main = function () {
 
   function adminModelUsageById() {
     var out = {};
-    var data = metricsCache || {};
+    var data = ctx.metricsCache || {};
     var rows = Array.isArray(data.day_rollups) && data.day_rollups.length
       ? data.day_rollups
       : (Array.isArray(data.minute_rollups) ? data.minute_rollups : []);
@@ -3047,7 +1544,7 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function adminBuildUserCardHtml(principalId, tokensForUser, stats) {
-    var label = tokenLabelByTenant[principalId] || (tokensForUser[0] && tokensForUser[0].label) || principalId;
+    var label = ctx.tokenLabelByTenant[principalId] || (tokensForUser[0] && tokensForUser[0].label) || principalId;
     var initials = avatarInitials(label);
     var convN = 0;
     var wsN = 0;
@@ -3067,8 +1564,8 @@ globalThis.ChimeraLogs.Main = function () {
     var tokenRaw = "";
     if (tokensForUser[0] && tokensForUser[0].token != null && String(tokensForUser[0].token).trim() !== "") {
       tokenRaw = String(tokensForUser[0].token).trim();
-    } else if (adminCreatedTokenByTenant[principalId]) {
-      tokenRaw = String(adminCreatedTokenByTenant[principalId] || "").trim();
+    } else if (ctx.adminCreatedTokenByTenant[principalId]) {
+      tokenRaw = String(ctx.adminCreatedTokenByTenant[principalId] || "").trim();
     }
     var createdTokenHint = tokenRaw ? ("****************************" + tokenRaw.slice(-4)) : "****************************";
     var createdTokenCopyBtn = tokenRaw
@@ -3121,7 +1618,7 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function buildAdminUsersCardHtml() {
-    var toks = tokenListCache || [];
+    var toks = ctx.tokenListCache || [];
     var byPrincipal = {};
     for (var i = 0; i < toks.length; i++) {
       var row = toks[i] || {};
@@ -3132,7 +1629,7 @@ globalThis.ChimeraLogs.Main = function () {
     }
     var userStats = adminUserStatsByPrincipal();
     var draftHtml = "";
-    for (var d = 0; d < adminUserDrafts.length; d++) draftHtml += buildAdminUserDraftCardHtml(adminUserDrafts[d]);
+    for (var d = 0; d < ctx.adminUserDrafts.length; d++) draftHtml += buildAdminUserDraftCardHtml(ctx.adminUserDrafts[d]);
     var usersHtml = "";
     var pids = Object.keys(byPrincipal);
     pids.sort();
@@ -3153,7 +1650,7 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function buildAdminProviderCardHtml(providerId, title, avatar, subtitle) {
-    var st = adminStateCache || {};
+    var st = ctx.adminStateCache || {};
     var p = st.providers || {};
     var row = p[providerId] || {};
     var keys = row && Array.isArray(row.keys) ? row.keys : [];
@@ -3228,9 +1725,9 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function buildAdminRoutingRulesCardHtml() {
-    var gw = (adminStateCache && adminStateCache.gateway) || {};
+    var gw = (ctx.adminStateCache && ctx.adminStateCache.gateway) || {};
     var policy = gw.routing_policy_yaml || "";
-    var policyLive = routingPolicyDraft != null ? String(routingPolicyDraft) : String(policy);
+    var policyLive = ctx.routingPolicyDraft != null ? String(ctx.routingPolicyDraft) : String(policy);
     var policyDirty = String(policyLive) !== String(policy);
     var rulesCount = countRoutingRulesFromYAML(policyLive);
     var freeTierOnly = !!gw.filter_free_tier_models;
@@ -3279,17 +1776,17 @@ globalThis.ChimeraLogs.Main = function () {
       '<div class="sg-op-head-row">' +
       '<div class="sum-section-label">Routing Policy</div>' +
       '<div class="sg-op-head-actions">' +
-      (adminRoutingEditing
+      (ctx.adminRoutingEditing
         ? ('<button class="sg-op-btn sg-op-btn--ghost sg-op-btn--toggle' + (freeTierOnly ? " is-active" : "") + '" type="button" data-admin-action="routing-free-tier-toggle" aria-pressed="' + (freeTierOnly ? "true" : "false") + '">Free Tier Only</button>' +
           '<button class="sg-op-btn sg-op-btn--ghost" type="button" data-admin-action="routing-generate">Generate from live catalog</button>' +
           '<button class="sg-op-btn sg-op-btn--ghost" type="button" data-admin-action="routing-cancel">Cancel</button>')
         : '<button class="sg-op-btn" type="button" data-admin-action="routing-configure">Configure</button>') +
       "</div>" +
       "</div>" +
-      '<div id="admin-routing-table-view"' + (adminRoutingEditing ? " hidden" : "") + ">" +
+      '<div id="admin-routing-table-view"' + (ctx.adminRoutingEditing ? " hidden" : "") + ">" +
       '<div class="sum-metrics-table-wrap sg-op-routing-table-scroll"><table class="sum-metrics-table"><thead><tr><th>Name</th><th>Match</th><th>Models</th><th class="num">Hits (24h)</th></tr></thead><tbody>' + tableRows + "</tbody></table></div>" +
       "</div>" +
-      '<div id="admin-routing-yaml-view"' + (adminRoutingEditing ? "" : " hidden") + ">" +
+      '<div id="admin-routing-yaml-view"' + (ctx.adminRoutingEditing ? "" : " hidden") + ">" +
       '<div id="admin-routing-policy-wrap" class="sg-op-yaml-wrap sg-op-yaml-wrap--full' + (policyDirty ? " sg-op-yaml-wrap--dirty" : "") + '">' +
       '<textarea id="admin-routing-yaml" class="sg-op-yaml-textarea" rows="10" spellcheck="false">' + escapeHtml(policyLive) + "</textarea>" +
       '<div class="sg-op-yaml-ov">' +
@@ -3302,12 +1799,12 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function buildAdminFallbackCardHtml() {
-    var gw = (adminStateCache && adminStateCache.gateway) || {};
+    var gw = (ctx.adminStateCache && ctx.adminStateCache.gateway) || {};
     var fallback = Array.isArray(gw.fallback_chain) ? gw.fallback_chain : [];
     var freeTierOnly = !!gw.filter_free_tier_models;
-    var fallbackYAML = fallbackTouched ? ((document.getElementById("admin-fallback-yaml") && document.getElementById("admin-fallback-yaml").value) || fallbackChainToYAML(fallback)) : fallbackChainToYAML(fallback);
+    var fallbackYAML = ctx.fallbackTouched ? ((document.getElementById("admin-fallback-yaml") && document.getElementById("admin-fallback-yaml").value) || fallbackChainToYAML(fallback)) : fallbackChainToYAML(fallback);
     var chain = fallback;
-    if (fallbackTouched) {
+    if (ctx.fallbackTouched) {
       try {
         chain = parseFallbackChainInput(fallbackYAML);
       } catch (_eFbParse) {
@@ -3339,17 +1836,17 @@ globalThis.ChimeraLogs.Main = function () {
       '<div class="sg-op-head-row">' +
       '<div class="sum-section-label">Fallback Order</div>' +
       '<div class="sg-op-head-actions">' +
-      (adminFallbackEditing
+      (ctx.adminFallbackEditing
         ? ('<button class="sg-op-btn sg-op-btn--ghost sg-op-btn--toggle' + (freeTierOnly ? " is-active" : "") + '" type="button" data-admin-action="routing-free-tier-toggle" aria-pressed="' + (freeTierOnly ? "true" : "false") + '">Free Tier Only</button>' +
           '<button class="sg-op-btn sg-op-btn--ghost" type="button" data-admin-action="routing-generate">Generate from live catalog</button>' +
           '<button class="sg-op-btn sg-op-btn--ghost" type="button" data-admin-action="fallback-cancel">Cancel</button>')
         : '<button class="sg-op-btn" type="button" data-admin-action="fallback-configure">Configure</button>') +
       "</div></div>" +
-      '<div id="admin-fallback-table-view"' + (adminFallbackEditing ? " hidden" : "") + ">" +
+      '<div id="admin-fallback-table-view"' + (ctx.adminFallbackEditing ? " hidden" : "") + ">" +
       '<div class="sum-metrics-table-wrap sg-op-fallback-table-scroll"><table class="sum-metrics-table sg-op-fallback-table"><thead><tr><th class="num">Order</th><th>Provider</th><th>Model</th><th class="num">Uses (24h)</th></tr></thead><tbody>' + tableRows + "</tbody></table></div>" +
       "</div>" +
-      '<div id="admin-fallback-yaml-view"' + (adminFallbackEditing ? "" : " hidden") + ">" +
-      '<div id="admin-fallback-yaml-wrap" class="sg-op-yaml-wrap sg-op-yaml-wrap--full' + (fallbackTouched ? " sg-op-yaml-wrap--dirty" : "") + '">' +
+      '<div id="admin-fallback-yaml-view"' + (ctx.adminFallbackEditing ? "" : " hidden") + ">" +
+      '<div id="admin-fallback-yaml-wrap" class="sg-op-yaml-wrap sg-op-yaml-wrap--full' + (ctx.fallbackTouched ? " sg-op-yaml-wrap--dirty" : "") + '">' +
       '<textarea id="admin-fallback-yaml" class="sg-op-yaml-textarea" rows="8" spellcheck="false">' + escapeHtml(fallbackYAML) + "</textarea>" +
       '<div class="sg-op-yaml-ov"><button type="button" class="sg-op-yaml-ov-btn" data-admin-action="fallback-refresh" title="Revert fallback chain" aria-label="Revert fallback chain"><span class="sg-op-reload-icon" aria-hidden="true"></span></button>' +
       '<button type="button" class="sg-op-yaml-ov-btn sg-op-yaml-ov-btn--save sg-op-yaml-ov-save" data-admin-action="fallback-save">Save</button></div></div>' +
@@ -3360,17 +1857,17 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function buildAdminRouterModelCardHtml() {
-    var gw = (adminStateCache && adminStateCache.gateway) || {};
+    var gw = (ctx.adminStateCache && ctx.adminStateCache.gateway) || {};
     var routerModels = Array.isArray(gw.router_models) ? gw.router_models : [];
     var freeTierOnly = !!gw.filter_free_tier_models;
     var thresholdSaved = String(gw.tool_router_confidence_threshold != null ? gw.tool_router_confidence_threshold : 0.5);
-    var threshold = routerThresholdTouched && routerThresholdDraft != null ? String(routerThresholdDraft) : thresholdSaved;
-    var routerEnabled = routerEnabledTouched && routerEnabledDraft != null ? !!routerEnabledDraft : !!gw.tool_router_enabled;
-    var routerModelsYAML = routerModelsTouched
-      ? String(routerModelsDraft != null ? routerModelsDraft : ((document.getElementById("admin-router-models-yaml") && document.getElementById("admin-router-models-yaml").value) || fallbackChainToYAML(routerModels)))
+    var threshold = ctx.routerThresholdTouched && ctx.routerThresholdDraft != null ? String(ctx.routerThresholdDraft) : thresholdSaved;
+    var routerEnabled = ctx.routerEnabledTouched && ctx.routerEnabledDraft != null ? !!ctx.routerEnabledDraft : !!gw.tool_router_enabled;
+    var routerModelsYAML = ctx.routerModelsTouched
+      ? String(ctx.routerModelsDraft != null ? ctx.routerModelsDraft : ((document.getElementById("admin-router-models-yaml") && document.getElementById("admin-router-models-yaml").value) || fallbackChainToYAML(routerModels)))
       : fallbackChainToYAML(routerModels);
     var routerChain = routerModels;
-    if (routerModelsTouched) {
+    if (ctx.routerModelsTouched) {
       try {
         routerChain = parseFallbackChainInput(routerModelsYAML);
       } catch (_eRouterParse) {
@@ -3406,17 +1903,17 @@ globalThis.ChimeraLogs.Main = function () {
       '<div class="sg-op-head-row">' +
       '<div class="sum-section-label">Router Models</div>' +
       '<div class="sg-op-head-actions">' +
-      (adminRouterEditing
+      (ctx.adminRouterEditing
         ? ('<button class="sg-op-btn sg-op-btn--ghost sg-op-btn--toggle' + (freeTierOnly ? " is-active" : "") + '" type="button" data-admin-action="routing-free-tier-toggle" aria-pressed="' + (freeTierOnly ? "true" : "false") + '">Free Tier Only</button>' +
           '<button class="sg-op-btn sg-op-btn--ghost" type="button" data-admin-action="routing-generate">Generate from live catalog</button>' +
           '<button class="sg-op-btn sg-op-btn--ghost" type="button" data-admin-action="router-cancel">Cancel</button>')
         : '<button class="sg-op-btn" type="button" data-admin-action="router-configure">Configure</button>') +
       "</div></div>" +
-      '<div id="admin-router-table-view"' + (adminRouterEditing ? " hidden" : "") + ">" +
+      '<div id="admin-router-table-view"' + (ctx.adminRouterEditing ? " hidden" : "") + ">" +
       '<div class="sum-metrics-table-wrap sg-op-router-table-scroll"><table class="sum-metrics-table sg-op-router-table"><thead><tr><th class="num">Order</th><th>Provider</th><th>Model</th><th class="num">Uses (24h)</th></tr></thead><tbody>' + routerTableRows + "</tbody></table></div>" +
       "</div>" +
-      '<div id="admin-router-yaml-view"' + (adminRouterEditing ? "" : " hidden") + ">" +
-      '<div id="admin-router-models-wrap" class="sg-op-yaml-wrap sg-op-yaml-wrap--full' + (routerModelsTouched ? " sg-op-yaml-wrap--dirty" : "") + '">' +
+      '<div id="admin-router-yaml-view"' + (ctx.adminRouterEditing ? "" : " hidden") + ">" +
+      '<div id="admin-router-models-wrap" class="sg-op-yaml-wrap sg-op-yaml-wrap--full' + (ctx.routerModelsTouched ? " sg-op-yaml-wrap--dirty" : "") + '">' +
       '<textarea id="admin-router-models-yaml" class="sg-op-yaml-textarea" rows="8" spellcheck="false">' + escapeHtml(routerModelsYAML) + "</textarea>" +
       '<div class="sg-op-yaml-ov"><button type="button" class="sg-op-yaml-ov-btn" data-admin-action="router-models-refresh" title="Revert router models" aria-label="Revert router models"><span class="sg-op-reload-icon" aria-hidden="true"></span></button>' +
       '<button type="button" class="sg-op-yaml-ov-btn sg-op-yaml-ov-btn--save sg-op-yaml-ov-save" data-admin-action="router-save">Save</button></div></div>' +
@@ -3471,7 +1968,7 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function buildGatewayUsageCardHtml() {
-    var data = metricsCache;
+    var data = ctx.metricsCache;
     var m =
       globalThis.ChimeraLogs &&
         globalThis.ChimeraLogs.Derive &&
@@ -3561,7 +2058,7 @@ globalThis.ChimeraLogs.Main = function () {
       })
       .then(function (data) {
         if (!data || !Array.isArray(data.tokens)) return;
-        tokenLabelByTenant = {};
+        ctx.tokenLabelByTenant = {};
         for (var i = 0; i < data.tokens.length; i++) {
           var row = data.tokens[i];
           var tid =
@@ -3570,14 +2067,14 @@ globalThis.ChimeraLogs.Main = function () {
               : "";
           if (!tid) continue;
           var tok = row.token != null && String(row.token).trim() !== "" ? String(row.token).trim() : "";
-          if (tok) adminCreatedTokenByTenant[tid] = tok;
+          if (tok) ctx.adminCreatedTokenByTenant[tid] = tok;
           var lb =
             row.label != null && String(row.label).trim() !== ""
               ? String(row.label).trim()
               : "";
-          tokenLabelByTenant[tid] = lb || tid;
+          ctx.tokenLabelByTenant[tid] = lb || tid;
         }
-        if (viewMode === "summarized") scheduleStoryRebuild();
+        if (getViewMode() === "summarized") scheduleStoryRebuild();
       })
       .catch(function () { });
   }
@@ -3586,7 +2083,7 @@ globalThis.ChimeraLogs.Main = function () {
   function formatConversationCardTitle(tenantId, convId) {
     var tid = String(tenantId || "").trim();
     if (!tid) tid = "(unknown principal)";
-    var lab = tokenLabelByTenant[tid];
+    var lab = ctx.tokenLabelByTenant[tid];
     var head;
     if (lab && lab !== tid)
       head = escapeHtml(lab) + " (" + escapeHtml(tid) + ")";
@@ -3630,7 +2127,7 @@ globalThis.ChimeraLogs.Main = function () {
     if (src === "chimera-indexer" || sh.indexOf("chimera-indexer") === 0 || f.service === "chimera-indexer")
       return { cls: "sum-svc-indexer", lab: "chimera-indexer" };
     if (src === "chimera-broker" || sh.indexOf("chimera-broker") >= 0 || sh.indexOf("chat.chimera-broker") === 0)
-      return { cls: "sum-svc-upstream", lab: "chimera-broker" };
+      return { cls: "sum-svc-broker", lab: "chimera-broker" };
     if (sh === "http.access" || (f.method && f.path)) return { cls: "sum-svc-web", lab: "web" };
     if (sh === "chat.routing") return { cls: "sum-svc-gateway", lab: "routing" };
     if (
@@ -4243,11 +2740,11 @@ globalThis.ChimeraLogs.Main = function () {
     var stateLabel = { up: "up", down: "down", key_missing: "key missing", unknown: "unknown" };
     var list = null;
     var liveErr = "";
-    if (chimeraBrokerProviderSnapshot && chimeraBrokerProviderSnapshot.data && Array.isArray(chimeraBrokerProviderSnapshot.data.providers)) {
-      var snapshotAgeMs = Date.now() - Number(chimeraBrokerProviderSnapshot.fetchedClientMs || 0);
+    if (ctx.chimeraBrokerProviderSnapshot && ctx.chimeraBrokerProviderSnapshot.data && Array.isArray(ctx.chimeraBrokerProviderSnapshot.data.providers)) {
+      var snapshotAgeMs = Date.now() - Number(ctx.chimeraBrokerProviderSnapshot.fetchedClientMs || 0);
       if (snapshotAgeMs <= CHIMERA_BROKER_PROVIDER_STALE_MS) {
-        list = chimeraBrokerProviderSnapshot.data.providers.slice();
-        liveErr = String(chimeraBrokerProviderSnapshot.data.error || "").trim();
+        list = ctx.chimeraBrokerProviderSnapshot.data.providers.slice();
+        liveErr = String(ctx.chimeraBrokerProviderSnapshot.data.error || "").trim();
       }
     }
     if (!list && globalThis.ChimeraLogs && ChimeraLogs.Derive && typeof ChimeraLogs.Derive.chimeraBrokerProviderHealthList === "function") {
@@ -4461,7 +2958,7 @@ globalThis.ChimeraLogs.Main = function () {
     if (name === "chimera-broker") {
       var w = { parsed: ev.parsed, text: ev.text, ts: ev.ts, source: ev.source };
       if (entryIsGatewayUpstreamRelay(w)) {
-        return { cls: "sum-svc-upstream sum-svc-badge-filled sum-svc-upstream-filled", lab: "chimera-broker" };
+        return { cls: "sum-svc-broker sum-svc-badge-filled sum-svc-broker-filled", lab: "chimera-broker" };
       }
       return null;
     }
@@ -5301,7 +3798,7 @@ globalThis.ChimeraLogs.Main = function () {
     if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.Derive && globalThis.ChimeraLogs.Derive.collectIndexerRunMeta) {
       return globalThis.ChimeraLogs.Derive.collectIndexerRunMeta(runId, evs, {
         getFlat: function (p) { return getFlat(p); },
-        tokenLabelByTenant: tokenLabelByTenant,
+        ctx.tokenLabelByTenant: ctx.tokenLabelByTenant,
         indexerFlatMsg: function (fl) { return indexerFlatMsg(fl); },
         flatLooksLikeIndexerRunStart: function (fl) { return flatLooksLikeIndexerRunStart(fl); },
         flatLooksLikeIndexerRunDone: function (fl) { return flatLooksLikeIndexerRunDone(fl); },
@@ -5391,7 +3888,7 @@ globalThis.ChimeraLogs.Main = function () {
     }
     var filepath = watchRootPathsFb.length ? watchRootPathsFb.join("\n") : "—";
 
-    var userLab = tenantId ? tokenLabelByTenant[tenantId] || tenantId : "—";
+    var userLab = tenantId ? ctx.tokenLabelByTenant[tenantId] || tenantId : "—";
 
     return {
       runId: runId,
@@ -5528,7 +4025,7 @@ globalThis.ChimeraLogs.Main = function () {
         ? g.pid + "\0" + g.cids.slice().sort().join("\0")
         : g.pid + "\0" + g.cid;
     var cardId = strHash(cardKey);
-    var ini = avatarInitials(tokenLabelByTenant[g.pid] || g.pid);
+    var ini = avatarInitials(ctx.tokenLabelByTenant[g.pid] || g.pid);
     var av = avatarHueClass(cardKey);
     var sumChips = conversationCardChipsSummaryHtml(cardModel);
     var metrics =
@@ -5664,7 +4161,7 @@ globalThis.ChimeraLogs.Main = function () {
     if (!ws || ws.id == null) return;
     var wid = canonicalWorkspaceRowIdKey(ws.id);
     if (!wid) return;
-    var arr = lastIndexerOperatorWorkspacesNested.slice();
+    var arr = ctx.lastIndexerOperatorWorkspacesNested.slice();
     var replaced = false;
     var ii;
     for (ii = 0; ii < arr.length; ii++) {
@@ -5675,17 +4172,17 @@ globalThis.ChimeraLogs.Main = function () {
       }
     }
     if (!replaced) arr.push(ws);
-    lastIndexerOperatorWorkspacesNested = dedupeOperatorWorkspacesNested(arr);
+    ctx.lastIndexerOperatorWorkspacesNested = dedupeOperatorWorkspacesNested(arr);
   }
 
   function syncIndexerOperatorPayloadFromConfigJson(d) {
     if (!d || typeof d !== "object") return;
     var roots = Array.isArray(d.roots) ? d.roots : [];
-    lastIndexerOperatorRoots = roots;
+    ctx.lastIndexerOperatorRoots = roots;
     try {
-      lastIndexerOperatorRootsJson = JSON.stringify(roots);
+      ctx.lastIndexerOperatorRootsJson = JSON.stringify(roots);
     } catch (_eSyn) {
-      lastIndexerOperatorRootsJson = "";
+      ctx.lastIndexerOperatorRootsJson = "";
     }
     if (Array.isArray(d.workspaces) && d.workspaces.length) {
       var seenWs = {};
@@ -5709,11 +4206,11 @@ globalThis.ChimeraLogs.Main = function () {
         seenWs[wkey] = true;
         uniqWs.push(ww);
       }
-      lastIndexerOperatorWorkspacesNested = dedupeOperatorWorkspacesNested(
+      ctx.lastIndexerOperatorWorkspacesNested = dedupeOperatorWorkspacesNested(
         uniqWs.length ? uniqWs : deriveNestedWorkspacesFromFlatRoots(roots)
       );
     } else {
-      lastIndexerOperatorWorkspacesNested = dedupeOperatorWorkspacesNested(
+      ctx.lastIndexerOperatorWorkspacesNested = dedupeOperatorWorkspacesNested(
         deriveNestedWorkspacesFromFlatRoots(roots)
       );
     }
@@ -5724,11 +4221,11 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function resolveLogsOperatorUserLabel() {
-    var z = tokenLabelByTenant[""];
+    var z = ctx.tokenLabelByTenant[""];
     if (z != null && String(z).trim() !== "") return String(z).trim();
-    var ks = Object.keys(tokenLabelByTenant);
+    var ks = Object.keys(ctx.tokenLabelByTenant);
     for (var i = 0; i < ks.length; i++) {
-      var v = tokenLabelByTenant[ks[i]];
+      var v = ctx.tokenLabelByTenant[ks[i]];
       if (v != null && String(v).trim() !== "") return String(v).trim();
     }
     return "—";
@@ -5955,14 +4452,14 @@ globalThis.ChimeraLogs.Main = function () {
         return res.json();
       })
       .then(function (d) {
-        var prevRootsJ = lastIndexerOperatorRootsJson;
+        var prevRootsJ = ctx.lastIndexerOperatorRootsJson;
         syncIndexerOperatorPayloadFromConfigJson(d);
-        var nextRootsJ = lastIndexerOperatorRootsJson;
-        var nextRoots = lastIndexerOperatorRoots;
+        var nextRootsJ = ctx.lastIndexerOperatorRootsJson;
+        var nextRoots = ctx.lastIndexerOperatorRoots;
         var prevHadRoots = prevRootsJ !== "" && prevRootsJ !== "[]";
         if (
           nextRootsJ !== prevRootsJ &&
-          viewMode === "summarized" &&
+          getViewMode() === "summarized" &&
           (nextRoots.length > 0 || prevHadRoots) &&
           !indexerOperatorRootsRefreshQueued
         ) {
@@ -5979,8 +4476,8 @@ globalThis.ChimeraLogs.Main = function () {
             : '<span class="muted">—</span>';
         }
         if (wsEl && Array.isArray(d.roots) && d.roots.length > 0) {
-          var br = lastIndexerSummarizeByRun;
-          var preg = lastIndexerSummarizePartitionRegistry;
+          var br = ctx.lastIndexerSummarizeByRun;
+          var preg = ctx.lastIndexerSummarizePartitionRegistry;
           var rows = [];
           for (var ri = 0; ri < d.roots.length; ri++) {
             var rowR = d.roots[ri] || {};
@@ -6631,9 +5128,9 @@ globalThis.ChimeraLogs.Main = function () {
 
   function buildVectorstoreCollectionScopeLabelMap() {
     var map = {};
-    var byRun = lastIndexerSummarizeByRun;
+    var byRun = ctx.lastIndexerSummarizeByRun;
     if (!byRun || typeof byRun !== "object") return map;
-    var preg = lastIndexerSummarizePartitionRegistry;
+    var preg = ctx.lastIndexerSummarizePartitionRegistry;
     var keys = Object.keys(byRun);
     for (var i = 0; i < keys.length; i++) {
       var run = byRun[keys[i]];
@@ -6664,11 +5161,11 @@ globalThis.ChimeraLogs.Main = function () {
 
   function vectorstoreCollectionScopeLabelForLogs(collRaw) {
     if (
-      lastIndexerSummarizeByRun !== vectorstoreScopeLabelMapCacheRun ||
-      lastIndexerSummarizePartitionRegistry !== vectorstoreScopeLabelMapCachePreg
+      ctx.lastIndexerSummarizeByRun !== vectorstoreScopeLabelMapCacheRun ||
+      ctx.lastIndexerSummarizePartitionRegistry !== vectorstoreScopeLabelMapCachePreg
     ) {
-      vectorstoreScopeLabelMapCacheRun = lastIndexerSummarizeByRun;
-      vectorstoreScopeLabelMapCachePreg = lastIndexerSummarizePartitionRegistry;
+      vectorstoreScopeLabelMapCacheRun = ctx.lastIndexerSummarizeByRun;
+      vectorstoreScopeLabelMapCachePreg = ctx.lastIndexerSummarizePartitionRegistry;
       vectorstoreScopeLabelMapCache = buildVectorstoreCollectionScopeLabelMap();
     }
     var c = String(collRaw != null ? collRaw : "").trim();
@@ -6830,7 +5327,7 @@ globalThis.ChimeraLogs.Main = function () {
   function mergeOperatorStorePathsIntoIndexerMeta(meta) {
     if (!meta || typeof meta !== "object") return meta;
     if (meta.watchRootPaths && meta.watchRootPaths.length) return meta;
-    var roots = lastIndexerOperatorRoots;
+    var roots = ctx.lastIndexerOperatorRoots;
     if (!roots || !roots.length) return meta;
     var mp = meta.projectId && meta.projectId !== "—" ? String(meta.projectId).trim() : "";
     if (!mp) return meta;
@@ -6928,7 +5425,7 @@ globalThis.ChimeraLogs.Main = function () {
 
   function findOperatorWorkspaceByNumericId(wsNum) {
     if (!wsNum) return null;
-    var wsn = lastIndexerOperatorWorkspacesNested || [];
+    var wsn = ctx.lastIndexerOperatorWorkspacesNested || [];
     var hi;
     for (hi = 0; hi < wsn.length; hi++) {
       if (operatorWorkspaceNumericId(wsn[hi]) === wsNum) return wsn[hi];
@@ -6941,7 +5438,7 @@ globalThis.ChimeraLogs.Main = function () {
    * Configure / path editing UI on the IX card (managed-only cards are omitted when "covered").
    */
   function findOperatorWorkspaceMatchingIndexerMeta(meta) {
-    if (!meta || !lastIndexerOperatorWorkspacesNested || !lastIndexerOperatorWorkspacesNested.length)
+    if (!meta || !ctx.lastIndexerOperatorWorkspacesNested || !ctx.lastIndexerOperatorWorkspacesNested.length)
       return null;
     var mw =
       meta.workspaceId && meta.workspaceId !== "—" ? String(meta.workspaceId).trim() : "";
@@ -6949,8 +5446,8 @@ globalThis.ChimeraLogs.Main = function () {
       var wkey = canonicalWorkspaceRowIdKey(mw);
       if (wkey) {
         var hi;
-        for (hi = 0; hi < lastIndexerOperatorWorkspacesNested.length; hi++) {
-          var w = lastIndexerOperatorWorkspacesNested[hi];
+        for (hi = 0; hi < ctx.lastIndexerOperatorWorkspacesNested.length; hi++) {
+          var w = ctx.lastIndexerOperatorWorkspacesNested[hi];
           if (canonicalWorkspaceRowIdKey(w.id) === wkey) return w;
         }
       }
@@ -6960,8 +5457,8 @@ globalThis.ChimeraLogs.Main = function () {
     var mf = normalizeFlavorMatch(meta.flavorId);
     var mpaths = meta.watchRootPaths && meta.watchRootPaths.length ? meta.watchRootPaths : [];
     if (!mpaths.length) return null;
-    for (hi = 0; hi < lastIndexerOperatorWorkspacesNested.length; hi++) {
-      var wx = lastIndexerOperatorWorkspacesNested[hi];
+    for (hi = 0; hi < ctx.lastIndexerOperatorWorkspacesNested.length; hi++) {
+      var wx = ctx.lastIndexerOperatorWorkspacesNested[hi];
       var xp = wx.project_id != null ? String(wx.project_id).trim() : "";
       if (xp !== mp) continue;
       if (normalizeFlavorMatch(wx.flavor_id) !== mf) continue;
@@ -7054,8 +5551,8 @@ globalThis.ChimeraLogs.Main = function () {
       return;
     }
     var snap = normalizeManagedPathRowsForEdit(ws);
-    workspaceManagedEditId = wsNum;
-    workspaceManagedStaging = {
+    ctx.workspaceManagedEditId = wsNum;
+    ctx.workspaceManagedStaging = {
       wsNum: wsNum,
       initialSnapshot: cloneManagedPathRows(snap),
       paths: cloneManagedPathRows(snap)
@@ -7064,8 +5561,8 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function cancelWorkspaceManagedEdit() {
-    workspaceManagedEditId = null;
-    workspaceManagedStaging = null;
+    ctx.workspaceManagedEditId = null;
+    ctx.workspaceManagedStaging = null;
     scheduleStoryRebuild();
   }
 
@@ -7081,7 +5578,7 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function saveManagedWorkspacePaths(wsNum) {
-    var st = workspaceManagedStaging;
+    var st = ctx.workspaceManagedStaging;
     if (!st || st.wsNum !== wsNum || !Array.isArray(st.paths)) {
       notifyWorkspaceDraftMsg("Nothing to save.", true);
       return;
@@ -7146,8 +5643,8 @@ globalThis.ChimeraLogs.Main = function () {
     }
     chain
       .then(function () {
-        workspaceManagedEditId = null;
-        workspaceManagedStaging = null;
+        ctx.workspaceManagedEditId = null;
+        ctx.workspaceManagedStaging = null;
         notifyWorkspaceDraftMsg("Workspace updated.", false);
         return refreshOperatorIndexerWorkspaceStateFromConfig();
       })
@@ -7171,8 +5668,8 @@ globalThis.ChimeraLogs.Main = function () {
         });
       })
       .then(function () {
-        workspaceManagedEditId = null;
-        workspaceManagedStaging = null;
+        ctx.workspaceManagedEditId = null;
+        ctx.workspaceManagedStaging = null;
         notifyWorkspaceDraftMsg("Workspace removed.", false);
         return refreshOperatorIndexerWorkspaceStateFromConfig();
       })
@@ -7214,13 +5711,13 @@ globalThis.ChimeraLogs.Main = function () {
         : "Saved · waiting for indexer logs (reload supervised config or restart the indexer if this persists)";
     var wsNum = operatorWorkspaceNumericId(ws);
     var isEdit =
-      workspaceManagedEditId != null &&
-      workspaceManagedEditId === wsNum &&
-      workspaceManagedStaging != null &&
-      workspaceManagedStaging.wsNum === wsNum;
+      ctx.workspaceManagedEditId != null &&
+      ctx.workspaceManagedEditId === wsNum &&
+      ctx.workspaceManagedStaging != null &&
+      ctx.workspaceManagedStaging.wsNum === wsNum;
     var pathsBlockHtml = null;
     if (isEdit) {
-      pathsBlockHtml = buildManagedWorkspacePathsEditHtml(wsNum, workspaceManagedStaging.paths);
+      pathsBlockHtml = buildManagedWorkspacePathsEditHtml(wsNum, ctx.workspaceManagedStaging.paths);
     }
     var toolbar = buildManagedWorkspaceToolbarHtml(wsNum, isEdit);
     var wsRowKey = canonicalWorkspaceRowIdKey(ws.id);
@@ -7291,13 +5788,13 @@ globalThis.ChimeraLogs.Main = function () {
     }
     var isIxEdit =
       wsNumIx > 0 &&
-      workspaceManagedEditId != null &&
-      workspaceManagedEditId === wsNumIx &&
-      workspaceManagedStaging != null &&
-      workspaceManagedStaging.wsNum === wsNumIx;
+      ctx.workspaceManagedEditId != null &&
+      ctx.workspaceManagedEditId === wsNumIx &&
+      ctx.workspaceManagedStaging != null &&
+      ctx.workspaceManagedStaging.wsNum === wsNumIx;
     var pathsBlockIx = null;
     if (isIxEdit) {
-      pathsBlockIx = buildManagedWorkspacePathsEditHtml(wsNumIx, workspaceManagedStaging.paths);
+      pathsBlockIx = buildManagedWorkspacePathsEditHtml(wsNumIx, ctx.workspaceManagedStaging.paths);
     }
     var toolbarIx = wsNumIx > 0 ? buildManagedWorkspaceToolbarHtml(wsNumIx, isIxEdit) : "";
     var lastProg = meta.lastProg;
@@ -7507,7 +6004,7 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function rebuildIndexerRootScopeMaps() {
-    indexerRootScopeByRootId = {};
+    ctx.indexerRootScopeByRootId = {};
     if (
       !globalThis.ChimeraLogs ||
       !ChimeraLogs.Derive ||
@@ -7531,7 +6028,7 @@ globalThis.ChimeraLogs.Main = function () {
         if (!row || typeof row !== "object") continue;
         var rslug = row.root_id != null ? String(row.root_id).trim() : "";
         if (!rslug) continue;
-        indexerRootScopeByRootId[rslug] = {
+        ctx.indexerRootScopeByRootId[rslug] = {
           workspace_id: row.workspace_id != null ? String(row.workspace_id).trim() : "",
           path: row.path != null ? String(row.path).trim() : "",
           ingest_project: row.ingest_project != null ? String(row.ingest_project).trim() : "",
@@ -7567,7 +6064,7 @@ globalThis.ChimeraLogs.Main = function () {
     var wantWid = String(segs[1] || "").trim();
     var wantProj = String(segs[2] || "").trim();
     var wantFlav = segs.length > 3 ? normalizeIndexerScopeFlavor(segs[3]) : "";
-    var ctx = operatorWsFullLogCtx[bucketId];
+    var ctx = ctx.operatorWsFullLogCtx[bucketId];
     var roots = ctx && ctx.paths ? ctx.paths : [];
     var ei;
     for (ei = entryCache.length - 1; ei >= 0; ei--) {
@@ -7588,8 +6085,8 @@ globalThis.ChimeraLogs.Main = function () {
         return String(f.tenant_id || f.principal_id || f.tenant || "").trim();
       }
       var rk = f.root != null ? String(f.root).trim() : "";
-      if (wantWid && rk && indexerRootScopeByRootId[rk]) {
-        var rsi = indexerRootScopeByRootId[rk];
+      if (wantWid && rk && ctx.indexerRootScopeByRootId[rk]) {
+        var rsi = ctx.indexerRootScopeByRootId[rk];
         if (String(rsi.workspace_id || "") === wantWid) {
           return String(f.tenant_id || f.principal_id || f.tenant || "").trim();
         }
@@ -7613,11 +6110,11 @@ globalThis.ChimeraLogs.Main = function () {
     if (fp !== wantProj || ff !== wantFlav) return false;
     var sw = f.scope_workspace_id != null ? String(f.scope_workspace_id).trim() : "";
     if (wantWid && sw === wantWid) return true;
-    var ctx = operatorWsFullLogCtx[bucketId];
+    var ctx = ctx.operatorWsFullLogCtx[bucketId];
     var roots = ctx && ctx.paths ? ctx.paths : [];
     var rk = f.root != null ? String(f.root).trim() : "";
-    if (wantWid && rk && indexerRootScopeByRootId[rk]) {
-      var rsi = indexerRootScopeByRootId[rk];
+    if (wantWid && rk && ctx.indexerRootScopeByRootId[rk]) {
+      var rsi = ctx.indexerRootScopeByRootId[rk];
       if (String(rsi.workspace_id || "") === wantWid) return true;
       if (rsi.path && roots.length && rootUnderOneOfPrefixes(rsi.path, roots)) return true;
     }
@@ -7630,7 +6127,7 @@ globalThis.ChimeraLogs.Main = function () {
     var pj = String(ws.project_id != null ? ws.project_id : "").trim();
     var fvKey = normalizeIndexerScopeFlavor(ws.flavor_id);
     var bucketId = "opws\u001e" + wid + "\u001e" + pj + "\u001e" + fvKey;
-    operatorWsFullLogCtx[bucketId] = { paths: operatorWorkspacePaths(ws).slice() };
+    ctx.operatorWsFullLogCtx[bucketId] = { paths: operatorWorkspacePaths(ws).slice() };
     return bucketId;
   }
 
@@ -7879,7 +6376,7 @@ globalThis.ChimeraLogs.Main = function () {
   }
 
   function renderSummarizedUnified() {
-    operatorWsFullLogCtx = {};
+    ctx.operatorWsFullLogCtx = {};
     rebuildIndexerRootScopeMaps();
     var groups = {};
     var reqToConv = {};
@@ -8037,8 +6534,8 @@ globalThis.ChimeraLogs.Main = function () {
         byRun[normK] = { id: normK, events: arrN };
       }
     }
-    lastIndexerSummarizeByRun = byRun;
-    lastIndexerSummarizePartitionRegistry = partitionRegistry;
+    ctx.lastIndexerSummarizeByRun = byRun;
+    ctx.lastIndexerSummarizePartitionRegistry = partitionRegistry;
     var qFan = buckets["chimera-vectorstore"];
     if (qFan && qFan.length && byRun && Object.keys(byRun).length) {
       var collByRun = {};
@@ -8240,7 +6737,7 @@ globalThis.ChimeraLogs.Main = function () {
         });
       }
     }
-    var wsn = dedupeOperatorWorkspacesNested(lastIndexerOperatorWorkspacesNested.slice());
+    var wsn = dedupeOperatorWorkspacesNested(ctx.lastIndexerOperatorWorkspacesNested.slice());
     wsn.sort(function (a, b) {
       var ak = canonicalWorkspaceRowIdKey(a.id);
       var bk = canonicalWorkspaceRowIdKey(b.id);
@@ -8251,8 +6748,8 @@ globalThis.ChimeraLogs.Main = function () {
     });
     var seenManagedWsTitle = Object.create(null);
     var wdx;
-    for (wdx = 0; wdx < workspaceDrafts.length; wdx++) {
-      var draftHead = workspaceDraftComparableManagedTitle(workspaceDrafts[wdx]);
+    for (wdx = 0; wdx < ctx.workspaceDrafts.length; wdx++) {
+      var draftHead = workspaceDraftComparableManagedTitle(ctx.workspaceDrafts[wdx]);
       if (draftHead) seenManagedWsTitle[draftHead] = true;
     }
     if (wsn && wsn.length) {
@@ -8292,8 +6789,8 @@ globalThis.ChimeraLogs.Main = function () {
       "</div>" +
       buildWorkspacesSectionIntroHtml();
     var wdi;
-    for (wdi = 0; wdi < workspaceDrafts.length; wdi++) {
-      body += buildWorkspaceDraftCardHtml(workspaceDrafts[wdi]);
+    for (wdi = 0; wdi < ctx.workspaceDrafts.length; wdi++) {
+      body += buildWorkspaceDraftCardHtml(ctx.workspaceDrafts[wdi]);
     }
     for (var zi = 0; zi < idxTimeline.length; zi++) body += idxTimeline[zi].html;
     body += "</div>";
@@ -8307,1243 +6804,37 @@ globalThis.ChimeraLogs.Main = function () {
       convTimeline.length > 0 ||
       idxTimeline.length > 0 ||
       svcHtml.length > 0 ||
-      workspaceDrafts.length > 0;
+      ctx.workspaceDrafts.length > 0;
     if (!hasThreads) {
       body +=
         '<p class="muted">No conversation / service cards in the <em>loaded</em> window yet. Chat traffic needs <code>conversation_id</code> in structured logs; <strong>scroll to the top</strong> of this feed to load older lines (indexer snapshots often crowd the recent tail). Switch to <strong>StructuredLogs</strong> for the full stream.</p>';
     }
     return body;
   }
-  function appendTableRow(parsed, follow, seq, entryTs, rawText) {
-    var tr = document.createElement("tr");
-    tr.dataset.app = parsed.app;
-    tr.dataset.level = parsed.levelCanon || "";
-    if (seq !== undefined && seq !== null) tr.dataset.logSeq = String(seq);
-    var lvlClass = "lvl-none";
-    if (parsed.levelCanon) {
-      var safe = String(parsed.levelCanon).replace(/[^A-Z0-9_-]/gi, "");
-      if (safe) lvlClass = "lvl-" + safe;
-    }
-    tr.innerHTML =
-      '<td class="col-app">' +
-      escapeHtml(parsed.app) +
-      "</td>" +
-      '<td class="col-dt col-dt-utc">' +
-      parsed.dtUtcHtml +
-      "</td>" +
-      '<td class="col-dt col-dt-local">' +
-      parsed.dtLocalHtml +
-      "</td>" +
-      '<td class="col-lvl ' +
-      lvlClass +
-      '">' +
-      escapeHtml(parsed.levelLabel) +
-      "</td>" +
-      '<td class="col-details">' +
-      buildDetailsColumn(parsed, entryTs, rawText) +
-      "</td>";
-    if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.Filters && globalThis.ChimeraLogs.Filters.matchesRow) {
-      if (!globalThis.ChimeraLogs.Filters.matchesRow(filtersCtx, tr)) tr.style.display = "none";
-    }
-    tbody.appendChild(tr);
-    while (tbody.children.length > CLIENT_CACHE_MAX) {
-      var first = tbody.firstChild;
-      var removedH = first.offsetHeight;
-      tbody.removeChild(first);
-      if (!follow && removedH) {
-        window.scrollTo(0, Math.max(0, window.scrollY - removedH));
-      }
-    }
-    if (follow) {
-      window.scrollTo(0, document.documentElement.scrollHeight);
-    }
-  }
-
-  function buildDetailsCell(extras) {
-    if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.KeyValueGrid) {
-      return globalThis.ChimeraLogs.KeyValueGrid(extras);
-    }
-    if (!extras.length) return '<span class="muted">—</span>';
-    // Fallback keeps legacy behavior if component didn't load for some reason.
-    var s =
-      '<table class="props-table"><colgroup>' +
-      '<col class="col-k" /><col class="col-v" /><col class="col-k" /><col class="col-v" />' +
-      "</colgroup><tbody>";
-    for (var i = 0; i < extras.length; i += 2) {
-      s += "<tr>";
-      s += '<td class="prop-name">' + escapeHtml(extras[i].k) + "</td>";
-      if (i + 1 < extras.length) {
-        s += '<td class="prop-val">' + escapeHtml(extras[i].v) + "</td>";
-        s += '<td class="prop-name">' + escapeHtml(extras[i + 1].k) + "</td>";
-        s += '<td class="prop-val">' + escapeHtml(extras[i + 1].v) + "</td>";
-      } else {
-        s += '<td class="prop-val prop-val-wide" colspan="3">' + escapeHtml(extras[i].v) + "</td>";
-      }
-      s += "</tr>";
-    }
-    s += "</tbody></table>";
-    return s;
-  }
-
-  var transportCtx = {
-    /** When true, ingest into entryCache only; Raw Logs textarea is rebuilt once per batched chunk (initial load). */
-    suppressRawLogsDom: false,
-    /** Raw logs: coalesce DOM refresh to one rAF per frame (see streaming.js scheduleRawLogsDomFlush). */
-    rawLogsRafPending: false,
-    rawLogsFlushFollow: false,
-    getViewMode: function () { return "summarized"; },
-    setViewMode: function (_next) { viewMode = "summarized"; },
-    getEmbedded: function () { return embedded; },
-    getStarted: function () { return started; },
-    setStarted: function (v) { started = !!v; },
-    onViewModeChanged: function () { applyViewLayout(); },
-    statusEl: statusEl,
-    statusLine: statusLine,
-    nearBottom: nearBottom,
-    nearBottomTextarea: nearBottomTextarea,
-    parseLogText: parseLogText,
-    entryCache: entryCache,
-    seenSeq: seenSeq,
-    maxSeqRef: { value: maxSeq },
-    minLoadedSeqRef: { value: minLoadedSeq },
-    bufferMinSeqFromServerRef: { value: bufferMinSeqFromServer },
-    olderFetchBusyRef: { value: olderFetchBusy },
-    CLIENT_CACHE_MAX: CLIENT_CACHE_MAX,
-    INITIAL_TAIL_LIMIT: INITIAL_TAIL_LIMIT,
-    BACKFILL_CHUNK: BACKFILL_CHUNK,
-    RENDER_CHUNK: RENDER_CHUNK,
-    scheduleStoryRebuild: scheduleStoryRebuild,
-    rebuildAllRows: rebuildAllRows,
-    rebuildRawLogsTextarea: rebuildRawLogsTextarea,
-    appendRawLineToTextarea: appendRawLineToTextarea,
-    appendTableRow: function () { },
-    applyFilters: function () { },
-    ensureAppOption: function () { },
-    ensureLevelOption: function () { },
-    entryMatchesFilters: function () { return true; },
-    fetchTokenLabels: fetchTokenLabels,
-    startingRef: { value: false },
-    esRef: { value: es },
-    pollTimerRef: { value: pollTimer }
-  };
-
-  (function wireSummarizedEvlogPanels() {
-    if (globalThis.__chimeraLogsSumEvlogWired) return;
-    globalThis.__chimeraLogsSumEvlogWired = true;
-    var searchTimers = typeof WeakMap !== "undefined" ? new WeakMap() : null;
-    /** Pixels from tbody bottom to treat as "stuck to tail" when summarized panel is rebuilt. */
-    var SUM_EVLOG_TB_TAIL_SLACK = 6;
-
-    globalThis.sumEvlogCapturePanelState = function (container) {
-      var out = {};
-      if (!container || !container.querySelectorAll) return out;
-      var roots = container.querySelectorAll("[data-sum-evlog-root]");
-      for (var i = 0; i < roots.length; i++) {
-        var root = roots[i];
-        var tb = root.querySelector("tbody[data-sum-evlog-tbody]");
-        if (!tb || !tb.id) continue;
-        var q = "";
-        try {
-          var inpCap = root.querySelector(".sum-evlog__search");
-          q = inpCap && inpCap.value != null ? String(inpCap.value) : "";
-        } catch (eInC) {}
-        var mode = "all";
-        try {
-          var stCap = root.querySelector("[data-evlog-filter-status]");
-          mode = stCap && stCap.value ? String(stCap.value) : "all";
-        } catch (eStC) {}
-        var selectedIds = [];
-        try {
-          var picked = tb.querySelectorAll("tr[data-evlog-id].sum-evlog__row--selected");
-          for (var pi = 0; pi < picked.length; pi++) {
-            var did = picked[pi].getAttribute("data-evlog-id");
-            if (did) selectedIds.push(did);
-          }
-        } catch (ePk) {}
-        var anchorId = null;
-        try {
-          if (root._sumEvlogAnchor != null && root._sumEvlogAnchor >= 0) {
-            var rowsA = tb.querySelectorAll("tr[data-evlog-id]");
-            var ar = rowsA[root._sumEvlogAnchor];
-            if (ar) anchorId = ar.getAttribute("data-evlog-id");
-          }
-        } catch (eAnc) {}
-        var st = tb.scrollTop;
-        var sh = tb.scrollHeight;
-        var ch = tb.clientHeight;
-        var nearBottom = sh - st - ch <= SUM_EVLOG_TB_TAIL_SLACK;
-        out[tb.id] = {
-          q: q,
-          mode: mode,
-          selectedIds: selectedIds,
-          anchorId: anchorId,
-          scrollTop: st,
-          nearBottom: nearBottom
-        };
-      }
-      return out;
-    };
-
-    globalThis.sumEvlogApplyPanelState = function (container, saved, opts) {
-      opts = opts || {};
-      var scrollOnly = !!opts.scrollOnly;
-      if (!container || !saved || typeof saved !== "object") return;
-      var keys = Object.keys(saved);
-      for (var ki = 0; ki < keys.length; ki++) {
-        var tid = keys[ki];
-        var pack = saved[tid];
-        if (!pack || typeof pack !== "object") continue;
-        var tb = document.getElementById(tid);
-        /* Boolean attribute `data-sum-evlog-tbody` has no value; getAttribute returns "" which is falsy. */
-        if (!tb || !tb.hasAttribute || !tb.hasAttribute("data-sum-evlog-tbody")) {
-          continue;
-        }
-        if (!container.contains(tb)) {
-          continue;
-        }
-        var root = tb.closest("[data-sum-evlog-root]");
-        if (!root) continue;
-
-        if (scrollOnly) {
-          var maxSo = Math.max(0, tb.scrollHeight - tb.clientHeight);
-          if (pack.nearBottom) {
-            tb.scrollTop = maxSo;
-          } else {
-            var wantSo = Number(pack.scrollTop);
-            if (isNaN(wantSo)) wantSo = 0;
-            tb.scrollTop = Math.min(wantSo, maxSo);
-          }
-          continue;
-        }
-
-        var inpAp = root.querySelector(".sum-evlog__search");
-        if (inpAp) inpAp.value = pack.q != null ? String(pack.q) : "";
-        var stSelAp = root.querySelector("[data-evlog-filter-status]");
-        if (stSelAp && pack.mode) stSelAp.value = String(pack.mode);
-        sumEvlogRebuildRoot(root);
-
-        var selIds = pack.selectedIds;
-        if (selIds && selIds.length) {
-          var allR = tb.querySelectorAll("tr[data-evlog-id]");
-          for (var ui = 0; ui < allR.length; ui++) {
-            allR[ui].classList.remove("sum-evlog__row--selected");
-          }
-          for (var sj = 0; sj < selIds.length; sj++) {
-            var wantId = selIds[sj];
-            for (var sk = 0; sk < allR.length; sk++) {
-              if (allR[sk].getAttribute("data-evlog-id") === wantId) {
-                allR[sk].classList.add("sum-evlog__row--selected");
-                break;
-              }
-            }
-          }
-        } else {
-          var prevSel = tb.querySelectorAll("tr[data-evlog-id].sum-evlog__row--selected");
-          for (var u2 = 0; u2 < prevSel.length; u2++) prevSel[u2].classList.remove("sum-evlog__row--selected");
-        }
-
-        var aid = pack.anchorId;
-        if (aid != null && String(aid) !== "") {
-          var rows2 = tb.querySelectorAll("tr[data-evlog-id]");
-          root._sumEvlogAnchor = null;
-          for (var ax = 0; ax < rows2.length; ax++) {
-            if (rows2[ax].getAttribute("data-evlog-id") === aid) {
-              root._sumEvlogAnchor = ax;
-              break;
-            }
-          }
-        } else {
-          root._sumEvlogAnchor = null;
-        }
-
-        sumEvlogSyncFooter(root);
-
-        if (opts.scroll !== false) {
-          var maxT2 = Math.max(0, tb.scrollHeight - tb.clientHeight);
-          if (pack.nearBottom) {
-            tb.scrollTop = maxT2;
-          } else {
-            var want2 = Number(pack.scrollTop);
-            if (isNaN(want2)) want2 = 0;
-            tb.scrollTop = Math.min(want2, maxT2);
-          }
-        }
-      }
-    };
-    function parseHttpAttr(attr) {
-      if (attr == null || String(attr).trim() === "") return null;
-      var n = parseInt(String(attr).trim(), 10);
-      return isNaN(n) ? null : n;
-    }
-    function rowTimespec(tr) {
-      var tEl = tr.querySelector("time[datetime]");
-      if (!tEl || !tEl.getAttribute("datetime")) return NaN;
-      var ms = Date.parse(tEl.getAttribute("datetime"));
-      return isNaN(ms) ? NaN : ms;
-    }
-    function rowSearchBlob(tr) {
-      var blob = "";
-      try {
-        var t = tr.querySelector("time");
-        if (t) blob += " " + t.textContent.trim();
-        var iso = tr.querySelector("time[datetime]");
-        if (iso && iso.getAttribute("datetime")) blob += " " + iso.getAttribute("datetime");
-        var msg = tr.querySelector(".sum-evlog__cell--msg");
-        if (msg) blob += " " + msg.textContent.trim();
-        var stat = tr.querySelector(".sum-evlog__cell--status");
-        if (stat) blob += " " + stat.textContent.trim();
-        var lk = (tr.getAttribute("data-evlog-level") || "").trim().toLowerCase();
-        blob += " " + lk;
-      } catch (e0) {}
-      return blob.toLowerCase().replace(/\s+/g, " ").trim();
-    }
-    function rowPassesStatus(tr, mode) {
-      var http = parseHttpAttr(tr.getAttribute("data-evlog-http"));
-      var lk = (tr.getAttribute("data-evlog-level") || "").trim();
-      if (mode === "all") return true;
-      if (mode === "warnings") return sumEvlogIsWarnish(lk, http);
-      if (mode === "errors") return sumEvlogIsFailish(lk, http);
-      return true;
-    }
-    function ensureSearchEmptyRow(tbody) {
-      var existing = tbody.querySelector("[data-sum-evlog-search-empty]");
-      if (existing) return existing;
-      var tr = document.createElement("tr");
-      tr.className = "sum-evlog__row sum-evlog__search-empty-row";
-      tr.setAttribute("data-sum-evlog-search-empty", "");
-      tr.setAttribute("hidden", "");
-      tr.setAttribute("role", "status");
-      var td = document.createElement("td");
-      td.className = "sum-evlog__search-empty-cell";
-      td.colSpan = 3;
-      td.appendChild(document.createTextNode("No matching entries for your search. "));
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "sum-evlog__clear-inline-search";
-      btn.setAttribute("data-sum-evlog-clear-search", "");
-      btn.appendChild(document.createTextNode("Clear search"));
-      td.appendChild(btn);
-      tr.appendChild(td);
-      tbody.insertBefore(tr, tbody.firstChild);
-      return tr;
-    }
-    function sumEvlogSyncFooter(root) {
-      var foot = root.querySelector("[data-sum-evlog-oldest]");
-      var tbody = root.querySelector("[data-sum-evlog-tbody]");
-      if (!foot || !tbody) return;
-      var picked = tbody.querySelector(
-        "tr[data-evlog-id].sum-evlog__row--selected:not(.sum-evlog__row--hidden)"
-      );
-      if (picked) {
-        var msSel = rowTimespec(picked);
-        var absSel = formatLogDateTimeLocal(msSel);
-        var relSel = formatLogRelativeAgo(msSel);
-        var tEl = picked.querySelector("time[datetime]");
-        var dtAttr = tEl && tEl.getAttribute("datetime") ? tEl.getAttribute("datetime") : "";
-        if (!dtAttr && isFinite(msSel)) {
-          try {
-            dtAttr = new Date(msSel).toISOString();
-          } catch (eIso) {
-            dtAttr = "";
-          }
-        }
-        var timeOpen = dtAttr
-          ? '<time datetime="' + escapeHtml(dtAttr) + '" title="' + escapeHtml(relSel) + '">'
-          : '<time title="' + escapeHtml(relSel) + '">';
-        foot.innerHTML =
-          "Selected entry: " +
-          timeOpen +
-          escapeHtml(absSel) +
-          "</time> <span class=\"sum-evlog__footer-rel\">(" +
-          escapeHtml(relSel) +
-          ")</span>";
-        return;
-      }
-      var oldestMs = root._sumEvlogOldestVisible;
-      foot.innerHTML =
-        "Oldest <strong>visible</strong> entry: <time title=\"" +
-        escapeHtml(formatLogRelativeAgo(oldestMs)) +
-        "\">" +
-        escapeHtml(formatLogDateTimeLocal(isFinite(oldestMs) ? oldestMs : null)) +
-        "</time>";
-    }
-    function sumEvlogRebuildRoot(root) {
-      var tbody = root.querySelector("[data-sum-evlog-tbody]");
-      if (!tbody) return;
-      var select = root.querySelector("[data-evlog-filter-status]");
-      var mode = select && select.value ? select.value : "all";
-      var q = "";
-      try {
-        var inp = root.querySelector(".sum-evlog__search");
-        q = inp && inp.value ? String(inp.value).trim().toLowerCase() : "";
-      } catch (eIn) {}
-      var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr[data-evlog-id]"), 0);
-      var oldest = Infinity;
-      var visibleCount = 0;
-      var i;
-      for (i = 0; i < rows.length; i++) {
-        var tr = rows[i];
-        var show =
-          rowPassesStatus(tr, mode) &&
-          (q === "" || rowSearchBlob(tr).indexOf(q) !== -1);
-        tr.classList.toggle("sum-evlog__row--hidden", !show);
-        if (show) {
-          visibleCount++;
-          var ts = rowTimespec(tr);
-          if (isFinite(ts) && ts < oldest) oldest = ts;
-        }
-      }
-      var searchEmptyRow = tbody.querySelector("[data-sum-evlog-search-empty]");
-      if (searchEmptyRow) {
-        searchEmptyRow.hidden = !(q !== "" && visibleCount === 0);
-      }
-      root._sumEvlogOldestVisible = oldest === Infinity ? NaN : oldest;
-      sumEvlogSyncFooter(root);
-    }
-    function sumEvlogCopyFromRoot(root) {
-      var tbody = root.querySelector("[data-sum-evlog-tbody]");
-      var toast = root.querySelector("[data-sum-evlog-toast]");
-      if (!tbody) return;
-      var lines = [];
-      var picked = tbody.querySelectorAll("tr[data-evlog-id].sum-evlog__row--selected");
-      var allVisible = false;
-      if (picked.length === 0) {
-        picked = tbody.querySelectorAll("tr[data-evlog-id]:not(.sum-evlog__row--hidden)");
-        allVisible = true;
-      }
-      for (var i = 0; i < picked.length; i++) {
-        var tr = picked[i];
-        var t = tr.querySelector("time");
-        var timeStr = t ? t.textContent.trim() : "";
-        var msg = tr.querySelector(".sum-evlog__cell--msg");
-        var msgStr = msg ? msg.textContent.trim().replace(/\s+/g, " ") : "";
-        var stat = tr.querySelector(".sum-evlog__cell--status");
-        var statStr = stat ? stat.textContent.trim().replace(/\s+/g, " ") : "";
-        lines.push(timeStr + "\t" + msgStr + "\t" + statStr);
-      }
-      var text = lines.join("\n");
-      function showToast(ok, msg) {
-        if (!toast) return;
-        toast.classList.toggle("sum-evlog__toast--error", !ok);
-        toast.textContent = msg;
-      }
-      if (!text) {
-        showToast(false, allVisible ? "No visible rows." : "No rows selected.");
-        return;
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(
-          function () {
-            var suffix = allVisible ? " visible line(s)." : " line(s).";
-            showToast(true, "Copied " + lines.length + suffix);
-          },
-          function () {
-            showToast(false, "Clipboard blocked.");
-          }
-        );
-      } else {
-        showToast(false, "Clipboard API unavailable in this browser.");
-      }
-    }
-    function sumEvlogHydrateRoot(root) {
-      var tbody = root.querySelector("[data-sum-evlog-tbody]");
-      if (!tbody) return;
-      ensureSearchEmptyRow(tbody);
-      sumEvlogRebuildRoot(root);
-    }
-    globalThis.sumEvlogHydrateAllIn = function (container) {
-      if (!container || !container.querySelectorAll) return;
-      var roots = container.querySelectorAll("[data-sum-evlog-root]");
-      for (var r = 0; r < roots.length; r++) {
-        sumEvlogHydrateRoot(roots[r]);
-      }
-    };
-    function debounceSearch(root) {
-      if (searchTimers && searchTimers.get) {
-        var prev = searchTimers.get(root);
-        if (prev) window.clearTimeout(prev);
-        searchTimers.set(
-          root,
-          window.setTimeout(function () {
-            searchTimers.delete(root);
-            sumEvlogRebuildRoot(root);
-          }, 120)
-        );
-      } else {
-        window.setTimeout(function () {
-          sumEvlogRebuildRoot(root);
-        }, 120);
-      }
-    }
-    document.body.addEventListener(
-      "input",
-      function (ev) {
-        var el = ev.target;
-        if (!el || !el.classList || !el.classList.contains("sum-evlog__search")) return;
-        var root = el.closest("[data-sum-evlog-root]");
-        if (!root || !root.closest("#panel-summarized")) return;
-        debounceSearch(root);
-      },
-      false
-    );
-    document.body.addEventListener(
-      "change",
-      function (ev) {
-        var el = ev.target;
-        if (!el || !el.closest) return;
-        var root = el.closest("[data-sum-evlog-root]");
-        if (!root || !root.closest("#panel-summarized")) return;
-        if (el.matches("[data-evlog-filter-status]")) {
-          sumEvlogRebuildRoot(root);
-        }
-      },
-      false
-    );
-    document.body.addEventListener(
-      "click",
-      function (ev) {
-        var t = ev.target;
-        if (!t || typeof t.closest !== "function") return;
-        var root = t.closest("[data-sum-evlog-root]");
-        if (!root || !root.closest("#panel-summarized")) return;
-        if (t.closest(".sum-evlog__copy-btn")) {
-          ev.preventDefault();
-          sumEvlogCopyFromRoot(root);
-          return;
-        }
-        var clr = t.closest("[data-sum-evlog-clear-search]");
-        if (clr) {
-          ev.preventDefault();
-          var inp = root.querySelector(".sum-evlog__search");
-          if (inp) inp.value = "";
-          sumEvlogRebuildRoot(root);
-          if (inp) inp.focus();
-          return;
-        }
-        var tr = t.closest("tr[data-evlog-id]");
-        if (!tr || !root.contains(tr)) return;
-        var tbody = tr.parentNode;
-        if (!tbody || !tbody.hasAttribute || !tbody.hasAttribute("data-sum-evlog-tbody")) return;
-        var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr[data-evlog-id]"), 0);
-        function rowIndex(rowsArr, trg) {
-          for (var ri = 0; ri < rowsArr.length; ri++) {
-            if (rowsArr[ri] === trg) return ri;
-          }
-          return -1;
-        }
-        function clearSel() {
-          var sel = tbody.querySelectorAll(".sum-evlog__row--selected");
-          for (var si = 0; si < sel.length; si++) sel[si].classList.remove("sum-evlog__row--selected");
-        }
-        function setRange(lo, hi, on) {
-          var j;
-          for (j = lo; j <= hi && j < rows.length; j++) {
-            if (on) rows[j].classList.add("sum-evlog__row--selected");
-            else rows[j].classList.remove("sum-evlog__row--selected");
-          }
-        }
-        var idx = rowIndex(rows, tr);
-        if (idx < 0) return;
-        if (ev.shiftKey && root._sumEvlogAnchor != null && root._sumEvlogAnchor >= 0) {
-          clearSel();
-          var a = root._sumEvlogAnchor;
-          setRange(Math.min(a, idx), Math.max(a, idx), true);
-          sumEvlogSyncFooter(root);
-          return;
-        }
-        if (ev.ctrlKey || ev.metaKey) {
-          tr.classList.toggle("sum-evlog__row--selected");
-          root._sumEvlogAnchor = idx;
-          sumEvlogSyncFooter(root);
-          return;
-        }
-        clearSel();
-        tr.classList.add("sum-evlog__row--selected");
-        root._sumEvlogAnchor = idx;
-        sumEvlogSyncFooter(root);
-      },
-      false
-    );
-    document.body.addEventListener(
-      "pointerdown",
-      function (ev) {
-        var t = ev.target;
-        if (!t || typeof t.closest !== "function") return;
-        var root = t.closest("[data-sum-evlog-root]");
-        if (!root || !root.closest("#panel-summarized")) return;
-        sumEvlogPointerSuppressedUntil = Date.now() + 480;
-      },
-      true
-    );
-    document.body.addEventListener(
-      "focusout",
-      function (ev) {
-        var t = ev.target;
-        if (!t || !t.closest) return;
-        if (!t.closest("#panel-summarized")) return;
-        var isSearch = t.classList && t.classList.contains("sum-evlog__search");
-        var isStat = t.matches && t.matches("[data-evlog-filter-status]");
-        if (!isSearch && !isStat) return;
-        if (sumEvlogUiDeferTimer) {
-          clearTimeout(sumEvlogUiDeferTimer);
-          sumEvlogUiDeferTimer = null;
-        }
-        if (viewMode === "summarized") scheduleStoryRebuild();
-      },
-      true
-    );
-  })();
-
-  (function wireWorkspaceDraftUi() {
-    if (globalThis.__chimeraLogsWorkspaceDraftUiWired) return;
-    globalThis.__chimeraLogsWorkspaceDraftUiWired = true;
-    document.body.addEventListener(
-      "click",
-      function (ev) {
-        var t = ev.target;
-        if (!t || typeof t.closest !== "function") return;
-        if (t.closest("[data-sum-workspaces-create]")) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          workspaceDrafts.push({
-            id: nextWorkspaceDraftId++,
-            projectId: "",
-            flavorId: "",
-            paths: []
-          });
-          scheduleStoryRebuild();
-          return;
-        }
-        var managedCard = t.closest("[data-workspace-managed-id]");
-        if (managedCard) {
-          var wsNumM = Number(managedCard.getAttribute("data-workspace-managed-id"));
-          if (!wsNumM) return;
-          if (t.closest(".ws-managed-btn-configure")) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            beginWorkspaceManagedEdit(wsNumM);
-            return;
-          }
-          if (t.closest(".ws-managed-btn-cancel")) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            cancelWorkspaceManagedEdit();
-            return;
-          }
-          if (t.closest(".ws-managed-btn-save")) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            saveManagedWorkspacePaths(wsNumM);
-            return;
-          }
-          if (t.closest(".ws-managed-btn-delete")) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            deleteManagedWorkspace(wsNumM);
-            return;
-          }
-          if (t.closest(".ws-managed-btn-add")) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            if (
-              workspaceManagedEditId !== wsNumM ||
-              !workspaceManagedStaging ||
-              workspaceManagedStaging.wsNum !== wsNumM
-            ) {
-              return;
-            }
-            var stA = workspaceManagedStaging.paths;
-            var startDirA = stA && stA.length ? stA[stA.length - 1].path : "";
-            pickFolderForWorkspaceDraft(startDirA).then(function (picked) {
-              if (!picked) return;
-              workspaceManagedStaging.paths.push({ id: null, path: String(picked).trim() });
-              scheduleStoryRebuild();
-            });
-            return;
-          }
-          if (t.closest(".ws-managed-btn-remove")) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            if (
-              workspaceManagedEditId !== wsNumM ||
-              !workspaceManagedStaging ||
-              workspaceManagedStaging.wsNum !== wsNumM
-            ) {
-              return;
-            }
-            var selMR = managedCard.querySelector(".ws-managed-paths-select");
-            if (!selMR || selMR.selectedIndex < 0 || !workspaceManagedStaging.paths.length) return;
-            workspaceManagedStaging.paths.splice(selMR.selectedIndex, 1);
-            scheduleStoryRebuild();
-            return;
-          }
-        }
-        var card = t.closest("[data-workspace-draft]");
-        if (!card) return;
-        var draftId = Number(card.getAttribute("data-workspace-draft"));
-        if (!draftId) return;
-        if (t.closest(".ws-draft-btn-cancel")) {
-          ev.preventDefault();
-          removeWorkspaceDraft(draftId);
-          scheduleStoryRebuild();
-          return;
-        }
-        if (t.closest(".ws-draft-btn-save")) {
-          ev.preventDefault();
-          saveWorkspaceDraftById(draftId);
-          return;
-        }
-        if (t.closest(".ws-draft-btn-add")) {
-          ev.preventDefault();
-          var dAdd = findWorkspaceDraft(draftId);
-          if (!dAdd) return;
-          var startDir = "";
-          if (dAdd.paths && dAdd.paths.length) startDir = dAdd.paths[dAdd.paths.length - 1];
-          pickFolderForWorkspaceDraft(startDir).then(function (picked) {
-            if (!picked) return;
-            appendWorkspaceDraftPath(dAdd, picked);
-            scheduleStoryRebuild();
-          });
-          return;
-        }
-        if (t.closest(".ws-draft-btn-remove")) {
-          ev.preventDefault();
-          var dRm = findWorkspaceDraft(draftId);
-          if (!dRm || !dRm.paths || !dRm.paths.length) return;
-          var selRm = card.querySelector(".ws-draft-paths-select");
-          if (!selRm || selRm.selectedIndex < 0) return;
-          dRm.paths.splice(selRm.selectedIndex, 1);
-          scheduleStoryRebuild();
-          return;
-        }
-      },
-      false
-    );
-    document.body.addEventListener(
-      "input",
-      function (ev) {
-        var el = ev.target;
-        if (!el || !el.getAttribute) return;
-        var field = el.getAttribute("data-ws-field");
-        if (!field) return;
-        var cardIn = el.closest("[data-workspace-draft]");
-        if (!cardIn) return;
-        var did = Number(cardIn.getAttribute("data-workspace-draft"));
-        var dIn = findWorkspaceDraft(did);
-        if (!dIn) return;
-        var vv = el.value != null ? String(el.value) : "";
-        if (field === "project") dIn.projectId = vv;
-        else if (field === "flavor") dIn.flavorId = vv;
-        syncWorkspaceDraftHeader(cardIn, dIn);
-      },
-      false
-    );
-    document.body.addEventListener(
-      "change",
-      function (ev) {
-        var el = ev.target;
-        if (!el || !el.classList) return;
-        var cardManagedCh = el.closest("[data-workspace-managed-id]");
-        if (cardManagedCh && el.classList.contains("ws-managed-paths-select")) {
-          var rmBtM = cardManagedCh.querySelector(".ws-managed-btn-remove");
-          if (rmBtM)
-            rmBtM.disabled =
-              el.selectedIndex < 0 || !el.options || !el.options.length;
-          return;
-        }
-        if (!el.classList.contains("ws-draft-paths-select")) return;
-        var cardCh = el.closest("[data-workspace-draft]");
-        if (!cardCh) return;
-        var rmBt = cardCh.querySelector(".ws-draft-btn-remove");
-        if (rmBt)
-          rmBt.disabled =
-            el.selectedIndex < 0 || !el.options || !el.options.length;
-      },
-      false
-    );
-  })();
-
-  (function wireLogsChromeLinks() {
-    document.body.addEventListener(
-      "click",
-      function (ev) {
-        var t = ev.target;
-        if (!t || typeof t.closest !== "function") return;
-        var ext = t.closest("a.sum-ext-link");
-        if (ext) {
-          var href = ext.getAttribute("href") || "";
-          if (/^https?:\/\//i.test(href)) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            if (typeof globalThis.chimeraOpenExternalURL === "function") {
-              try {
-                var ret = globalThis.chimeraOpenExternalURL(href);
-                if (ret && typeof ret.then === "function") ret.catch(function () { });
-              } catch (x) { }
-            } else {
-              try {
-                window.open(href, "_blank", "noopener,noreferrer");
-              } catch (x2) { }
-            }
-          }
-          return;
-        }
-        var proj = t.closest("a.sum-proj-path");
-        if (proj) {
-          ev.preventDefault();
-          ev.stopPropagation();
-          var rel = proj.getAttribute("data-rel") || "";
-          if (!rel) rel = proj.textContent || "";
-          rel = String(rel).replace(/\s+/g, " ").trim();
-          if (!rel) return;
-          if (typeof globalThis.chimeraRevealProjectPath === "function") {
-            try {
-              var ret2 = globalThis.chimeraRevealProjectPath(rel);
-              if (ret2 && typeof ret2.then === "function") ret2.catch(function () { });
-            } catch (x3) { }
-          }
-          return;
-        }
-      },
-      true
-    );
-  })();
-
-  (function wireAdminWorkflowCards() {
-    function syncYamlOverlayVScrollFromTarget(t) {
-      if (!t || String(t.tagName || "").toLowerCase() !== "textarea") return;
-      var wrap = t.closest && t.closest(".sg-op-yaml-wrap");
-      if (!wrap) return;
-      wrap.classList.toggle("sg-op-yaml-wrap--vscroll", t.scrollHeight > t.clientHeight + 1);
-    }
-
-    function applyRoutingPolicyDraftToEditor() {
-      var y = document.getElementById("admin-routing-yaml");
-      if (!y) return;
-      y.value = String(routingPolicyDraft != null ? routingPolicyDraft : "");
-      var savedPolicy = String((((adminStateCache && adminStateCache.gateway) || {}).routing_policy_yaml) || "");
-      routingPolicyTouched = String(y.value) !== savedPolicy;
-      var wrap = document.getElementById("admin-routing-policy-wrap");
-      if (wrap) wrap.classList.toggle("sg-op-yaml-wrap--dirty", !!routingPolicyTouched);
-      syncYamlOverlayVScrollFromTarget(y);
-    }
-
-    document.body.addEventListener("input", function (ev) {
-      var t = ev.target;
-      if (!t || !t.id) return;
-      if (t.id === "admin-routing-yaml") {
-        routingPolicyDraft = t.value != null ? String(t.value) : "";
-        var savedPolicy = String((((adminStateCache && adminStateCache.gateway) || {}).routing_policy_yaml) || "");
-        routingPolicyTouched = String(routingPolicyDraft) !== savedPolicy;
-      }
-      else if (t.id === "admin-fallback-yaml") fallbackTouched = true;
-      else if (t.id === "admin-router-models-yaml") {
-        routerModelsTouched = true;
-        routerModelsDraft = t.value != null ? String(t.value) : "";
-        var routerWrap = document.getElementById("admin-router-models-wrap");
-        if (routerWrap) routerWrap.classList.add("sg-op-yaml-wrap--dirty");
-      }
-      else if (t.id === "admin-router-threshold") {
-        routerThresholdTouched = true;
-        routerThresholdDraft = t.value != null ? String(t.value) : "";
-      }
-    });
-    document.body.addEventListener("input", function (ev) {
-      var t = ev.target;
-      if (!t || typeof t.getAttribute !== "function") return;
-      var fld = t.getAttribute("data-admin-user-field");
-      if (!fld) return;
-      var did = Number(t.getAttribute("data-draft-id"));
-      if (!did) return;
-      for (var i = 0; i < adminUserDrafts.length; i++) {
-        if (adminUserDrafts[i] && adminUserDrafts[i].id === did) {
-          adminUserDrafts[i][fld] = t.value != null ? String(t.value) : "";
-          break;
-        }
-      }
-    });
-
-    document.body.addEventListener("click", function (ev) {
-      var t = ev.target;
-      if (!t || typeof t.closest !== "function") return;
-      var actionEl = t.closest("[data-admin-action]");
-      if (!actionEl || typeof actionEl.getAttribute !== "function") return;
-      t = actionEl;
-      var act = t.getAttribute("data-admin-action");
-      if (!act) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      function reloadAdmin() {
-        Promise.all([fetchAdminState(), fetchAdminTokens()]).then(function () {
-          refreshSummarizedPanel();
-        });
-      }
-
-      if (act === "user-add") {
-        adminUserDrafts.unshift({
-          id: nextAdminUserDraftId++,
-          name: "",
-          email: "",
-          saving: false,
-          msg: ""
-        });
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "user-draft-cancel") {
-        var dCancel = Number(t.getAttribute("data-draft-id"));
-        if (!dCancel) return;
-        var kept = [];
-        for (var dc = 0; dc < adminUserDrafts.length; dc++) {
-          if (!adminUserDrafts[dc] || adminUserDrafts[dc].id !== dCancel) kept.push(adminUserDrafts[dc]);
-        }
-        adminUserDrafts = kept;
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "user-draft-save") {
-        var dSave = Number(t.getAttribute("data-draft-id"));
-        if (!dSave) return;
-        var draft = null;
-        for (var ds = 0; ds < adminUserDrafts.length; ds++) {
-          if (adminUserDrafts[ds] && adminUserDrafts[ds].id === dSave) {
-            draft = adminUserDrafts[ds];
-            break;
-          }
-        }
-        if (!draft) return;
-        draft.saving = true;
-        draft.msg = "";
-        refreshSummarizedPanel();
-        var label = String(draft.name || draft.email || "token").trim();
-        adminPostJSON("/api/ui/tokens", { label: label })
-          .then(function (j) {
-            adminSetMessage("", "User token created. Copy it now; it will not be shown again.");
-            var keep = [];
-            for (var di = 0; di < adminUserDrafts.length; di++) {
-              if (!adminUserDrafts[di] || adminUserDrafts[di].id !== dSave) keep.push(adminUserDrafts[di]);
-            }
-            adminUserDrafts = keep;
-            var tenant = j && j.tenant_id != null ? String(j.tenant_id).trim() : "";
-            if (tenant) {
-              adminCreatedTokenByTenant[tenant] = String((j && j.token) || "");
-            }
-            reloadAdmin();
-          })
-          .catch(function (e) {
-            draft.saving = false;
-            draft.msg = e && e.message ? e.message : String(e);
-            refreshSummarizedPanel();
-            adminSetMessage("err", draft.msg);
-          });
-        return;
-      }
-
-      if (act === "fallback-configure") {
-        adminFallbackEditing = true;
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "routing-configure") {
-        adminRoutingEditing = true;
-        if (routingPolicyDraft == null) routingPolicyDraft = String((((adminStateCache && adminStateCache.gateway) || {}).routing_policy_yaml) || "");
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "routing-cancel") {
-        adminRoutingEditing = false;
-        routingPolicyTouched = false;
-        routingPolicyDraft = String((((adminStateCache && adminStateCache.gateway) || {}).routing_policy_yaml) || "");
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "router-configure") {
-        adminRouterEditing = true;
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "router-cancel") {
-        adminRouterEditing = false;
-        routerModelsTouched = false;
-        routerModelsDraft = null;
-        routerThresholdTouched = false;
-        routerThresholdDraft = null;
-        routerEnabledTouched = false;
-        routerEnabledDraft = null;
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "fallback-cancel") {
-        adminFallbackEditing = false;
-        fallbackTouched = false;
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "routing-policy-refresh") {
-        fetchAdminState()
-          .catch(function () {})
-          .then(function () {
-            var saved = String((((adminStateCache && adminStateCache.gateway) || {}).routing_policy_yaml) || "");
-            routingPolicyDraft = saved;
-            applyRoutingPolicyDraftToEditor();
-          });
-        return;
-      }
-
-      if (act === "fallback-refresh") {
-        fallbackTouched = false;
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "router-models-refresh") {
-        routerModelsTouched = false;
-        routerModelsDraft = null;
-        refreshSummarizedPanel();
-        return;
-      }
-
-      if (act === "router-enabled-toggle") {
-        var toggleEl = t;
-        if (!toggleEl || !toggleEl.getAttribute || !toggleEl.classList || !toggleEl.classList.contains("sum-router-toggle")) {
-          toggleEl = t.closest && t.closest(".sum-router-toggle");
-        }
-        if (!toggleEl || !toggleEl.getAttribute) return;
-        var nextPressed = String(toggleEl.getAttribute("aria-pressed") || "").toLowerCase() !== "true";
-        var savedModels = Array.isArray((((adminStateCache && adminStateCache.gateway) || {}).router_models))
-          ? (((adminStateCache && adminStateCache.gateway) || {}).router_models)
-          : [];
-        var savedThr = parseFloat(String((((adminStateCache && adminStateCache.gateway) || {}).tool_router_confidence_threshold) || "0.5"));
-        if (isNaN(savedThr) || savedThr < 0 || savedThr > 1) savedThr = 0.5;
-        adminPostJSON("/api/ui/routing/router_tooling", {
-          router_models: savedModels,
-          tool_router_enabled: nextPressed,
-          confidence_threshold: savedThr
-        })
-          .then(function () {
-            routerEnabledTouched = false;
-            routerEnabledDraft = null;
-            adminSetMessage("", "Tool router " + (nextPressed ? "enabled." : "disabled."));
-            reloadAdmin();
-          })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-
-      if (act === "user-token-copy") {
-        var valCopy = String(t.getAttribute("data-token") || "");
-        if (valCopy) {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(valCopy).catch(function () { });
-          } else {
-            var taCopy = document.createElement("textarea");
-            taCopy.value = valCopy;
-            taCopy.style.position = "fixed";
-            taCopy.style.opacity = "0";
-            document.body.appendChild(taCopy);
-            taCopy.focus();
-            taCopy.select();
-            try { document.execCommand("copy"); } catch (_eCopy) {}
-            try { document.body.removeChild(taCopy); } catch (_eCopyRm) {}
-          }
-        }
-        return;
-      }
-
-      if (act === "token-create") {
-        var tokLabel = (document.getElementById("admin-token-label") || {}).value || "";
-        adminPostJSON("/api/ui/tokens", { label: String(tokLabel).trim() })
-          .then(function (j) {
-            var tenant2 = j && j.tenant_id != null ? String(j.tenant_id).trim() : "";
-            if (tenant2) adminCreatedTokenByTenant[tenant2] = String((j && j.token) || "");
-            var tl = document.getElementById("admin-token-label");
-            if (tl) tl.value = "";
-            adminSetMessage("", "Token created.");
-            reloadAdmin();
-          })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-
-      if (act === "token-delete") {
-        var idx = parseInt(String(t.getAttribute("data-index") || ""), 10);
-        if (isNaN(idx)) return;
-        adminPostJSON("/api/ui/tokens/delete", { index: idx })
-          .then(function () { adminSetMessage("", "Token removed."); reloadAdmin(); })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-
-      if (act === "provider-key-add") {
-        var prov = String(t.getAttribute("data-provider") || "");
-        var inputId = prov === "groq" ? "admin-groq-key" : prov === "gemini" ? "admin-gemini-key" : "";
-        var val = inputId ? ((document.getElementById(inputId) || {}).value || "") : "";
-        if (!val.trim()) {
-          adminSetMessage("err", "Enter a key.");
-          return;
-        }
-        adminPostJSON("/api/ui/provider/" + prov + "/keys", { value: String(val).trim() })
-          .then(function () {
-            var inp = document.getElementById(inputId);
-            if (inp) inp.value = "";
-            adminSetMessage("", "Provider key added.");
-            reloadAdmin();
-          })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-
-      if (act === "provider-key-delete") {
-        var provDel = String(t.getAttribute("data-provider") || "");
-        var nmDel = String(t.getAttribute("data-name") || "");
-        if (!provDel || !nmDel) return;
-        adminPostJSON("/api/ui/provider/" + provDel + "/keys/delete", { name: nmDel })
-          .then(function () { adminSetMessage("", "Provider key removed."); reloadAdmin(); })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-
-      if (act === "ollama-save") {
-        var baseURL = ((document.getElementById("admin-ollama-url") || {}).value || "").trim();
-        if (!baseURL) {
-          adminSetMessage("err", "Enter a URL.");
-          return;
-        }
-        adminPostJSON("/api/ui/provider/ollama/base_url", { base_url: baseURL })
-          .then(function () { adminSetMessage("", "Ollama URL saved."); reloadAdmin(); })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-
-      if (act === "routing-generate") {
-        adminPostJSON("/api/ui/routing/preview", {})
-          .then(function (j) {
-            var savedPolicy = String((((adminStateCache && adminStateCache.gateway) || {}).routing_policy_yaml) || "");
-            routingPolicyDraft = String((j && j.routing_policy_yaml) || "");
-            routingPolicyTouched = String(routingPolicyDraft) !== savedPolicy;
-            adminSetMessage("", "Routing preview generated. Save to apply.");
-            refreshSummarizedPanel();
-          })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-
-      if (act === "routing-policy-save") {
-        var policyYAML = ((document.getElementById("admin-routing-yaml") || {}).value || "");
-        if (!String(policyYAML).trim()) {
-          adminSetMessage("err", "Routing policy YAML is required.");
-          return;
-        }
-        adminPostJSON("/api/ui/routing/policy", { routing_policy_yaml: policyYAML })
-          .then(function () {
-            routingPolicyTouched = false;
-            routingPolicyDraft = null;
-            adminRoutingEditing = false;
-            adminSetMessage("", "Routing policy saved.");
-            reloadAdmin();
-          })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-
-      if (act === "fallback-save") {
-        try {
-          var fallbackList = parseFallbackChainInput(((document.getElementById("admin-fallback-yaml") || {}).value || ""));
-          adminPostJSON("/api/ui/routing/fallback_chain", { fallback_chain: fallbackList })
-            .then(function () {
-              fallbackTouched = false;
-              adminFallbackEditing = false;
-              adminSetMessage("", "Fallback chain saved.");
-              reloadAdmin();
-            })
-            .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        } catch (e) {
-          adminSetMessage("err", e && e.message ? e.message : String(e));
-        }
-        return;
-      }
-
-      if (act === "router-save") {
-        try {
-          var modelsRaw = ((document.getElementById("admin-router-models-yaml") || {}).value || "");
-          if (!String(modelsRaw).trim() && routerModelsTouched && routerModelsDraft != null) modelsRaw = String(routerModelsDraft);
-          if (!String(modelsRaw).trim()) modelsRaw = fallbackChainToYAML((((adminStateCache && adminStateCache.gateway) || {}).router_models) || []);
-          var models = parseFallbackChainInput(modelsRaw);
-          var thr = parseFloat(String(((document.getElementById("admin-router-threshold") || {}).value || "0.5"), 10));
-          if (isNaN(thr) || thr < 0 || thr > 1) throw new Error("Threshold must be a number between 0 and 1.");
-          var routerEnabledBtn = document.getElementById("admin-router-enabled");
-          var enabled = String((routerEnabledBtn && routerEnabledBtn.getAttribute && routerEnabledBtn.getAttribute("aria-pressed")) || "").toLowerCase() === "true";
-          adminPostJSON("/api/ui/routing/router_tooling", {
-            router_models: models,
-            tool_router_enabled: enabled,
-            confidence_threshold: thr
-          })
-            .then(function () {
-              routerModelsTouched = false;
-              routerModelsDraft = null;
-              routerThresholdTouched = false;
-              routerThresholdDraft = null;
-              routerEnabledTouched = false;
-              routerEnabledDraft = null;
-              adminRouterEditing = false;
-              adminSetMessage("", "Router settings saved.");
-              reloadAdmin();
-            })
-            .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        } catch (e) {
-          adminSetMessage("err", e && e.message ? e.message : String(e));
-        }
-        return;
-      }
-
-      if (act === "routing-free-tier-toggle") {
-        var curPressed = String(t.getAttribute("aria-pressed") || "").toLowerCase() === "true";
-        var nextEnabled = !curPressed;
-        adminPostJSON("/api/ui/routing/filter_free_tier_models", { enabled: nextEnabled })
-          .then(function () {
-            adminSetMessage("", "Free-tier filter updated.");
-            reloadAdmin();
-          })
-          .catch(function (e) { adminSetMessage("err", e && e.message ? e.message : String(e)); });
-        return;
-      }
-    });
-
-    document.body.addEventListener("focusin", function (ev) {
-      var t = ev.target;
-      syncYamlOverlayVScrollFromTarget(t);
-    });
-
-    document.body.addEventListener("input", function (ev) {
-      var t = ev.target;
-      syncYamlOverlayVScrollFromTarget(t);
-    });
-
-    document.body.addEventListener("scroll", function (ev) {
-      var t = ev.target;
-      syncYamlOverlayVScrollFromTarget(t);
-    }, true);
-
-    window.addEventListener("resize", function () {
-      var textareas = document.querySelectorAll(".sg-op-yaml-wrap textarea");
-      for (var i = 0; i < textareas.length; i++) {
-        syncYamlOverlayVScrollFromTarget(textareas[i]);
-      }
-    });
-  })();
-
-  fetchTokenLabels();
-  applyViewLayout();
-  if (globalThis.ChimeraLogs && globalThis.ChimeraLogs.Transport) {
-    globalThis.ChimeraLogs.Transport.init(transportCtx);
-  }
+  ctx.refreshSummarizedPanel = refreshSummarizedPanel;
+  ctx.scheduleDeferredSummarizedRefresh = scheduleDeferredSummarizedRefresh;
+  ctx.summarizedEvlogInteractionBlocksRebuild = summarizedEvlogInteractionBlocksRebuild;
+  ctx.scheduleStoryRebuild = scheduleStoryRebuild;
+  ctx.renderSummarizedUnified = renderSummarizedUnified;
+  ctx.patchGatewayUsageMetricsCard = patchGatewayUsageMetricsCard;
+  ctx.patchGatewayOverviewCard = patchGatewayOverviewCard;
+  ctx.fetchTokenLabels = fetchTokenLabels;
+  ctx.fetchGatewayMetrics = fetchGatewayMetrics;
+  ctx.fetchGatewayOverview = fetchGatewayOverview;
+  ctx.fetchChimeraBrokerProviderSnapshot = fetchChimeraBrokerProviderSnapshot;
+  ctx.fetchAdminState = fetchAdminState;
+  ctx.fetchAdminTokens = fetchAdminTokens;
+  ctx.syncMetricsPolling = syncMetricsPolling;
+  ctx.syncGatewayOverviewPolling = syncGatewayOverviewPolling;
+  ctx.syncChimeraBrokerProviderPolling = syncChimeraBrokerProviderPolling;
+  ctx.syncAdminStatePolling = syncAdminStatePolling;
+  ctx.adminPostJSON = adminPostJSON;
+  ctx.adminSetMessage = adminSetMessage;
+  ctx.parseFallbackChainInput = parseFallbackChainInput;
+  ctx.fallbackChainToYAML = fallbackChainToYAML;
+  ctx.pickFolderForWorkspaceDraft = pickFolderForWorkspaceDraft;
+  ctx.findWorkspaceDraft = findWorkspaceDraft;
+  ctx.appendWorkspaceDraftPath = appendWorkspaceDraftPath;
+  ctx.syncWorkspaceDraftHeader = syncWorkspaceDraftHeader;
 };
+

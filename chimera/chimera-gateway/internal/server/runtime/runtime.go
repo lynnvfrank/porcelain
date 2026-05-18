@@ -24,17 +24,17 @@ import (
 
 // Runtime mirrors src/runtime.ts RuntimeState.
 type Runtime struct {
-	log              *slog.Logger
-	gatewayPath      string
-	mu               sync.RWMutex
-	gatewayMtime     time.Time
-	freeTierMtime    time.Time
-	resolved         *config.Resolved
-	tokens           *tokens.Store
-	routing          *routing.Policy
-	metrics          *gatewaymetrics.Store // optional; nil when disabled or init failed
-	operator         *operatorstore.Store  // optional; nil when init failed
-	brokerBaseURLOverride string // non-empty: after each yaml load, patch broker base + health (supervised chimera-broker)
+	log                   *slog.Logger
+	gatewayPath           string
+	mu                    sync.RWMutex
+	gatewayMtime          time.Time
+	freeTierMtime         time.Time
+	resolved              *config.Resolved
+	tokens                *tokens.Store
+	routing               *routing.Policy
+	metrics               *gatewaymetrics.Store // optional; nil when disabled or init failed
+	operator              *operatorstore.Store  // optional; nil when init failed
+	brokerBaseURLOverride string                // non-empty: after each yaml load, patch broker base + health (supervised chimera-broker)
 
 	toolRouterMu      sync.Mutex
 	toolRouterModel   string
@@ -97,10 +97,10 @@ func NewRuntimeWithBrokerOverride(gatewayPath string, log *slog.Logger, brokerBa
 		log:                   log,
 		gatewayPath:           gatewayPath,
 		brokerBaseURLOverride: brokerBaseURLOverride,
-		resolved:         res,
-		tokens:           tokens.NewStore(res.TokensPath, log),
-		routing:          routing.NewPolicy(res.RoutingPolicyPath, log),
-		ingestSessions:   newIngestSessionStore(),
+		resolved:              res,
+		tokens:                tokens.NewStore(res.TokensPath, log),
+		routing:               routing.NewPolicy(res.RoutingPolicyPath, log),
+		ingestSessions:        newIngestSessionStore(),
 	}
 	if res.MetricsEnabled {
 		if s, err := gatewaymetrics.Open(res.MetricsSQLitePath, res.MetricsMigrationsDir, log); err != nil {

@@ -1,7 +1,7 @@
 // GET /api/ui/chimera-broker/providers — live provider/key snapshot for the chimera-broker
 // service card "Provider health" strip in the logs UI. Pulls per-provider config from the
 // broker management API (GET /api/providers/{name}) via internal/brokeradmin and classifies
-// each entry for adminui/embedui/logs.js regardless of subprocess log slugs in a given build.
+// each entry for adminui/embedui/logs_app.js regardless of subprocess log slugs in a given build.
 package adminui
 
 import (
@@ -44,7 +44,7 @@ type ProviderHealthEntry struct {
 // ProviderHealthResponse is the JSON payload for GET /api/ui/chimera-broker/providers.
 type ProviderHealthResponse struct {
 	FetchedAt time.Time             `json:"fetched_at"`
-	BrokerUp bool                   `json:"chimera_broker_up"`
+	BrokerUp  bool                  `json:"chimera_broker_up"`
 	Error     string                `json:"error,omitempty"`
 	Providers []ProviderHealthEntry `json:"providers"`
 }

@@ -432,12 +432,16 @@ func TestUILogsPage_servesLogsHTMLWhenAuthed(t *testing.T) {
 		`src="/ui/assets/logs/util/time.js"`,
 		`src="/ui/assets/logs/parse/parseLogText.js"`,
 		`src="/ui/assets/logs/transport/streaming.js"`,
+		`src="/ui/assets/logs/contracts.js"`,
 		`src="/ui/assets/logs/derive/conversationMetrics.js"`,
-		`src="/ui/assets/logs/derive/conversationBifrost.js"`,
+		`src="/ui/assets/logs/derive/conversationBroker.js"`,
 		`src="/ui/assets/logs/derive/chimeraBrokerMetrics.js"`,
 		`src="/ui/assets/logs/derive/sha1.js"`,
-		`src="/ui/assets/logs/derive/qdrantRagMetrics.js"`,
-		`src="/ui/assets/logs/derive/qdrantCollection.js"`,
+		`src="/ui/assets/logs/derive/vectorstoreRagMetrics.js"`,
+		`src="/ui/assets/logs/derive/vectorstoreCollection.js"`,
+		`src="/ui/assets/logs/render/sumEvlog.js"`,
+		`src="/ui/assets/logs/app/summarizedFeed.js"`,
+		`src="/ui/assets/logs/app/wireHandlers.js"`,
 		`src="/ui/assets/logs/derive/indexerMetrics.js"`,
 		`src="/ui/assets/logs/derive/gatewayUsageMetrics.js"`,
 		`src="/ui/assets/logs/derive/gatewayCardModel.js"`,
@@ -523,7 +527,7 @@ func TestUILogsAssets_servesLogsJSWhenAuthed(t *testing.T) {
 	}
 }
 
-func TestUILogsAssets_logsMainContainsBrokerServiceSummary(t *testing.T) {
+func TestUILogsAssets_summarizedFeedContainsBrokerServiceSummary(t *testing.T) {
 	t.Setenv(naming.EnvUpstreamAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
@@ -542,7 +546,7 @@ func TestUILogsAssets_logsMainContainsBrokerServiceSummary(t *testing.T) {
 	if _, err := client.Post(front.URL+"/api/ui/login", "application/json", strings.NewReader(`{"token":"gw-ui-secret"}`)); err != nil {
 		t.Fatal(err)
 	}
-	res, err := client.Get(front.URL + "/ui/assets/logs/main.js")
+	res, err := client.Get(front.URL + "/ui/assets/logs/app/summarizedFeed.js")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -556,25 +560,25 @@ func TestUILogsAssets_logsMainContainsBrokerServiceSummary(t *testing.T) {
 	}
 	body := string(b)
 	if !strings.Contains(body, "indexer-run-kv--chimera-broker-summary") {
-		t.Fatal("expected chimera-broker service card KV class in logs main bundle")
+		t.Fatal("expected chimera-broker service card KV class in summarized feed module")
 	}
 	if !strings.Contains(body, "sum-mini-row--chimera-broker-deck") {
-		t.Fatal("expected chimera-broker summary deck layout class in logs main bundle")
+		t.Fatal("expected chimera-broker summary deck layout class in summarized feed module")
 	}
 	if !strings.Contains(body, "Provider health") {
-		t.Fatal("expected broker provider-health section label in logs main bundle")
+		t.Fatal("expected broker provider-health section label in summarized feed module")
 	}
 	if !strings.Contains(body, "Relay outcomes") {
-		t.Fatal("expected BiFrost relay-outcome section label in logs main bundle")
+		t.Fatal("expected broker relay-outcome section label in summarized feed module")
 	}
 	if !strings.Contains(body, "sum-bf-prov-health-root") {
-		t.Fatal("expected provider-health strip root class in logs main bundle")
+		t.Fatal("expected provider-health strip root class in summarized feed module")
 	}
 	if !strings.Contains(body, "sum-timeline-bar--relay-outcome") {
-		t.Fatal("expected relay-outcome strip class in logs main bundle")
+		t.Fatal("expected relay-outcome strip class in summarized feed module")
 	}
 	if !strings.Contains(body, "/api/ui/chimera-broker/providers") {
-		t.Fatal("expected logs main bundle to fetch live broker provider snapshot")
+		t.Fatal("expected summarized feed module to fetch live broker provider snapshot")
 	}
 	if !strings.Contains(body, "chimera-broker-provider-health-strip") {
 		t.Fatal("expected stable id wrapper for broker provider-health strip patching")

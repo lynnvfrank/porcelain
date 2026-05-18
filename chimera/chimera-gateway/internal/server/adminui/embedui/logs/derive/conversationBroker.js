@@ -1,14 +1,14 @@
 /**
- * Per-conversation BiFrost / upstream relay rollup (pure).
+ * Per-conversation chimera-broker relay rollup (pure).
  *
  * Exports:
- * - ChimeraLogs.Derive.conversationBifrostTimelineFlat(flat)
- * - ChimeraLogs.Derive.conversationBifrostRelayCount(events, getFlat)
+ * - ChimeraLogs.Derive.conversationBrokerTimelineFlat(flat)
+ * - ChimeraLogs.Derive.conversationBrokerRelayCount(events, getFlat)
  *
  * Excludes startup-only lines (`chat.chimera-broker.available_models`) from per-conversation counts.
  */
 
-function conversationBifrostTimelineFlat(flat) {
+function conversationBrokerTimelineFlat(flat) {
   if (!flat || typeof flat !== "object") return false;
   var raw = flat.msg != null ? flat.msg : flat.message != null ? flat.message : "";
   var msg = String(raw).trim();
@@ -34,7 +34,7 @@ function conversationBifrostTimelineFlat(flat) {
   return false;
 }
 
-function conversationBifrostRelayCount(events, getFlat) {
+function conversationBrokerRelayCount(events, getFlat) {
   events = Array.isArray(events) ? events : [];
   getFlat = typeof getFlat === "function" ? getFlat : function (p) { return (p && p.rawFlat) || {}; };
 
@@ -43,12 +43,12 @@ function conversationBifrostRelayCount(events, getFlat) {
     var ev = events[i];
     var p = ev && ev.parsed;
     var f = getFlat(p);
-    if (conversationBifrostTimelineFlat(f)) n++;
+    if (conversationBrokerTimelineFlat(f)) n++;
   }
   return n;
 }
 
 globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};
 globalThis.ChimeraLogs.Derive = globalThis.ChimeraLogs.Derive || {};
-globalThis.ChimeraLogs.Derive.conversationBifrostTimelineFlat = conversationBifrostTimelineFlat;
-globalThis.ChimeraLogs.Derive.conversationBifrostRelayCount = conversationBifrostRelayCount;
+globalThis.ChimeraLogs.Derive.conversationBrokerTimelineFlat = conversationBrokerTimelineFlat;
+globalThis.ChimeraLogs.Derive.conversationBrokerRelayCount = conversationBrokerRelayCount;

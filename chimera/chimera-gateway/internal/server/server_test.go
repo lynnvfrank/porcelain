@@ -41,7 +41,7 @@ func TestStatusEndpoint(t *testing.T) {
 	ov := &StatusOverlay{
 		EffectiveListen: "127.0.0.1:3999",
 		Supervisor: &SupervisorInfo{
-			BrokerListen:     "127.0.0.1:8080",
+			BrokerListen:          "127.0.0.1:8080",
 			VectorstoreSupervised: false,
 		},
 	}

@@ -290,11 +290,11 @@ function qdrantCardModel(arr, getFlat, resolveColl) {
 
 globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};
 globalThis.ChimeraLogs.Derive = globalThis.ChimeraLogs.Derive || {};
-globalThis.ChimeraLogs.Derive.qdrantSlug = qdrantSlug;
-globalThis.ChimeraLogs.Derive.qdrantCollectionName = qdrantCollectionName;
-globalThis.ChimeraLogs.Derive.qdrantCollectionNameFromIndexerMeta = qdrantCollectionNameFromIndexerMeta;
-globalThis.ChimeraLogs.Derive.qdrantSliceCurrentProcess = qdrantSliceCurrentProcess;
-globalThis.ChimeraLogs.Derive.qdrantCollectionDisplay = qdrantCollectionDisplay;
-globalThis.ChimeraLogs.Derive.qdrantOperatorLine = qdrantOperatorLine;
-globalThis.ChimeraLogs.Derive.qdrantIndexerCollectionStatusLabel = qdrantIndexerCollectionStatusLabel;
-globalThis.ChimeraLogs.Derive.qdrantCardModel = qdrantCardModel;
+globalThis.ChimeraLogs.Derive.vectorstoreSlug = qdrantSlug;
+globalThis.ChimeraLogs.Derive.vectorstoreCollectionName = qdrantCollectionName;
+globalThis.ChimeraLogs.Derive.vectorstoreCollectionNameFromIndexerMeta = qdrantCollectionNameFromIndexerMeta;
+globalThis.ChimeraLogs.Derive.vectorstoreSliceCurrentProcess = qdrantSliceCurrentProcess;
+globalThis.ChimeraLogs.Derive.vectorstoreCollectionDisplay = qdrantCollectionDisplay;
+globalThis.ChimeraLogs.Derive.vectorstoreOperatorLine = qdrantOperatorLine;
+globalThis.ChimeraLogs.Derive.vectorstoreIndexerCollectionStatusLabel = qdrantIndexerCollectionStatusLabel;
+globalThis.ChimeraLogs.Derive.vectorstoreCardModel = qdrantCardModel;

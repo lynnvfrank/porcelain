@@ -18,11 +18,11 @@ type StatusOverlay struct {
 
 // SupervisorInfo describes subprocesses when started via "chimera serve".
 type SupervisorInfo struct {
-	BrokerListen      string
+	BrokerListen          string
 	VectorstoreSupervised bool
 	VectorstoreHTTP       string // host:port for chimera-vectorstore /readyz when supervised
-	IndexerSupervised bool
-	IndexerConfigPath string // single --config path when supervised (may be empty if not started)
+	IndexerSupervised     bool
+	IndexerConfigPath     string // single --config path when supervised (may be empty if not started)
 }
 
 func handleStatus(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog.Logger, overlay *StatusOverlay) {
@@ -45,12 +45,12 @@ func handleStatus(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	if overlay != nil && overlay.Supervisor != nil {
 		s := overlay.Supervisor
 		sup = map[string]any{
-			"active":                true,
-			"chimera_broker_listen": s.BrokerListen,
+			"active":                 true,
+			"chimera_broker_listen":  s.BrokerListen,
 			"vectorstore_supervised": s.VectorstoreSupervised,
 			"vectorstore_http":       s.VectorstoreHTTP,
-			"indexer_supervised":    s.IndexerSupervised,
-			"indexer_config_path":   s.IndexerConfigPath,
+			"indexer_supervised":     s.IndexerSupervised,
+			"indexer_config_path":    s.IndexerConfigPath,
 		}
 	}
 

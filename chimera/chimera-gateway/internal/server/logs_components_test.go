@@ -144,19 +144,19 @@ func TestLogsDerive_scrapeConversationMetrics_totalTokensAndVec(t *testing.T) {
 	}
 }
 
-func TestLogsDerive_conversationBifrostRelayCount_andFlat(t *testing.T) {
+func TestLogsDerive_conversationBrokerRelayCount_andFlat(t *testing.T) {
 	vm := goja.New()
 	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
-	evalJS(t, vm, logsUIPath(t, "derive", "conversationBifrost.js"))
+	evalJS(t, vm, logsUIPath(t, "derive", "conversationBroker.js"))
 
 	derive := vm.Get("ChimeraLogs").ToObject(vm).Get("Derive").ToObject(vm)
-	countFn, ok := goja.AssertFunction(derive.Get("conversationBifrostRelayCount"))
+	countFn, ok := goja.AssertFunction(derive.Get("conversationBrokerRelayCount"))
 	if !ok {
-		t.Fatal("missing conversationBifrostRelayCount")
+		t.Fatal("missing conversationBrokerRelayCount")
 	}
-	flatFn, ok := goja.AssertFunction(derive.Get("conversationBifrostTimelineFlat"))
+	flatFn, ok := goja.AssertFunction(derive.Get("conversationBrokerTimelineFlat"))
 	if !ok {
-		t.Fatal("missing conversationBifrostTimelineFlat")
+		t.Fatal("missing conversationBrokerTimelineFlat")
 	}
 
 	events := []map[string]any{
@@ -193,7 +193,7 @@ func TestLogsDerive_conversationBifrostRelayCount_andFlat(t *testing.T) {
 func TestLogsDerive_conversationCardModel_joinAndProgress(t *testing.T) {
 	vm := goja.New()
 	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
-	evalJS(t, vm, logsUIPath(t, "derive", "conversationBifrost.js"))
+	evalJS(t, vm, logsUIPath(t, "derive", "conversationBroker.js"))
 	evalJS(t, vm, logsUIPath(t, "derive", "conversationCardModel.js"))
 
 	derive := vm.Get("ChimeraLogs").ToObject(vm).Get("Derive").ToObject(vm)
@@ -590,7 +590,7 @@ func TestLogsDerive_conversationTurnGroupsForExpanded_inheritsAndUnattributed(t 
 func TestLogsDerive_conversationRequestIdTier2Eligible_narrowChatPrefixes(t *testing.T) {
 	vm := goja.New()
 	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
-	evalJS(t, vm, logsUIPath(t, "derive", "conversationBifrost.js"))
+	evalJS(t, vm, logsUIPath(t, "derive", "conversationBroker.js"))
 	evalJS(t, vm, logsUIPath(t, "derive", "conversationCardModel.js"))
 	elig, ok := goja.AssertFunction(vm.Get("ChimeraLogs").ToObject(vm).Get("Derive").ToObject(vm).Get("conversationRequestIdTier2Eligible"))
 	if !ok {
@@ -987,16 +987,16 @@ func TestLogsDerive_chimeraBrokerCardMetrics_catalogModelCount_gatewayLine(t *te
 	}
 }
 
-func TestLogsDerive_qdrantCollection_nameGolden(t *testing.T) {
+func TestLogsDerive_vectorstoreCollection_nameGolden(t *testing.T) {
 	vm := goja.New()
 	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
 	evalJS(t, vm, logsUIPath(t, "derive", "sha1.js"))
-	evalJS(t, vm, logsUIPath(t, "derive", "qdrantCollection.js"))
+	evalJS(t, vm, logsUIPath(t, "derive", "vectorstoreCollection.js"))
 
 	derive := vm.Get("ChimeraLogs").ToObject(vm).Get("Derive").ToObject(vm)
-	fn, ok := goja.AssertFunction(derive.Get("qdrantCollectionName"))
+	fn, ok := goja.AssertFunction(derive.Get("vectorstoreCollectionName"))
 	if !ok {
-		t.Fatal("missing qdrantCollectionName")
+		t.Fatal("missing vectorstoreCollectionName")
 	}
 	v, err := fn(goja.Undefined(), vm.ToValue("default"), vm.ToValue("assistants"), vm.ToValue(""))
 	if err != nil {
@@ -1014,15 +1014,15 @@ func TestLogsDerive_qdrantCollection_nameGolden(t *testing.T) {
 	}
 }
 
-func TestLogsDerive_qdrantOperatorLine_forEventLog(t *testing.T) {
+func TestLogsDerive_vectorstoreOperatorLine_forEventLog(t *testing.T) {
 	vm := goja.New()
 	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
-	evalJS(t, vm, logsUIPath(t, "derive", "qdrantCollection.js"))
+	evalJS(t, vm, logsUIPath(t, "derive", "vectorstoreCollection.js"))
 
 	derive := vm.Get("ChimeraLogs").ToObject(vm).Get("Derive").ToObject(vm)
-	fn, ok := goja.AssertFunction(derive.Get("qdrantOperatorLine"))
+	fn, ok := goja.AssertFunction(derive.Get("vectorstoreOperatorLine"))
 	if !ok {
-		t.Fatal("missing qdrantOperatorLine")
+		t.Fatal("missing vectorstoreOperatorLine")
 	}
 	flat := map[string]any{
 		"msg":         "qdrant.http.collection_meta",
@@ -1057,10 +1057,10 @@ func TestLogsDerive_qdrantOperatorLine_forEventLog(t *testing.T) {
 	}
 }
 
-func TestLogsDerive_qdrantRag_rollups(t *testing.T) {
+func TestLogsDerive_vectorstoreRag_rollups(t *testing.T) {
 	vm := goja.New()
 	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
-	evalJS(t, vm, logsUIPath(t, "derive", "qdrantRagMetrics.js"))
+	evalJS(t, vm, logsUIPath(t, "derive", "vectorstoreRagMetrics.js"))
 
 	chimera := vm.Get("ChimeraLogs").ToObject(vm)
 	derive := chimera.Get("Derive").ToObject(vm)
@@ -1069,9 +1069,9 @@ func TestLogsDerive_qdrantRag_rollups(t *testing.T) {
 	if !ok {
 		t.Fatal("missing rollupGatewayRagPipeline")
 	}
-	qFn, ok := goja.AssertFunction(derive.Get("qdrantHttpPathRollup"))
+	qFn, ok := goja.AssertFunction(derive.Get("vectorstoreHttpPathRollup"))
 	if !ok {
-		t.Fatal("missing qdrantHttpPathRollup")
+		t.Fatal("missing vectorstoreHttpPathRollup")
 	}
 
 	entries := []map[string]any{

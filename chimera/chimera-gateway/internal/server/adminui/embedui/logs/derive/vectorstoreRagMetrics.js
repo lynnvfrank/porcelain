@@ -1,9 +1,9 @@
 /**
- * Pure derivations for Qdrant card and Gateway RAG traces.
+ * Pure derivations for chimera-vectorstore card and Gateway RAG traces.
  *
  * Exports:
  * - ChimeraLogs.Derive.rollupGatewayRagPipeline(entries, getFlat)
- * - ChimeraLogs.Derive.qdrantHttpPathRollup(arr, getFlat)
+ * - ChimeraLogs.Derive.vectorstoreHttpPathRollup(arr, getFlat)
  */
 
 function rollupGatewayRagPipeline(entries, getFlat) {
@@ -25,7 +25,7 @@ function rollupGatewayRagPipeline(entries, getFlat) {
   return { ragQuery: ragQuery, ragEmbed: ragEmbed, ragHitLines: ragHitLines, embedMsSum: embedMsSum };
 }
 
-function qdrantHttpPathRollup(arr, getFlat) {
+function vectorstoreHttpPathRollup(arr, getFlat) {
   arr = Array.isArray(arr) ? arr : [];
   getFlat = typeof getFlat === "function" ? getFlat : function (p) { return (p && p.rawFlat) || {}; };
 
@@ -54,5 +54,5 @@ function qdrantHttpPathRollup(arr, getFlat) {
 globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};
 globalThis.ChimeraLogs.Derive = globalThis.ChimeraLogs.Derive || {};
 globalThis.ChimeraLogs.Derive.rollupGatewayRagPipeline = rollupGatewayRagPipeline;
-globalThis.ChimeraLogs.Derive.qdrantHttpPathRollup = qdrantHttpPathRollup;
+globalThis.ChimeraLogs.Derive.vectorstoreHttpPathRollup = vectorstoreHttpPathRollup;
 
