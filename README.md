@@ -109,7 +109,7 @@ make clean
 ## Documentation
 
 - **Index:** [docs/README.md](docs/README.md)
-- **Overview / ports:** [docs/overview.md](docs/overview.md), [docs/network.md](docs/network.md)
+- **Network / Ports:** [docs/network.md](docs/network.md)
 - **Installation:** [docs/installation.md](docs/installation.md)
 - **Configuration:** [docs/configuration.md](docs/configuration.md)
 - **Supervisor:** [docs/supervisor.md](docs/supervisor.md)

@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway supervision (`internal/supervisor`), logs UI (`internal/server/embedui/logs`), parse/derive (`internal/server/embedui/logs/parse`, `derive`), desktop mirror (`internal/servicelogs`) |
-| **Status** | `shipped` |
+| **Status** | `done` |
 | **Targets** | Gateway plus supervised Qdrant with JSON logging only (`QDRANT__LOGGER__FORMAT=json`) |
 | **Last updated** | 2026-05-08 |
 | **Supersedes / superseded by** | None |

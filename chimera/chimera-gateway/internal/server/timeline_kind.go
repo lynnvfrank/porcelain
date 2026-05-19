@@ -7,7 +7,7 @@ import (
 )
 
 // timelineKindForGatewayHTTPPath classifies inbound gateway HTTP access lines for the logs UI
-// request-timeline bar (adminui/embedui/logs/contracts.js TimelineBarKinds). Values: naming.TimelineKind*.
+// request-timeline bar (generated embedui/logs/contracts.js TimelineBarKinds). Values: naming.TimelineKind*.
 func timelineKindForGatewayHTTPPath(path string) string {
 	if path == "" {
 		return naming.TimelineKindWeb

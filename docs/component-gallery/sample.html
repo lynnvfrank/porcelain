@@ -6,10 +6,10 @@
 <title>Embed UI theme tokens (Phase 1)</title>
 <!--
   Static styleguide scaffold: open this file from disk (file://) or serve the repo root.
-  Stylesheet path is relative to this file: ../../internal/server/embedui/theme-tokens.css
-  Canonical tokens live in internal/server/embedui/theme-tokens.css (not duplicated here).
+  Stylesheet path is relative to this file: ../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/theme-tokens.css
+  Canonical tokens live in chimera/chimera-gateway/internal/server/adminui/embed/embedui/theme-tokens.css (not duplicated here).
 -->
-<link rel="stylesheet" href="../internal/server/embedui/theme-tokens.css" />
+<link rel="stylesheet" href="../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/theme-tokens.css" />
 <style>
   body {
     margin: 0;
@@ -196,7 +196,7 @@
   <a href="gallery.html" style="color:var(--embed-text-link, #0b57d0);font-size:0.85rem">Open Phase 2 component gallery →</a>
 </p>
 <p class="lede">
-  Phase 1 scaffold: all colors below come from <code>internal/server/embedui/theme-tokens.css</code>.
+  Phase 1 scaffold: all colors below come from <code>chimera/chimera-gateway/internal/server/adminui/embed/embedui/theme-tokens.css</code>.
   Edit that file and reload this page (no Go build). Toggle theme to preview <code>data-theme=&quot;porcelain&quot;</code> overrides.
 </p>
 
@@ -236,10 +236,10 @@
   <h2 id="service-heading">Service tints (outline)</h2>
   <div class="swatch-grid">
     <div class="swatch"><div class="swatch-box" style="background:linear-gradient(var(--embed-svc-web-fg),var(--embed-svc-web-fg))"></div><strong>web</strong><code>--embed-svc-web-*</code></div>
-    <div class="swatch"><div class="swatch-box" style="background:linear-gradient(var(--embed-svc-qdrant-fg),var(--embed-svc-qdrant-fg))"></div><strong>qdrant</strong><code>--embed-svc-qdrant-*</code></div>
+    <div class="swatch"><div class="swatch-box" style="background:linear-gradient(var(--embed-svc-qdrant-fg),var(--embed-svc-qdrant-fg))"></div><strong>chimera-vectorstore</strong><code>--embed-svc-qdrant-*</code></div>
     <div class="swatch"><div class="swatch-box" style="background:linear-gradient(var(--embed-svc-indexer-fg),var(--embed-svc-indexer-fg))"></div><strong>indexer</strong><code>--embed-svc-indexer-*</code></div>
     <div class="swatch"><div class="swatch-box" style="background:linear-gradient(var(--embed-svc-gateway-fg),var(--embed-svc-gateway-fg))"></div><strong>gateway</strong><code>--embed-svc-gateway-*</code></div>
-    <div class="swatch"><div class="swatch-box" style="background:linear-gradient(var(--embed-svc-upstream-fg),var(--embed-svc-upstream-fg))"></div><strong>upstream</strong><code>--embed-svc-upstream-*</code></div>
+    <div class="swatch"><div class="swatch-box" style="background:linear-gradient(var(--embed-svc-upstream-fg),var(--embed-svc-upstream-fg))"></div><strong>chimera-broker</strong><code>--embed-svc-upstream-*</code></div>
   </div>
 </section>
 
@@ -259,7 +259,7 @@
         <tr><td><span class="mini" style="background:var(--embed-semantic-warn-bg)"></span><code>--embed-semantic-warn-*</code></td><td>4xx / WARN family</td></tr>
         <tr><td><span class="mini" style="background:var(--embed-semantic-error-bg)"></span><code>--embed-semantic-error-*</code></td><td>5xx / ERROR family</td></tr>
         <tr><td><span class="mini" style="background:var(--embed-svc-web-border)"></span><code>--embed-svc-web-*</code></td><td>Web service badge outline</td></tr>
-        <tr><td><span class="mini" style="background:var(--embed-svc-qdrant-filled-bg)"></span><code>--embed-svc-*-filled-*</code></td><td>Filled service pills (indexer / qdrant / upstream)</td></tr>
+        <tr><td><span class="mini" style="background:var(--embed-svc-qdrant-filled-bg)"></span><code>--embed-svc-*-filled-*</code></td><td>Filled service pills (indexer / chimera-vectorstore / chimera-broker); token names still use <code>qdrant</code> / <code>upstream</code> slots in <code>theme-tokens.css</code></td></tr>
       </tbody>
     </table>
   </div>

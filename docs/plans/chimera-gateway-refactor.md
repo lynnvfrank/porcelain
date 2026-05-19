@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `refactor-plan` |
 | **Owners / areas** | `chimera/chimera-gateway` (Go runtime, operator embed UI) |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway maintainability train (post v0.3 naming, post top-level layout cleanup) |
 | **Last updated** | 2026-05-18 |
 | **Supersedes / superseded by** | Extends [`logs-ui-maintainability.md`](logs-ui-maintainability.md); aligns with [`rename-vectorstore-broker-questions-answered.md`](rename-vectorstore-broker-questions-answered.md) |

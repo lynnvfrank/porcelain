@@ -58,3 +58,12 @@ func ChildLogWriter(dst io.Writer) io.Writer {
 func WrapUpstreamLine(raw string) string {
 	return string(indexerline.NormalizePayload(raw))
 }
+
+// ParseSupervisorHeartbeat reports indexer.state heartbeat fields from a mirrored log line.
+func ParseSupervisorHeartbeat(raw string) (declaredState, workerState string, ok bool) {
+	hb, ok := indexerline.ParseSupervisorHeartbeat(raw)
+	if !ok {
+		return "", "", false
+	}
+	return hb.DeclaredState, hb.WorkerState, true
+}

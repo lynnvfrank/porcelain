@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Unified operator view — gallery draft (Phase 1)</title>
-  <link rel="stylesheet" href="../internal/server/embedui/theme-tokens.css" />
-  <link rel="stylesheet" href="../internal/server/embedui/logs.css" />
+  <link rel="stylesheet" href="../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/theme-tokens.css" />
+  <link rel="stylesheet" href="../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/ui.css" />
+  <link rel="stylesheet" href="../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs.css" />
   <link rel="stylesheet" href="gallery-shell.css" />
 </head>
 <body class="logs-summarized styleguide-body">
@@ -22,7 +23,7 @@
     <h1 id="sg-unified-operator">Unified operator view (draft)</h1>
     <p>
       Prototypes for operator cards above the log stream. Traceability:
-      <a href="../docs/plans/unified-logs-operator-shell.md"><code>docs/plans/unified-logs-operator-shell.md</code></a>.
+      <a href="../plans/unified-logs-operator-shell.md"><code>docs/plans/unified-logs-operator-shell.md</code></a>.
       Uses production patterns from <code>logs.css</code> and gallery chrome in <code>gallery-shell.css</code>.
       When this page is opened over <strong>HTTP(S) on the gateway origin</strong> with a UI session, routing YAML and
       fallback-chain saves call <code>POST /api/ui/routing/policy</code> and <code>POST /api/ui/routing/fallback_chain</code>
@@ -48,7 +49,7 @@
 
       <div id="sg-uo-overview" class="sum-section-label" style="scroll-margin-top:3.25rem">Overview (Main parity)</div>
       <p class="styleguide-sub" style="margin-top:0.15rem">
-        Gateway version + virtual model; composite health + per-service rows (BiFrost, Qdrant when RAG on, indexer
+        Gateway version + virtual model; composite health + per-service rows (chimera-broker, chimera-vectorstore when RAG on, indexer
         when supervised).
       </p>
       <div class="styleguide-demo-bg sg-op-rail">
@@ -89,8 +90,8 @@
           <div class="sum-body">
             <p class="muted" style="margin:0 0 0.5rem;font-size:0.78rem">Degraded state would swap the status pill and chip copy; per-service rows stay comparable to <code>GET /</code> / <code>/api/ui/state</code>.</p>
             <dl class="indexer-run-kv indexer-run-kv--gateway-summary">
-              <dt>BiFrost / upstream</dt><dd>reachable · last probe <span class="muted">420ms ago</span></dd>
-              <dt>Qdrant</dt><dd>optional RAG — <span class="sum-status sum-st-complete" style="font-size:0.65rem;padding:0.12rem 0.35rem">up</span> · collection <code class="sum-mono-id">chimera-default</code></dd>
+              <dt>chimera-broker</dt><dd>reachable · last probe <span class="muted">420ms ago</span></dd>
+              <dt>chimera-vectorstore</dt><dd>optional RAG — <span class="sum-status sum-st-complete" style="font-size:0.65rem;padding:0.12rem 0.35rem">up</span> · collection <code class="sum-mono-id">chimera-default</code></dd>
               <dt>Indexer</dt><dd>supervised · <span class="sum-status sum-st-monitor" style="font-size:0.65rem;padding:0.12rem 0.35rem">idle</span> · lag <code class="sum-mono-id">1.1s</code></dd>
               <dt>Gateway process</dt><dd>PID <code class="sum-mono-id">8812</code> · uptime <code class="sum-mono-id">3d 02h</code></dd>
             </dl>
@@ -258,7 +259,7 @@
 
       <div id="sg-uo-providers" class="sum-section-label" style="margin-top:1.25rem;scroll-margin-top:3.25rem">Providers</div>
       <p class="styleguide-sub" style="margin-top:0.15rem">
-        Rows here drive upstream inference through BiFrost. <strong>Groq</strong> is expanded to show the shared pattern
+        Rows here drive upstream inference through chimera-broker. <strong>Groq</strong> is expanded to show the shared pattern
         (description + docs link, per-model usage, keys, scoped log). <strong>Gemini</strong> stays collapsed;
         <strong>Ollama</strong> is expanded with chat + <strong>embedding</strong> usage (embedding counts appear in metrics once ingest records them).
       </p>
@@ -268,7 +269,7 @@
             <span class="sum-avatar sum-av-a">Gq</span>
             <span class="sum-main">
               <span class="sum-title">Groq</span>
-              <span class="sum-sub sum-sub--clamp">LPU inference — keys and catalog from gateway + BiFrost.</span>
+              <span class="sum-sub sum-sub--clamp">LPU inference — keys and catalog from gateway + chimera-broker.</span>
             </span>
             <span class="sum-metrics">
               <span class="chip">keys 2</span>
@@ -390,7 +391,7 @@
             <p style="margin:0 0 0.5rem;font-size:0.8rem">
               Ollama is often used for <strong>embedding</strong> models during <code class="sum-mono-id">POST /v1/ingest</code>.
               Gateway metrics rollups now record a row per successful ingest using the configured embedding model id (same
-              <code class="sum-mono-id">RecordUpstreamResponse</code> path as chat upstream), so operator usage tables can list embed traffic alongside chat completions.
+              <code class="sum-mono-id">RecordBrokerResponse</code> path as chat relay), so operator usage tables can list embed traffic alongside chat completions.
             </p>
             <div class="sum-section-label">Model usage (24h)</div>
             <div class="sum-metrics-table-wrap">
@@ -508,7 +509,7 @@ rules:
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="rt-2" data-evlog-level="INFO">
                       <td class="sum-evlog__cell--time"><time datetime="2026-05-11T08:10:22.040Z"></time></td>
-                      <td class="sum-evlog__cell--msg">Policy matched rule <code class="sum-mono-id">tenant-acme</code> → upstream <code class="sum-mono-id">gemini/gemini-2.0-flash</code>.</td>
+                      <td class="sum-evlog__cell--msg">Policy matched rule <code class="sum-mono-id">tenant-acme</code> → <code class="sum-mono-id">gemini/gemini-2.0-flash</code>.</td>
                       <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__empty" aria-hidden="true"></span></div></td>
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="rt-3" data-evlog-level="WARN">
@@ -619,7 +620,7 @@ rules:
                   <tbody data-gallery-evlog-tbody>
                     <tr class="sum-evlog__row" data-evlog-id="fb-1" data-evlog-level="WARN" data-evlog-http="429">
                       <td class="sum-evlog__cell--time"><time datetime="2026-05-11T08:11:01.200Z"></time></td>
-                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-upstream">upstream</span>Primary model rate-limited; evaluating fallback tier 2.</td>
+                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-broker">chimera-broker</span>Primary model rate-limited; evaluating fallback tier 2.</td>
                       <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN">WARN</span><span class="pill-4xx">429</span></div></td>
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="fb-2" data-evlog-level="INFO" data-evlog-http="200">

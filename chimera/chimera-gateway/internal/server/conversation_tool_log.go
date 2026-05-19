@@ -40,7 +40,7 @@ func LogConversationIncomingToolMessages(log *slog.Logger, messages json.RawMess
 		failed := toolRelayContentFailed(probe.Content)
 
 		startArgs := []any{
-			"msg", "conversation.tool.call_started",
+			"msg", naming.MsgConversationToolCallStarted,
 			"arg_bytes", argBytes,
 			"timeline_kind", naming.TimelineKindBroker,
 		}
@@ -51,7 +51,7 @@ func LogConversationIncomingToolMessages(log *slog.Logger, messages json.RawMess
 		if failed {
 			errMsg := toolRelayFailureHint(probe.Content)
 			failArgs := []any{
-				"msg", "conversation.tool.call_failed",
+				"msg", naming.MsgConversationToolCallFailed,
 				"latency_ms", int64(0),
 				"err", errMsg,
 				"timeline_kind", naming.TimelineKindBroker,
@@ -62,7 +62,7 @@ func LogConversationIncomingToolMessages(log *slog.Logger, messages json.RawMess
 			continue
 		}
 		doneArgs := []any{
-			"msg", "conversation.tool.call_completed",
+			"msg", naming.MsgConversationToolCallCompleted,
 			"latency_ms", int64(0),
 			"result_bytes", contentBytes,
 			"timeline_kind", naming.TimelineKindBroker,

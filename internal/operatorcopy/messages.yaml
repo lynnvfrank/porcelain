@@ -1,0 +1,774 @@
+version: 1
+locale: en
+formatters:
+  broker_bootstrap_complete:
+    description: bootstrap_ms suffix
+  broker_catalog_sync:
+    description: catalog_model_count / pricing detail
+  broker_chat_relay:
+    description: chat.chimera-broker request/response/error
+  broker_jwt_startup:
+    description: JWT/API key/disabled from progress_detail
+  broker_log_retention:
+    description: log_retention_days or detail
+  broker_plugin_status:
+    description: plugin_name + plugin_status
+  broker_progress_detail:
+    description: Trim progress_detail for broker slugs
+  broker_provider_id:
+    description: provider_id suffix
+  broker_provider_limits:
+    description: chat.provider_limits.blocked reason
+  broker_ready:
+    description: listen_url or listen_port
+  broker_routing_relay:
+    description: chat.routing.* relay lines
+  broker_trim_detail:
+    description: chimeraBrokerTrimDetail helper
+  broker_version:
+    description: chimera_broker_version
+  conversation_broker_started:
+    description: upstreamModel for broker POST
+  conversation_delivered:
+    description: HTTP status + total_ms tail
+  conversation_errored:
+    description: HTTP status + gateway lifecycle error hint
+  conversation_routing:
+    description: upstreamModel, attempt/chainLen
+  gateway_auth_reloaded:
+    description: Optional Active keys count suffix
+  gateway_health_upstream:
+    description: ok, status, detail, target host
+  gateway_startup_config_resolved:
+    description: filePath, api_keys_path, routingPolicyPath
+  gateway_startup_disk_log:
+    description: phase mkdir/open vs enabled path
+  gateway_startup_listening:
+    description: addr, broker host
+  gateway_supervisor_bin_cfg:
+    description: bin leaf + config path truncation
+  gateway_supervisor_broker_start:
+    description: bin, app_dir, host, port
+  gateway_supervisor_url_tail:
+    description: health-check URL host/path tail
+  gateway_supervisor_vectorstore_start:
+    description: bin, storage, http/grpc ports
+  http_access:
+    description: method path status responseTimeMs (summarized primary column)
+  http_broker_inbound:
+    description: Broker HTTP access / rate limit line
+  indexer_discovery:
+    description: discovery summary fields
+  indexer_fanout:
+    description: fanout enqueue/remainder
+  indexer_gateway_config:
+    description: chunk_size, embedding_model tail
+  indexer_job_failed:
+    description: shortIngestFailureDetail tail
+  indexer_job_ingested:
+    description: rel, chunks
+  indexer_job_skipped:
+    description: rel, skip_reason
+  indexer_job_upload:
+    description: rel, bytes, transport
+  indexer_queue_snapshot:
+    description: queue_depth, ingest_completed
+  indexer_rag_source:
+    description: rag.retrieve.source hits + rel
+  indexer_retry_recovery:
+    description: retry/recovery/pause lines
+  indexer_run_done:
+    description: mode, ingest_completed, failures
+  indexer_run_start:
+    description: roots count and root_ids
+  indexer_scope_active_file:
+    description: project + rel
+  indexer_scope_status:
+    description: workspace/queue counts
+  indexer_state:
+    description: state label, queue_depth, ingest_inflight
+  indexer_storage_stats:
+    description: qdrant_points or unavailable detail
+  indexer_work_failed:
+    description: work kind label
+  ingest_complete:
+    description: chunks, source, tenant
+  rag_collection:
+    description: Append RAG collection label from flat.collection
+  rag_retrieve_error:
+    description: Summarize rag.retrieve.error err field
+  upstream_models_ok:
+    description: Optional count suffix
+  vectorstore_collection_http:
+    description: collection display + optional http status
+  vectorstore_listen_ports:
+    description: REST/gRPC port suffix
+  vectorstore_progress_detail:
+    description: progress_detail truncation
+  vectorstore_version:
+    description: qdrant_version in banner
+messages:
+  - slug: gateway.http.access
+    formatter: http_access
+    aliases:
+      - http response
+    gallery_preview: GET /v1/chat/completions → 200 · 142 ms
+  - slug: conversation.merge.embed_failed
+    summary: Embedding failed so this turn cannot be associated with any current conversation; storing as a new conversation
+    gallery_preview: Embedding failed — storing as a new conversation
+  - slug: rag.query
+    formatter: rag_collection
+    gallery_preview: 'Vector search for this request: querying the index for chunks relevant to the user message.'
+  - slug: conversation.received
+    summary: Inbound chat message recorded for this conversation.
+    gallery_preview: Inbound chat message recorded for this conversation.
+  - slug: chat.request
+    summary: Chat completion request accepted and prepared for upstream routing.
+    gallery_preview: Chat completion request accepted and prepared for upstream routing.
+  - slug: conversation.rag.span
+    formatter: rag_collection
+    gallery_preview: RAG retrieval span recorded for this conversation turn (links retrieval to the chat scope).
+  - slug: upstream.models.ok
+    formatter: upstream_models_ok
+    gallery_preview: Upstream model catalog responded successfully.
+  - slug: conversation.request.witness
+    summary: 'Request witness logged: structured snapshot of the chat payload after normalization (message counts, roles, prompt size, tools) for correlation and auditing.'
+    gallery_preview: Request witness logged for correlation and auditing.
+  - slug: rag.retrieve.error
+    formatter: rag_retrieve_error
+    gallery_preview: RAG retrieval failed; continuing without injected chunks.
+  - slug: conversation.errored
+    formatter: conversation_errored
+    gallery_preview: This conversation turn ended with an error (no successful completion delivered).
+  - slug: conversation.delivered
+    formatter: conversation_delivered
+    gallery_preview: Completion delivered to the client (this turn finished successfully).
+  - slug: conversation.routing.resolved
+    formatter: conversation_routing
+    aliases:
+      - conversation.routing.resolve
+    gallery_preview: 'Routing resolved: upstream model chosen for this completion.'
+  - slug: conversation.broker.started
+    formatter: conversation_broker_started
+    gallery_preview: chimera-broker request started (POST to chat/completions).
+  - slug: ingest.complete
+    formatter: ingest_complete
+    gallery_preview: Ingest finished — document indexed.
+  - slug: gateway.auth.reloaded
+    formatter: gateway_auth_reloaded
+    aliases:
+      - Client credentials reloaded from disk.
+    gallery_preview: Client credentials reloaded from disk.
+  - slug: gateway.health.upstream
+    formatter: gateway_health_upstream
+    gallery_preview: Upstream health OK
+  - slug: gateway.startup.listening
+    formatter: gateway_startup_listening
+    gallery_preview: Gateway listening for HTTP requests.
+  - slug: gateway.supervisor.indexer.starting
+    formatter: gateway_supervisor_bin_cfg
+    aliases:
+      - chimera-supervisor.indexer.starting
+    gallery_preview: Supervised indexer process starting.
+  - slug: gateway.supervisor.chimera-broker.ready
+    formatter: gateway_supervisor_url_tail
+    aliases:
+      - chimera-supervisor.chimera-broker.ready
+    gallery_preview: chimera-broker passed health check — ready.
+  - slug: gateway.supervisor.vectorstore.ready
+    formatter: gateway_supervisor_url_tail
+    aliases:
+      - chimera-supervisor.chimera-vectorstore.ready
+      - chimera-supervisor.vectorstore.ready
+    gallery_preview: chimera-vectorstore passed health check — ready.
+  - slug: gateway.supervisor.chimera-broker.starting
+    formatter: gateway_supervisor_broker_start
+    aliases:
+      - chimera-supervisor.chimera-broker.starting
+    gallery_preview: chimera-broker subprocess starting.
+  - slug: gateway.supervisor.vectorstore.starting
+    formatter: gateway_supervisor_vectorstore_start
+    aliases:
+      - chimera-supervisor.chimera-vectorstore.starting
+      - chimera-supervisor.vectorstore.starting
+    gallery_preview: chimera-vectorstore subprocess starting.
+  - slug: gateway.startup.seed
+    summary: Gateway startup seed (early init before full serve).
+    gallery_preview: Gateway startup seed (early init before full serve).
+  - slug: gateway.startup.disk_log
+    formatter: gateway_startup_disk_log
+    gallery_preview: Disk logging enabled.
+  - slug: gateway.startup.config_resolved
+    formatter: gateway_startup_config_resolved
+    gallery_preview: Gateway configuration paths resolved.
+  - slug: broker.http.access
+    formatter: http_broker_inbound
+    aliases:
+      - chimera-broker.http.access
+    gallery_preview: Inbound GET /v1/models → 200 · 12 ms
+  - slug: broker.rate_limit
+    formatter: http_broker_inbound
+    aliases:
+      - chimera-broker.rate_limit
+    gallery_preview: Rate limited POST /v1/chat/completions → 429 · 3 ms
+  - slug: chat.chimera-broker.available_models
+    formatter: broker_chat_relay
+    gallery_preview: Model list for routing · 42 models
+  - slug: chat.chimera-broker.request
+    formatter: broker_chat_relay
+    gallery_preview: Relay request · gpt-4o · streaming on
+  - slug: chat.chimera-broker.response
+    formatter: broker_chat_relay
+    aliases:
+      - upstream chat response
+    gallery_preview: Relay response · HTTP 200 · 512 usage tok
+  - slug: chat.chimera-broker.error
+    formatter: broker_chat_relay
+    gallery_preview: Relay failed · connection reset
+  - slug: chat.routing.fallback
+    formatter: broker_routing_relay
+    gallery_preview: Fallback retry · claude-3-5-sonnet · HTTP 503
+  - slug: chat.routing.attempt
+    formatter: broker_routing_relay
+    aliases:
+      - virtual model fallback attempt
+    gallery_preview: Routing attempt · gpt-4o · attempt 2/3
+  - slug: chat.routing.resolved
+    formatter: broker_routing_relay
+    aliases:
+      - virtual model routing resolved
+    gallery_preview: Routing resolved · gpt-4o · attempt 1/1 · HTTP 200
+  - slug: chat.provider_limits.blocked
+    formatter: broker_provider_limits
+    aliases:
+      - chat blocked by provider limits
+      - skipping upstream model (provider limits)
+    gallery_preview: Blocked by provider limits · daily token cap
+  - slug: broker.startup.banner
+    summary: 'chimera-broker starting (backend: BiFrost)'
+    aliases:
+      - chimera-broker.startup.banner
+    gallery_preview: 'chimera-broker starting (backend: BiFrost)'
+  - slug: broker.version
+    formatter: broker_version
+    aliases:
+      - 'chimera-broker version 1.2.3 (backend: BiFrost)'
+      - chimera-broker.version
+    gallery_preview: 'chimera-broker version (backend: BiFrost)'
+  - slug: broker.bootstrap.complete
+    formatter: broker_bootstrap_complete
+    aliases:
+      - Startup finished · bootstrap 120 ms
+      - chimera-broker.bootstrap.complete
+    gallery_preview: Startup finished · bootstrap complete
+  - slug: broker.client.ready
+    summary: Core client ready
+    aliases:
+      - chimera-broker.client.ready
+    gallery_preview: Core client ready
+  - slug: broker.jobs.async_ready
+    summary: Background jobs enabled
+    aliases:
+      - chimera-broker.jobs.async_ready
+    gallery_preview: Background jobs enabled
+  - slug: broker.governance.startup
+    summary: Governance enabled
+    aliases:
+      - chimera-broker.governance.startup
+    gallery_preview: Governance enabled
+  - slug: broker.mcp.startup
+    summary: MCP catalog initializing
+    aliases:
+      - chimera-broker.mcp.startup
+    gallery_preview: MCP catalog initializing
+  - slug: broker.mcp.persistence.disabled
+    summary: MCP disabled · no config store
+    aliases:
+      - chimera-broker.mcp.persistence.disabled
+    gallery_preview: MCP disabled · no config store
+  - slug: broker.jwt.startup
+    formatter: broker_jwt_startup
+    aliases:
+      - chimera-broker.jwt.startup
+    gallery_preview: Auth · JWT
+  - slug: broker.auth.token_refresh
+    summary: Auth · token refresh worker started
+    aliases:
+      - chimera-broker.auth.token_refresh
+    gallery_preview: Auth · token refresh worker started
+  - slug: broker.config.loaded
+    summary: Configuration loaded · supervised
+    aliases:
+      - chimera-broker.config.loaded
+    gallery_preview: Configuration loaded · supervised
+  - slug: broker.config.validation_failed
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.config.validation_failed
+    gallery_preview: Configuration invalid
+  - slug: broker.config.schema_warn
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.config.schema_warn
+    gallery_preview: Configuration warning
+  - slug: broker.store.config_ready
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.store.config_ready
+    gallery_preview: Config store ready · sqlite
+  - slug: broker.store.request_logs_ready
+    summary: Usage / request log store ready
+    aliases:
+      - chimera-broker.store.request_logs_ready
+    gallery_preview: Usage / request log store ready
+  - slug: broker.catalog.sync
+    formatter: broker_catalog_sync
+    aliases:
+      - Model catalog updated · 42 models
+      - chimera-broker.catalog.sync
+    gallery_preview: Model catalog sync
+  - slug: broker.listen.http
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.listen.http
+    gallery_preview: HTTP listening · :8081
+  - slug: broker.ready
+    formatter: broker_ready
+    aliases:
+      - Ready · UI at http://127.0.0.1:8081
+      - chimera-broker.ready
+    gallery_preview: Ready
+  - slug: broker.plugin.status
+    formatter: broker_plugin_status
+    aliases:
+      - Plugin jwt · started
+      - chimera-broker.plugin.status
+    gallery_preview: Plugin status
+  - slug: broker.provider.loaded
+    formatter: broker_provider_id
+    aliases:
+      - Provider registered · openai
+      - chimera-broker.provider.loaded
+    gallery_preview: Provider registered
+  - slug: broker.provider.health.ok
+    formatter: broker_provider_id
+    aliases:
+      - Provider healthy · openai
+      - chimera-broker.provider.health.ok
+    gallery_preview: Provider healthy
+  - slug: broker.provider.health.fail
+    formatter: broker_provider_id
+    aliases:
+      - Provider health failed · openai
+      - chimera-broker.provider.health.fail
+    gallery_preview: Provider health failed
+  - slug: broker.provider.key_loaded
+    formatter: broker_provider_id
+    aliases:
+      - Provider API key loaded · openai
+      - chimera-broker.provider.key_loaded
+    gallery_preview: Provider API key loaded
+  - slug: broker.provider.key_missing
+    formatter: broker_provider_id
+    aliases:
+      - Missing API key · openai
+      - chimera-broker.provider.key_missing
+    gallery_preview: Missing API key
+  - slug: broker.maintenance.log_retention
+    formatter: broker_log_retention
+    aliases:
+      - Request log retention · 30 days
+      - chimera-broker.maintenance.log_retention
+    gallery_preview: Log retention / cleanup
+  - slug: broker.transport.serve_error
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.transport.serve_error
+    gallery_preview: Connection error
+  - slug: broker.log.zerolog
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.log.zerolog
+    gallery_preview: chimera-broker
+  - slug: broker.unparsed
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.unparsed
+    gallery_preview: Unrecognized chimera-broker backend log line
+  - slug: broker.governance.rejected
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.governance.rejected
+    gallery_preview: Rejected by governance
+  - slug: broker.upstream.request
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.upstream.request
+    gallery_preview: Upstream request started
+  - slug: broker.upstream.response
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.upstream.response
+    gallery_preview: Upstream response
+  - slug: broker.upstream.error
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.upstream.error
+    gallery_preview: Upstream error
+  - slug: broker.shutdown
+    formatter: broker_trim_detail
+    aliases:
+      - chimera-broker.shutdown
+      - chimera-broker.shutdown.signal
+    gallery_preview: Shutting down
+  - slug: vectorstore.startup.banner
+    summary: Starting up …
+    aliases:
+      - qdrant.startup.banner
+    gallery_preview: Starting up …
+  - slug: vectorstore.version
+    formatter: vectorstore_version
+    aliases:
+      - 'Component: chimera-vectorstore · Backend: Qdrant 1.12.0'
+      - qdrant.version
+    gallery_preview: 'Component: chimera-vectorstore · Backend: Qdrant'
+  - slug: vectorstore.web_ui_hint
+    summary: Optional web UI (dashboard may be unavailable without static assets)
+    aliases:
+      - qdrant.web_ui_hint
+    gallery_preview: Optional web UI (dashboard may be unavailable without static assets)
+  - slug: vectorstore.config.optional_missing
+    summary: Supervised configuration (no YAML config file)
+    aliases:
+      - qdrant.config.optional_missing
+    gallery_preview: Supervised configuration (no YAML config file)
+  - slug: vectorstore.consensus.raft_load
+    summary: Loading collections …
+    aliases:
+      - qdrant.consensus.raft_load
+    gallery_preview: Loading collections …
+  - slug: vectorstore.collection.loading
+    formatter: vectorstore_collection_http
+    aliases:
+      - qdrant.collection.loading
+    gallery_preview: Loading collection chimera-tenant-project-abc12345
+  - slug: vectorstore.shard.recover_progress
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.shard.recover_progress
+    gallery_preview: Loading collection chimera-tenant-project-abc12345 · recovering shard
+  - slug: vectorstore.shard.recovered
+    formatter: vectorstore_collection_http
+    aliases:
+      - qdrant.shard.recovered
+    gallery_preview: Loaded collection chimera-tenant-project-abc12345
+  - slug: vectorstore.cluster.single_node
+    summary: 'Cluster mode: single-node'
+    aliases:
+      - qdrant.cluster.single_node
+    gallery_preview: 'Cluster mode: single-node'
+  - slug: vectorstore.listen.tls_disabled_rest
+    summary: REST TLS disabled
+    aliases:
+      - qdrant.listen.tls_disabled_rest
+    gallery_preview: REST TLS disabled
+  - slug: vectorstore.listen.tls_enabled_rest
+    summary: REST TLS enabled
+    aliases:
+      - qdrant.listen.tls_enabled_rest
+    gallery_preview: REST TLS enabled
+  - slug: vectorstore.listen.tls_enabled_grpc
+    summary: gRPC TLS enabled (public API)
+    aliases:
+      - qdrant.listen.tls_enabled_grpc
+    gallery_preview: gRPC TLS enabled (public API)
+  - slug: vectorstore.listen.tls_disabled_grpc
+    summary: gRPC TLS disabled (public API)
+    aliases:
+      - qdrant.listen.tls_disabled_grpc
+    gallery_preview: gRPC TLS disabled (public API)
+  - slug: vectorstore.cluster.internal_tls_disabled
+    summary: Internal cluster gRPC TLS disabled
+    aliases:
+      - qdrant.cluster.internal_tls_disabled
+    gallery_preview: Internal cluster gRPC TLS disabled
+  - slug: vectorstore.cluster.internal_tls_enabled
+    summary: Internal cluster gRPC TLS enabled
+    aliases:
+      - qdrant.cluster.internal_tls_enabled
+    gallery_preview: Internal cluster gRPC TLS enabled
+  - slug: vectorstore.telemetry.enabled
+    summary: Telemetry reporting enabled
+    aliases:
+      - qdrant.telemetry.enabled
+    gallery_preview: Telemetry reporting enabled
+  - slug: vectorstore.telemetry.disabled
+    summary: Telemetry reporting disabled
+    aliases:
+      - qdrant.telemetry.disabled
+    gallery_preview: Telemetry reporting disabled
+  - slug: vectorstore.hardware_reporting.enabled
+    summary: Hardware metrics included in API responses
+    aliases:
+      - qdrant.hardware_reporting.enabled
+    gallery_preview: Hardware metrics included in API responses
+  - slug: vectorstore.inference.configured
+    summary: Inference service configured
+    aliases:
+      - qdrant.inference.configured
+    gallery_preview: Inference service configured
+  - slug: vectorstore.inference.disabled
+    summary: Inference service not configured
+    aliases:
+      - qdrant.inference.disabled
+    gallery_preview: Inference service not configured
+  - slug: vectorstore.grpc.endpoint_disabled
+    summary: gRPC API disabled in configuration
+    aliases:
+      - qdrant.grpc.endpoint_disabled
+    gallery_preview: gRPC API disabled in configuration
+  - slug: vectorstore.listen.internal_grpc
+    formatter: vectorstore_listen_ports
+    aliases:
+      - qdrant.listen.internal_grpc
+    gallery_preview: Internal gRPC listening on port 6335
+  - slug: vectorstore.storage.recovery_mode
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.storage.recovery_mode
+    gallery_preview: Recovery mode · see log line
+  - slug: vectorstore.cluster.bootstrap_uri_duplicate
+    summary: 'Cluster bootstrap: duplicate bootstrap URI warning'
+    aliases:
+      - qdrant.cluster.bootstrap_uri_duplicate
+    gallery_preview: 'Cluster bootstrap: duplicate bootstrap URI warning'
+  - slug: vectorstore.process.server_start_failed
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.process.server_start_failed
+    gallery_preview: Failed to start server
+  - slug: vectorstore.runtime.panic
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.runtime.panic
+    gallery_preview: Runtime panic
+  - slug: vectorstore.gpu.init_failed
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.gpu.init_failed
+    gallery_preview: GPU initialization failed
+  - slug: vectorstore.runtime.init_file_warning
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.runtime.init_file_warning
+    gallery_preview: Init file indicator warning
+  - slug: vectorstore.security.jwt_rbac_warning
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.security.jwt_rbac_warning
+    gallery_preview: JWT / API key configuration warning
+  - slug: vectorstore.process.shutdown_signal
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.process.shutdown_signal
+    gallery_preview: Shutdown signal
+  - slug: vectorstore.debug.feature_flags
+    summary: Feature flags (debug)
+    aliases:
+      - qdrant.debug.feature_flags
+    gallery_preview: Feature flags (debug)
+  - slug: vectorstore.debug.collection_loaded
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.debug.collection_loaded
+    gallery_preview: Collection loaded (debug)
+  - slug: vectorstore.ui.static_missing
+    summary: Web UI static assets missing or disabled
+    aliases:
+      - qdrant.ui.static_missing
+    gallery_preview: Web UI static assets missing or disabled
+  - slug: vectorstore.actix.workers
+    summary: HTTP worker pool configured
+    aliases:
+      - qdrant.actix.workers
+    gallery_preview: HTTP worker pool configured
+  - slug: vectorstore.actix.bind
+    summary: HTTP server binding
+    aliases:
+      - qdrant.actix.bind
+    gallery_preview: HTTP server binding
+  - slug: vectorstore.http.access_other
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.http.access_other
+    gallery_preview: HTTP request (other route)
+  - slug: vectorstore.trace.other
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.trace.other
+    gallery_preview: Unclassified Qdrant trace
+  - slug: vectorstore.unparsed
+    formatter: vectorstore_progress_detail
+    aliases:
+      - qdrant.unparsed
+    gallery_preview: Unparsed Qdrant output
+  - slug: vectorstore.listen.http
+    formatter: vectorstore_listen_ports
+    aliases:
+      - qdrant.listen.http
+    gallery_preview: REST listening on port 6333
+  - slug: vectorstore.listen.grpc
+    formatter: vectorstore_listen_ports
+    aliases:
+      - qdrant.listen.grpc
+    gallery_preview: gRPC listening on port 6334
+  - slug: vectorstore.http.collection_meta
+    formatter: vectorstore_collection_http
+    aliases:
+      - qdrant.http.collection_meta
+    gallery_preview: Reading collection chimera-tenant-project-abc12345 · 200
+  - slug: vectorstore.http.points_upsert_ok
+    formatter: vectorstore_collection_http
+    aliases:
+      - qdrant.http.points_upsert_ok
+    gallery_preview: Upsert into collection chimera-tenant-project-abc12345 · 200
+  - slug: vectorstore.http.points_upsert_rejected
+    formatter: vectorstore_collection_http
+    aliases:
+      - qdrant.http.points_upsert_rejected
+    gallery_preview: Upsert into collection chimera-tenant-project-abc12345 · 400
+  - slug: vectorstore.http.points_delete
+    formatter: vectorstore_collection_http
+    aliases:
+      - qdrant.http.points_delete
+    gallery_preview: Deleting from collection chimera-tenant-project-abc12345 · 200
+  - slug: vectorstore.http.vector_search
+    formatter: vectorstore_collection_http
+    aliases:
+      - qdrant.http.vector_search
+    gallery_preview: Searching collection chimera-tenant-project-abc12345 · 200
+  - slug: rag.retrieve.source
+    formatter: indexer_rag_source
+    aliases:
+      - rag retrieved hits from source
+    gallery_preview: RAG retrieved · 3 hit(s) · docs/guide.md
+  - slug: indexer.supervised.wait_roots
+    summary: Waiting for at least one watch root
+    aliases:
+      - indexer supervised wait roots
+    gallery_preview: Waiting for at least one watch root
+  - slug: indexer.state
+    formatter: indexer_state
+    aliases:
+      - indexer state
+    gallery_preview: Waiting for file changes · queue depth 0
+  - slug: indexer.storage.stats
+    formatter: indexer_storage_stats
+    aliases:
+      - indexer storage stats
+      - indexer storage stats sync
+    gallery_preview: 'Indexed vectors: 1204'
+  - slug: gateway.indexer.config
+    formatter: indexer_gateway_config
+    aliases:
+      - gateway indexer config
+    gallery_preview: Gateway indexer settings loaded (chunk 512, model text-embedding-3-small)
+  - slug: indexer.run.start
+    formatter: indexer_run_start
+    aliases:
+      - indexer run start
+    gallery_preview: Indexer started · 2 watch root(s) · roots root-a,root-b
+  - slug: indexer.discovery.summary
+    formatter: indexer_discovery
+    aliases:
+      - discovery summary
+    gallery_preview: 'Discovery: 120 candidates, 5 paths excluded by ignore rules'
+  - slug: indexer.discovery.summary.scope
+    formatter: indexer_discovery
+    aliases:
+      - discovery summary (scope)
+    gallery_preview: Discovery · my-project / default · 12 files · 12 path(s) logged
+  - slug: indexer.scan.complete
+    formatter: indexer_discovery
+    aliases:
+      - scan fan-out budget
+    gallery_preview: Scan done · 3 scope(s) · budget 50 pending bulk per scope · cap 200
+  - slug: indexer.scope.status
+    formatter: indexer_scope_status
+    aliases:
+      - indexer scope status
+    gallery_preview: ~42 files in workspace · 3 waiting to embed · 1 waiting in discovery queue
+  - slug: indexer.scope.active_file
+    formatter: indexer_scope_active_file
+    aliases:
+      - indexer scope active file
+    gallery_preview: Indexing · project my-project · relative path src/main.go
+  - slug: indexer.reconcile.summary
+    summary: Corpus inventory loaded
+    gallery_preview: Corpus inventory loaded · 88 remote source path(s)
+  - slug: indexer.queue.snapshot
+    formatter: indexer_queue_snapshot
+    aliases:
+      - indexer queue snapshot
+    gallery_preview: Queue · idle · 0 waiting · 12 completed this run
+  - slug: indexer.run.progress
+    summary: Progress · scanning · 4 enqueued
+    gallery_preview: Progress · scanning · 4 enqueued
+  - slug: indexer.job.upload
+    formatter: indexer_job_upload
+    aliases:
+      - job upload
+    gallery_preview: Uploading · src/main.go · 12.4 KB · whole
+  - slug: indexer.job.ingested
+    formatter: indexer_job_ingested
+    aliases:
+      - ingested
+    gallery_preview: Ingested · src/main.go · 8 chunk(s)
+  - slug: indexer.job.skipped
+    formatter: indexer_job_skipped
+    aliases:
+      - job skipped
+    gallery_preview: Skipped · README.md · unchanged
+  - slug: indexer.retry.scheduled
+    formatter: indexer_retry_recovery
+    gallery_preview: Retry scheduled · src/main.go · attempt 2 · backoff 500 ms
+  - slug: indexer.recovery.poll
+    formatter: indexer_retry_recovery
+    gallery_preview: 'Recovery poll #3 · storage OK'
+  - slug: indexer.recovery.resumed
+    summary: Storage recovered — resuming workers
+    gallery_preview: Storage recovered — resuming workers
+  - slug: indexer.worker.paused
+    formatter: indexer_retry_recovery
+    gallery_preview: Worker paused for recovery · src/main.go
+  - slug: indexer.run.done
+    formatter: indexer_run_done
+    aliases:
+      - indexer run done
+      - indexer run stopped
+    gallery_preview: Run finished · mode watch · ingested 12 · failures 0
+  - slug: indexer.fanout.enqueue_failed
+    formatter: indexer_fanout
+    aliases:
+      - failed to enqueue fan-out list job
+    gallery_preview: Couldn't queue discovery batch (queue full?) · 40 paths
+  - slug: indexer.fanout.remainder_blocked
+    summary: Could not re-queue remaining discovery work
+    aliases:
+      - queue full while retaining fan-out remainder
+    gallery_preview: Could not re-queue remaining discovery work
+  - slug: indexer.work.failed
+    formatter: indexer_work_failed
+    aliases:
+      - work item failed (dropped)
+    gallery_preview: Background job failed · scan · dropped
+  - slug: indexer.sync_state.write_failed
+    summary: Couldn't save sync checkpoint after ingest
+    aliases:
+      - sync state write failed
+    gallery_preview: Couldn't save sync checkpoint after ingest · src/main.go
+  - slug: indexer.job.failed
+    formatter: indexer_job_failed
+    aliases:
+      - ingest failed (dropped)
+    gallery_preview: Ingest failed (dropped) · src/main.go

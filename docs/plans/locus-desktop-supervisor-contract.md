@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `refactor-plan` |
 | **Owners / areas** | Desktop launcher, supervisor runtime, packaging, docs |
-| **Status** | `active` |
+| **Status** | `done` |
 | **Targets** | v0.4 desktop/supervisor boundary |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None |

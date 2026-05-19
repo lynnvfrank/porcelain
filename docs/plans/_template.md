@@ -5,7 +5,7 @@
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway, indexer, desktop, … |
 | **Status** | `draft` |
-| **Targets** | e.g. gateway v0.4, indexer v0.6 |
+| **Targets** | e.g. gateway v0.4, indexer Phase 7 |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None |
 
@@ -90,7 +90,7 @@ Decisions still pending. Remove this section once everything is resolved.
 ## References
 
 - Code: `internal/...`, `cmd/...`
-- Docs: [`overview.md`](../overview.md), [`configuration.md`](../configuration.md)
+- Docs: [`configuration.md`](../configuration.md)
 - Tickets / PRs: …
 
 ---

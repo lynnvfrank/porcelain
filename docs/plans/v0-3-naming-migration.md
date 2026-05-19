@@ -4,8 +4,8 @@
 |-------|-------|
 | **Doc kind** | `refactor-plan` |
 | **Owners / areas** | Gateway, indexer, desktop, packaging/release, docs, CI |
-| **Status** | `shipped` |
-| **Targets** | gateway/indexer v0.3 naming train |
+| **Status** | `done` |
+| **Targets** | gateway v0.3 naming train |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Supersedes `naming-migration.md`, `v0.3_naming_migration_1c31a8cf.plan.md`, `v0-3-naming-phase1-inventory.md`, `v0-3-naming-hard-cut-execution.md` |
 

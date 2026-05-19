@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway embed UI (`internal/server/embedui`) |
-| **Status** | `implemented` |
+| **Status** | `done` |
 | **Targets** | Gateway logs summarized view (next minor after current) |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None |

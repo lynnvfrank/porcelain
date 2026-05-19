@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `working-notes` |
 | **Owners / areas** | Build workflow, scripts, Makefile |
-| **Status** | `shipped` |
+| **Status** | `done` |
 | **Targets** | Makefile workflow and service-control targets |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None |

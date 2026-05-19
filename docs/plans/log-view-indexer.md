@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Indexer, gateway embed UI, operator logs |
-| **Status** | `shipped` |
+| **Status** | `done` |
 | **Targets** | Indexer log UX P0-P2; P3 deferred |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Builds on [`log-presentation-layer.plan.md`](log-presentation-layer.plan.md) |

@@ -257,7 +257,7 @@ func (s *Service) Retrieve(ctx context.Context, req RetrieveRequest) ([]vectorst
 	}
 	if spanLog != nil {
 		args := []any{
-			"msg", "conversation.rag.span",
+			"msg", naming.MsgConversationRagSpan,
 			"collection", collection,
 			"span_id", newSpanID(),
 			"window_ms", conversationRAGSpanWindowMS,

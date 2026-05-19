@@ -32,6 +32,8 @@ func NewBootstrapMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay) http
 	})
 
 	mux.HandleFunc("GET /ui/setup", serveBootstrapHTML("embedui/setup.html"))
+	mux.HandleFunc("GET /ui/assets/theme-tokens.css", serveBootstrapAsset("embedui/theme-tokens.css", "text/css; charset=utf-8"))
+	mux.HandleFunc("GET /ui/assets/ui.css", serveBootstrapAsset("embedui/ui.css", "text/css; charset=utf-8"))
 	mux.HandleFunc("GET /ui/login", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -75,6 +77,10 @@ func NewBootstrapMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay) http
 }
 
 func serveBootstrapHTML(name string) http.HandlerFunc {
+	return serveBootstrapAsset(name, "text/html; charset=utf-8")
+}
+
+func serveBootstrapAsset(name, contentType string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -85,7 +91,10 @@ func serveBootstrapHTML(name string) http.HandlerFunc {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		if contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
 		_, _ = w.Write(b)
 	}
 }

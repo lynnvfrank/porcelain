@@ -149,8 +149,8 @@ metrics:
 # Full behavior: docs/indexer.md (supervised mode), docs/supervisor.md.
 indexer:
   supervised:
-    enabled: false
-    log_json: false
+    enabled: true
+    log_json: true
     # bin: ""                          # optional path to chimera-indexer; empty → next to chimera-indexer or PATH
     # config_path: "../data/gateway/indexer.supervised.yaml"
     # start_when_rag_disabled: false # if true, start indexer even when rag.enabled is false

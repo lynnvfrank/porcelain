@@ -18,23 +18,23 @@ import (
 const subscribeChanBuf = 256
 
 // StartMirror connects to baseURL (e.g. http://127.0.0.1:7710), replays the supervisor buffer,
-// then streams live entries into dst until ctx is cancelled.
-func StartMirror(ctx context.Context, baseURL string, dst *servicelogs.Store, log *slog.Logger) {
+// then streams live entries into dst until ctx is cancelled. onEntry is optional (e.g. indexer health).
+func StartMirror(ctx context.Context, baseURL string, dst *servicelogs.Store, log *slog.Logger, onEntry func(servicelogs.Entry)) {
 	if dst == nil || strings.TrimSpace(baseURL) == "" {
 		return
 	}
 	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
-	go runMirror(ctx, base, dst, log)
+	go runMirror(ctx, base, dst, log, onEntry)
 }
 
-func runMirror(ctx context.Context, base string, dst *servicelogs.Store, log *slog.Logger) {
+func runMirror(ctx context.Context, base string, dst *servicelogs.Store, log *slog.Logger, onEntry func(servicelogs.Entry)) {
 	client := &http.Client{Timeout: 0}
-	if err := catchUp(ctx, client, base, dst); err != nil && ctx.Err() == nil && log != nil {
+	if err := catchUp(ctx, client, base, dst, onEntry); err != nil && ctx.Err() == nil && log != nil {
 		log.Warn("supervisor log catch-up failed", "msg", "gateway.supervisor_logs.catchup_failed", "base", base, "err", err)
 	}
 	backoff := time.Second
 	for ctx.Err() == nil {
-		err := streamLive(ctx, client, base, dst)
+		err := streamLive(ctx, client, base, dst, onEntry)
 		if ctx.Err() != nil {
 			return
 		}
@@ -52,7 +52,20 @@ func runMirror(ctx context.Context, base string, dst *servicelogs.Store, log *sl
 	}
 }
 
-func catchUp(ctx context.Context, client *http.Client, base string, dst *servicelogs.Store) error {
+func mirrorEntries(dst *servicelogs.Store, onEntry func(servicelogs.Entry), lines []servicelogs.Entry) {
+	if len(lines) == 0 {
+		return
+	}
+	dst.Import(lines)
+	if onEntry == nil {
+		return
+	}
+	for _, ent := range lines {
+		onEntry(ent)
+	}
+}
+
+func catchUp(ctx context.Context, client *http.Client, base string, dst *servicelogs.Store, onEntry func(servicelogs.Entry)) error {
 	u := base + "/logs?since=0"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
@@ -70,13 +83,11 @@ func catchUp(ctx context.Context, client *http.Client, base string, dst *service
 	if err := json.NewDecoder(res.Body).Decode(&body); err != nil {
 		return err
 	}
-	if len(body.Lines) > 0 {
-		dst.Import(body.Lines)
-	}
+	mirrorEntries(dst, onEntry, body.Lines)
 	return nil
 }
 
-func streamLive(ctx context.Context, client *http.Client, base string, dst *servicelogs.Store) error {
+func streamLive(ctx context.Context, client *http.Client, base string, dst *servicelogs.Store, onEntry func(servicelogs.Entry)) error {
 	u := base + "/logs/stream?replay=none"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
@@ -131,7 +142,7 @@ func streamLive(ctx context.Context, client *http.Client, base string, dst *serv
 			if !ok {
 				return io.EOF
 			}
-			dst.Import([]servicelogs.Entry{ent})
+			mirrorEntries(dst, onEntry, []servicelogs.Entry{ent})
 		}
 	}
 }

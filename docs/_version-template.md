@@ -136,7 +136,7 @@ These notes are the authoring contract for **version roadmaps** (this layout). C
 - Put step-by-step checkboxes in the at-a-glance table (detail belongs under each theme).
 - Ship this **Authoring notes** section — delete it before publishing.
 
-**Link paths.** Version docs live in `docs/`; peer docs use `configuration.md`, `overview.md`, etc. Plans use `plans/<name>.md`. Repo root and code use `../README.md`, `../internal/...`, as needed.
+**Link paths.** Version docs live in `docs/`; peer docs use `configuration.md`, etc. Plans use `plans/<name>.md`. Repo root and code use `../README.md`, `../internal/...`, as needed.
 
 **Anchor links.** GitHub-flavored slugs: lowercase, drop punctuation, replace spaces with `-`. Em-dashes surrounded by spaces become `--`. Example: `## Theme 2 — Billing clarity` → `#theme-2--billing-clarity`. Each at-a-glance row must link to an actual heading; verify links before finishing. Prefer stable heading text so existing links survive edits.
 

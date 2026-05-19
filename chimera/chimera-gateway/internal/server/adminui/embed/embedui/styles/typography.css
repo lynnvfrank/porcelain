@@ -1,0 +1,6 @@
+/* Embed UI — Typography (muted, status line, summary headline) */
+.muted { color: var(--embed-text-muted); }
+.status-line { margin: 0 0 0.5rem; font-size: 0.75rem; color: var(--embed-text-caption); }
+.status-line.err { color: var(--embed-semantic-error-fg); font-weight: 600; }
+.summary-headline { line-height: 1.5; margin-bottom: 0.35rem; }
+.summary-headline .path-em { font-weight: 700; color: var(--embed-text-link); background: var(--embed-path-em-bg); padding: 0.05rem 0.25rem; border-radius: 3px; }

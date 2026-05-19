@@ -21,6 +21,7 @@ On the **RAG** side, indexers continue to send content through the gateway so **
 | [Triggers and streaming semantics](#triggers-and-streaming-semantics) | **Automatic** ensemble triggers plus manual **`//deep`** (trimmed) on **virtual `chimera-<semver>`** only; gateway **may** strip `//deep` before upstream; **critique/synthesize** and **streaming** behavior on ensemble phase failure **fully specified** here (*Ensemble orchestration · 1–3*) | `todo` |
 | [External human escalation](#external-human-escalation) | Configurable **name + URL** surfaces, mandatory **privacy disclosure**, engagement only when internal attempts are **exhausted** and **low confidence** (thresholds configurable), **single copy-paste** escalation prompt with **paste-back delimiter**, merge on delimiter, **no blocking wait** without explicit UX (*External human escalation · 1–6*; signals **3** aligned with ensemble milestone) | `todo` |
 | [Indexer workspace lifecycle and purge](#indexer-workspace-lifecycle-and-purge) | Operator-visible way to **manage** indexers and **remove or purge** vectors for a **specific workspace** (aligned collection / tenant scope) while embeddings remain gateway-mediated into the RAG DB | `todo` |
+| [Indexer Phase 7 — model-assisted strategy](#indexer-phase-7--model-assisted-strategy) | Optional flow: summarize watch tree + ignore rules + config to a **gateway or LLM** endpoint; receive **recommended** indexing patterns, priorities, and exclusions ([`plans/indexer.md`](plans/indexer.md) Phase 7) | `todo` |
 | [Configuration in the desktop or web UI](#configuration-in-the-desktop-or-web-ui) | Change **runtime-relevant** settings through the **desktop or web** interface; file-based config remains source of truth or sync target as designed—**no** requirement to hand-edit YAML for supported knobs | `todo` |
 | [Settings and application search](#settings-and-application-search) | **Search** on the settings/configuration experience and/or **global in-app search** so operators find pages and values quickly | `todo` |
 
@@ -30,11 +31,11 @@ On the **RAG** side, indexers continue to send content through the gateway so **
 
 **v0.4** is the **ensemble roadmap** milestone referenced in [`porcelain.plan.md`](porcelain.plan.md): the point at which **two-phase ensemble**, **triggers**, **streaming error** semantics, and **external human escalation** (including paste-back and session behavior) are **specified and shippable** as a coherent product slice—not partial stubs.
 
-The same train adds **operator-grade RAG housekeeping**: indexers produce embeddings stored **via** the gateway into the **vector database**; operators can **target** a workspace (or indexer registration) for **purge / remove** so retired trees do not leave orphaned vectors. It also advances the **desktop (and any web)** shell toward **settings parity**: edit supported configuration **in UI**, with **search** to navigate dense settings and optionally the rest of the app.
+The same train adds **operator-grade RAG housekeeping**: indexers produce embeddings stored **via** the gateway into the **vector database**; operators can **target** a workspace (or indexer registration) for **purge / remove** so retired trees do not leave orphaned vectors. **Indexer Phase 7** (model-assisted indexing strategy) is scoped here as an optional operator-facing improvement on top of the shipped indexer baseline ([`plans/indexer.md`](plans/indexer.md) Phases 2–6). It also advances the **desktop (and any web)** shell toward **settings parity**: edit supported configuration **in UI**, with **search** to navigate dense settings and optionally the rest of the app.
 
 For **`model: Chimera-<gateway_semver>`**, the gateway continues to own **routing policy** and the **fallback chain** (*Gateway turn orchestration*); **RAG** remains as in prior versions when enabled. **Per-turn dispatch** evaluates ensemble triggers anew each message (*Gateway runtime · 2*). **Fail-over / fail-fast** within the model chain and peers still apply; **no** gateway-side request queues (*Release roadmap · v0.8*).
 
-**Companion docs:** [`porcelain.plan.md`](porcelain.plan.md) (requirements: *Ensemble orchestration*, *External human escalation*, *Responsibility split*, *Gateway runtime*, *Chat turn resilience and degradation*, *Workspace indexing and retrieval*, *Indexer live storage API*), [`configuration.md`](configuration.md), [`plans/indexer.md`](plans/indexer.md), [`plans/desktop-ui.md`](plans/desktop-ui.md), [`plans/_template.md`](plans/_template.md).
+**Companion docs:** [`porcelain.plan.md`](porcelain.plan.md) (requirements: *Ensemble orchestration*, *External human escalation*, *Responsibility split*, *Gateway runtime*, *Chat turn resilience and degradation*, *Workspace indexing and retrieval*, *Indexer live storage API*), [`configuration.md`](configuration.md), [`plans/indexer.md`](plans/indexer.md), [`plans/desktop-ui.md`](plans/desktop-ui.md), [`plans/operator-cli.md`](plans/operator-cli.md) (operator CLI for gateway/BiFrost), [`plans/_template.md`](plans/_template.md).
 
 ---
 
@@ -124,6 +125,30 @@ For **`model: Chimera-<gateway_semver>`**, the gateway continues to own **routin
 
 ---
 
+## Indexer Phase 7 — model-assisted strategy
+
+**Goal:** Give operators an **optional**, **gateway-mediated** way to obtain a **recommended indexing strategy** (ignore patterns, priorities, exclusions) from a **model** or structured endpoint—without embedding inside `chimera-indexer` and without replacing human review of what gets indexed.
+
+**Execution plan:** [`plans/indexer.md`](plans/indexer.md) — **Phase 7 — Model-assisted strategy** (Phases 2–6 are **done**; Phase 7 is the remaining indexer plan item).
+
+**Scope**
+
+- **Inputs (conceptual)** — A **directory tree summary**, **effective ignore sets** (`.chimeraignore`, `.gitignore`, built-ins), and **current indexer / workspace config** (roots, project/flavor scope)—**no** raw file bodies required for the recommendation call unless a later design explicitly adds a bounded sample.
+- **Output** — Actionable recommendations: suggested **globs**, **priority** hints, or **exclusion** patterns operators can **apply** to YAML or workspace settings (exact schema **TBD**).
+- **Call path** — Prefer a **gateway** HTTP surface (authenticated like ingest/indexer REST) so policy, logging, and model routing stay in Chimera; a companion CLI or `/ui/logs` action may invoke the same API.
+- **Non-goals** — **Automatic** application of model output without operator confirm; **replacing** Phase 2–6 ingest, watch, or reconciliation; **local** embedding or vector writes from the indexer binary.
+- **Dependencies** — Stable workspace/indexer identity (tenant, project, flavor) and operator surfaces from prior gateway trains; may reuse virtual-model or tool-router infrastructure where it reduces duplicate LLM wiring—document the chosen path when implemented.
+
+**Acceptance**
+
+- Documented API or UI flow: operator triggers strategy assist → gateway returns structured recommendation → operator can **preview** and **accept or discard** changes to indexer config.
+- Recommendations never bypass **relative `source`** rules or tenant scoping; secrets and absolute host paths are **not** sent in the assist payload.
+- [`plans/indexer.md`](plans/indexer.md) Phase 7 checklist item marked **done** when the normative contract and at least one operator path ship.
+
+**Status:** `todo`
+
+---
+
 ## Configuration in the desktop or web UI
 
 **Goal:** Operators can **change configuration** for supported knobs **inside** the **desktop or web** application, instead of being forced to **edit YAML or env files** for those knobs.
@@ -182,6 +207,7 @@ For **`model: Chimera-<gateway_semver>`**, the gateway continues to own **routin
 | Triggers / streaming | **`//deep`** on virtual model triggers ensemble; streaming client receives spec-compliant events on success and injected draft-phase failure |
 | External human escalation | Forced low-confidence path produces escalation body with **privacy** line + delimiter docs; paste-back merges; no paste does not hang the session |
 | Indexer / purge | Purge API or UI for workspace **W** clears vectors for **W** only; `GET` storage stats / inventory reflect drop (*Observability · 2*) |
+| Indexer Phase 7 | Documented assist flow returns strategy JSON (or equivalent); operator can apply or reject without auto-mutating config |
 | In-app configuration | Edit a documented setting in UI; gateway (or supervised stack) reflects it per documented reload/restart rules |
 | Settings / app search | Settings search finds a documented control by partial name; if global search is in train, second scenario from **Acceptance** |
 | Docs/config | [`configuration.md`](configuration.md) and examples list ensemble, escalation, purge, and UI-editable keys; cross-links from [`porcelain.plan.md`](porcelain.plan.md) release row when published |
@@ -193,4 +219,6 @@ For **`model: Chimera-<gateway_semver>`**, the gateway continues to own **routin
 
 - [`version-v0.3.md`](version-v0.3.md) - previous version (peer backends, onboarding narrative)
 - [`releases-v0.4.x.md`](releases-v0.4.x.md) - patch release notes, once this train ships patches
+- [`plans/indexer.md`](plans/indexer.md) - `chimera-indexer` plan (Phase 7 model-assisted strategy scoped to this release)
+- [`plans/operator-cli.md`](plans/operator-cli.md) - `chimera` operator CLI (config, health, models, chat smoke tests)
 - [`plans/_template.md`](plans/_template.md) - phase-level plan template for implementation breakdowns

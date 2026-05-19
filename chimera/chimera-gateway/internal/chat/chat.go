@@ -17,6 +17,7 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routing"
 	"github.com/lynn/porcelain/chimera/internal/providerlimits"
 	"github.com/lynn/porcelain/chimera/internal/tokencount"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 // upstreamStreamUsageTailBytes caps how much of a streaming SSE body we retain
@@ -139,7 +140,7 @@ func logModelNotFoundRouting(log *slog.Logger, upstreamModel string, attempt, ch
 	}
 	log.Info("upstream model not found (HTTP 404)", args...)
 	log.Info("conversation fallback: upstream model not found",
-		"msg", "conversation.fallback.model_not_found",
+		"msg", naming.MsgConversationFallbackModelNotFound,
 		"upstreamModel", upstreamModel,
 		"attempt", attempt,
 		"chainLen", chainLen,
@@ -268,7 +269,7 @@ func ProxyChatCompletion(ctx context.Context, w http.ResponseWriter, baseURL, ap
 		conversationwitness.LogPayloadSample(log, true, mc, "request", out)
 	}
 	if log != nil {
-		log.Info("conversation routed", "msg", "conversation.routing.resolved",
+		log.Info("conversation routed", "msg", naming.MsgConversationRoutingResolved,
 			"upstreamModel", upstreamModel, "attempt", 1, "chainLen", 1, "stream", stream)
 	}
 	return proxyChatCompletionPayload(ctx, w, baseURL, apiKey, upstreamModel, stream, out, est, timeout, log, rec, opts)
@@ -342,7 +343,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 	}
 
 	if log != nil {
-		log.Info("conversation broker started", "msg", "conversation.broker.started",
+		log.Info("conversation broker started", "msg", naming.MsgConversationBrokerStarted,
 			"upstreamModel", upstreamModel, "stream", stream, "outgoingTokens", est)
 	}
 
@@ -350,7 +351,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 	if err != nil {
 		if log != nil {
 			log.Warn("upstream chat fetch failed", "msg", "chat.chimera-broker.error", "err", err, "target", url, "upstreamModel", upstreamModel, "stream", stream)
-			log.Warn("conversation broker failed", "msg", "conversation.broker.failed",
+			log.Warn("conversation broker failed", "msg", naming.MsgConversationBrokerFailed,
 				"upstreamModel", upstreamModel, "statusCode", http.StatusServiceUnavailable, "err", err.Error())
 		}
 		recordUpstreamMetrics(rec, upstreamModel, http.StatusServiceUnavailable, est)
@@ -632,7 +633,7 @@ func logUpstreamChatResponse(log *slog.Logger, url string, statusCode int, upstr
 	}
 	if statusOK(statusCode) {
 		lc := []any{
-			"msg", "conversation.broker.completed",
+			"msg", naming.MsgConversationBrokerCompleted,
 			"upstreamModel", upstreamModel,
 			"statusCode", statusCode,
 			"stream", stream,
@@ -647,7 +648,7 @@ func logUpstreamChatResponse(log *slog.Logger, url string, statusCode int, upstr
 		}
 		log.Info("conversation broker completed", lc...)
 	} else {
-		log.Warn("conversation broker failed", "msg", "conversation.broker.failed",
+		log.Warn("conversation broker failed", "msg", naming.MsgConversationBrokerFailed,
 			"upstreamModel", upstreamModel, "statusCode", statusCode, "stream", stream,
 			"err", upstreamErrSummary(statusCode, respBody))
 	}
@@ -790,7 +791,7 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 						"msg", "chat.routing.resolved",
 						"upstreamModel", upstreamModel, "attempt", i+1, "chainLen", len(chain), "stream", true)
 				}
-				log.Info("conversation routed", "msg", "conversation.routing.resolved",
+				log.Info("conversation routed", "msg", naming.MsgConversationRoutingResolved,
 					"upstreamModel", upstreamModel, "attempt", i+1, "chainLen", len(chain), "stream", true)
 			}
 			deliver(http.StatusOK, true, r.DeliveryBytes)
@@ -801,7 +802,7 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 				appendFallbackFailure(&attemptFailures, upstreamModel, r.Status, nil, r.ErrMessage)
 				if log != nil {
 					log.Info("retrying next fallback model", "msg", "chat.routing.fallback", "upstreamModel", upstreamModel, "status", r.Status, "willRetry", true)
-					log.Info("conversation fallback attempted", "msg", "conversation.fallback.attempted",
+					log.Info("conversation fallback attempted", "msg", naming.MsgConversationFallbackAttempted,
 						"upstreamModel", upstreamModel, "prev_status", r.Status, "attempt", i+1, "chainLen", len(chain))
 				}
 				continue
@@ -821,7 +822,7 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 					logModelNotFoundRouting(log, upstreamModel, i+1, len(chain), true, r.JSONBody)
 				} else if log != nil {
 					log.Info("retrying next fallback model", "msg", "chat.routing.fallback", "upstreamModel", upstreamModel, "status", r.Status, "willRetry", true)
-					log.Info("conversation fallback attempted", "msg", "conversation.fallback.attempted",
+					log.Info("conversation fallback attempted", "msg", naming.MsgConversationFallbackAttempted,
 						"upstreamModel", upstreamModel, "prev_status", r.Status, "attempt", i+1, "chainLen", len(chain))
 				}
 				continue
@@ -833,7 +834,7 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 							"msg", "chat.routing.resolved",
 							"upstreamModel", upstreamModel, "attempt", i+1, "chainLen", len(chain), "statusCode", r.Status, "stream", false)
 					}
-					log.Info("conversation routed", "msg", "conversation.routing.resolved",
+					log.Info("conversation routed", "msg", naming.MsgConversationRoutingResolved,
 						"upstreamModel", upstreamModel, "attempt", i+1, "chainLen", len(chain), "statusCode", r.Status, "stream", false)
 				}
 				w.Header().Set("Content-Type", "application/json")
@@ -854,7 +855,7 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 		wrap := buildFallbackExhaustedJSONBody(attemptFailures)
 		attemptsJSON, _ := json.Marshal(attemptFailures)
 		if log != nil {
-			log.Warn("conversation fallback exhausted", "msg", "conversation.fallback.exhausted",
+			log.Warn("conversation fallback exhausted", "msg", naming.MsgConversationFallbackExhausted,
 				"chainLen", len(chain), "excluded_413_count", len(excluded413),
 				"attemptCount", len(attemptFailures), "attempts", string(attemptsJSON))
 			log.Warn("chimera broker fallback chain exhausted", "msg", "chat.chimera-broker.fallback_chain_exhausted",
@@ -868,7 +869,7 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 	}
 
 	if log != nil {
-		log.Warn("conversation fallback exhausted", "msg", "conversation.fallback.exhausted",
+		log.Warn("conversation fallback exhausted", "msg", naming.MsgConversationFallbackExhausted,
 			"chainLen", len(chain), "excluded_413_count", len(excluded413))
 	}
 	writeJSONError(w, http.StatusServiceUnavailable, map[string]any{

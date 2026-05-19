@@ -1,0 +1,106 @@
+/* Embed UI — Log lines, metrics tables, full-log lists */
+.sum-full-log { background: var(--embed-surface-muted); border: 1px solid var(--embed-border-medium); border-radius: 8px; padding: 0.45rem 0.55rem; max-height: 14rem; overflow-y: auto; }
+.sum-full-log ul { margin: 0; padding: 0; list-style: none; }
+.sum-full-log li.sum-ev-item { margin: 0; padding: 0.35rem 0; border-bottom: 1px solid var(--embed-border-subtle); }
+.sum-full-log li.sum-ev-item:last-child { border-bottom: none; }
+/* Indexer card: recently evaluated files — fixed columns so times, ops, and paths line up */
+.sum-full-log.indexer-recent-files li.indexer-recent-row {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-start;
+  text-align: left;
+}
+.sum-full-log.indexer-recent-files .indexer-recent-time {
+  flex: 0 0 19ch;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+/* Longest label is "evaluating" (10ch); badge padding included */
+.sum-full-log.indexer-recent-files .indexer-recent-op {
+  flex: 0 0 calc(10ch + 0.7rem);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sum-full-log.indexer-recent-files .indexer-recent-path {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+.sum-full-log.indexer-recent-files .indexer-recent-detail {
+  flex: 0 0 13rem;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+/* Shared log line: local datetime + level + message (message max 2 lines) */
+.log-line-sum { margin: 0; line-height: 1.4; }
+.log-line-sum__meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem;
+  font-size: 0.72rem; color: var(--embed-semantic-neutral-fg); margin-bottom: 0.15rem;
+}
+.log-line-sum__time { font-family: ui-monospace, monospace; color: var(--embed-text-mono-dt); font-weight: 600; }
+.log-line-sum__lvl {
+  font-family: ui-monospace, monospace; font-size: 0.65rem; font-weight: 700;
+  padding: 0.06rem 0.32rem; border-radius: 3px; line-height: 1.2;
+}
+.log-line-sum__lvl--none { background: var(--embed-border-subtle); color: var(--embed-text-muted); font-weight: 500; }
+.log-line-sum__lvl.lvl-DEBUG { background: var(--embed-surface-row-alt); color: var(--embed-semantic-neutral-fg); }
+.log-line-sum__lvl.lvl-INFO { background: var(--embed-semantic-success-bg); color: var(--embed-semantic-success-fg); }
+.log-line-sum__lvl.lvl-WARN { background: var(--embed-semantic-warn-bg); color: var(--embed-semantic-warn-fg); }
+.log-line-sum__lvl.lvl-ERROR { background: var(--embed-semantic-error-bg); color: var(--embed-semantic-error-fg); }
+.log-line-sum__lvl.lvl-TRACE { background: var(--embed-surface-row-alt); color: var(--embed-text-faint); }
+.log-line-sum__msg {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  word-break: break-word; font-size: 0.78rem; color: var(--embed-text-heading); line-height: 1.35;
+}
+/* Bifrost service card: full log uses buildDetailsColumn + room for long upstream lines */
+.sum-full-log.sum-full-log--chimera-broker .log-line-sum__msg {
+  -webkit-line-clamp: 12;
+  max-height: none;
+}
+.sum-last-events li.sum-ev-item .log-line-sum { margin: 0; }
+.sum-sub--clamp {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  word-break: break-word;
+}
+.log-fields-block { margin-top: 0.35rem; font-size: 0.78rem; }
+/* Gateway metrics tables (same data as GET /api/ui/metrics) inside summarized card */
+.sum-metrics-table-wrap { overflow-x: auto; margin: 0.35rem 0 0.75rem; }
+/* Recent upstream calls: cap height like .sum-full-log on other summary cards */
+.sum-metrics-table-wrap.sum-metrics-events-scroll {
+  max-height: 14rem;
+  overflow-y: auto;
+  margin-bottom: 0;
+}
+.sum-metrics-table {
+  width: 100%; border-collapse: collapse; font-size: 0.76rem; background: var(--embed-surface-page);
+  border: 1px solid var(--embed-border-medium); border-radius: 6px; overflow: hidden;
+}
+.sum-metrics-table th, .sum-metrics-table td {
+  text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--embed-border-subtle); vertical-align: top;
+}
+.sum-metrics-table th { background: var(--embed-surface-table-header-alt); font-weight: 600; color: var(--embed-text-secondary); }
+.sum-metrics-table tr:last-child td { border-bottom: none; }
+.sum-metrics-table th.num,
+.sum-metrics-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.sum-metrics-table code { font-size: 0.72rem; }
+
+/* Conversation card — segmented lifecycle bar (gapped segments + labels in expanded body) */

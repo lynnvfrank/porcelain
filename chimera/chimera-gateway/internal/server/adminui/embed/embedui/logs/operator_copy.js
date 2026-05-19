@@ -1,0 +1,517 @@
+/**
+ * Operator message registry — generated from internal/operatorcopy/messages.yaml.
+ * slog JSON may contain duplicate "msg" keys (human title + slug); use resolveFlat(flat).
+ * Legacy aliases (remove after 2026-08-01): qdrant.* -> vectorstore.*, chimera-broker.* -> broker.*
+ * DO NOT EDIT; run: make operator-copy-generate
+ */
+(function () {
+  globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};
+  function fieldPresent(flat, field) {
+    if (!flat || typeof flat !== "object") return false;
+    if (!Object.prototype.hasOwnProperty.call(flat, field)) return false;
+    var v = flat[field];
+    if (v === null || v === undefined) return false;
+    if (typeof v === "string" && v.trim() === "") return false;
+    return true;
+  }
+  function fieldIsBool(flat, field) {
+    return flat && typeof flat === "object" && typeof flat[field] === "boolean";
+  }
+  function matchFields(flat, rules) {
+    if (!rules) return true;
+    var i;
+    if (rules.require_all) {
+      for (i = 0; i < rules.require_all.length; i++) {
+        if (!fieldPresent(flat, rules.require_all[i])) return false;
+      }
+    }
+    var anyGroup = (rules.require_any && rules.require_any.length) || (rules.require_any_bool && rules.require_any_bool.length);
+    if (anyGroup) {
+      var anyOk = false;
+      if (rules.require_any) {
+        for (i = 0; i < rules.require_any.length; i++) {
+          if (fieldPresent(flat, rules.require_any[i])) { anyOk = true; break; }
+        }
+      }
+      if (!anyOk && rules.require_any_bool) {
+        for (i = 0; i < rules.require_any_bool.length; i++) {
+          if (fieldIsBool(flat, rules.require_any_bool[i])) { anyOk = true; break; }
+        }
+      }
+      if (!anyOk) return false;
+    }
+    return true;
+  }
+  var aliasToCanonical = {
+    "http response": "gateway.http.access",
+    "conversation.routing.resolve": "conversation.routing.resolved",
+    "client credentials reloaded from disk.": "gateway.auth.reloaded",
+    "chimera-supervisor.indexer.starting": "gateway.supervisor.indexer.starting",
+    "chimera-supervisor.chimera-broker.ready": "gateway.supervisor.chimera-broker.ready",
+    "chimera-supervisor.chimera-vectorstore.ready": "gateway.supervisor.vectorstore.ready",
+    "chimera-supervisor.vectorstore.ready": "gateway.supervisor.vectorstore.ready",
+    "chimera-supervisor.chimera-broker.starting": "gateway.supervisor.chimera-broker.starting",
+    "chimera-supervisor.chimera-vectorstore.starting": "gateway.supervisor.vectorstore.starting",
+    "chimera-supervisor.vectorstore.starting": "gateway.supervisor.vectorstore.starting",
+    "chimera-broker.http.access": "broker.http.access",
+    "chimera-broker.rate_limit": "broker.rate_limit",
+    "upstream chat response": "chat.chimera-broker.response",
+    "virtual model fallback attempt": "chat.routing.attempt",
+    "virtual model routing resolved": "chat.routing.resolved",
+    "chat blocked by provider limits": "chat.provider_limits.blocked",
+    "skipping upstream model (provider limits)": "chat.provider_limits.blocked",
+    "chimera-broker.startup.banner": "broker.startup.banner",
+    "chimera-broker version 1.2.3 (backend: bifrost)": "broker.version",
+    "chimera-broker.version": "broker.version",
+    "startup finished · bootstrap 120 ms": "broker.bootstrap.complete",
+    "chimera-broker.bootstrap.complete": "broker.bootstrap.complete",
+    "chimera-broker.client.ready": "broker.client.ready",
+    "chimera-broker.jobs.async_ready": "broker.jobs.async_ready",
+    "chimera-broker.governance.startup": "broker.governance.startup",
+    "chimera-broker.mcp.startup": "broker.mcp.startup",
+    "chimera-broker.mcp.persistence.disabled": "broker.mcp.persistence.disabled",
+    "chimera-broker.jwt.startup": "broker.jwt.startup",
+    "chimera-broker.auth.token_refresh": "broker.auth.token_refresh",
+    "chimera-broker.config.loaded": "broker.config.loaded",
+    "chimera-broker.config.validation_failed": "broker.config.validation_failed",
+    "chimera-broker.config.schema_warn": "broker.config.schema_warn",
+    "chimera-broker.store.config_ready": "broker.store.config_ready",
+    "chimera-broker.store.request_logs_ready": "broker.store.request_logs_ready",
+    "model catalog updated · 42 models": "broker.catalog.sync",
+    "chimera-broker.catalog.sync": "broker.catalog.sync",
+    "chimera-broker.listen.http": "broker.listen.http",
+    "ready · ui at http://127.0.0.1:8081": "broker.ready",
+    "chimera-broker.ready": "broker.ready",
+    "plugin jwt · started": "broker.plugin.status",
+    "chimera-broker.plugin.status": "broker.plugin.status",
+    "provider registered · openai": "broker.provider.loaded",
+    "chimera-broker.provider.loaded": "broker.provider.loaded",
+    "provider healthy · openai": "broker.provider.health.ok",
+    "chimera-broker.provider.health.ok": "broker.provider.health.ok",
+    "provider health failed · openai": "broker.provider.health.fail",
+    "chimera-broker.provider.health.fail": "broker.provider.health.fail",
+    "provider api key loaded · openai": "broker.provider.key_loaded",
+    "chimera-broker.provider.key_loaded": "broker.provider.key_loaded",
+    "missing api key · openai": "broker.provider.key_missing",
+    "chimera-broker.provider.key_missing": "broker.provider.key_missing",
+    "request log retention · 30 days": "broker.maintenance.log_retention",
+    "chimera-broker.maintenance.log_retention": "broker.maintenance.log_retention",
+    "chimera-broker.transport.serve_error": "broker.transport.serve_error",
+    "chimera-broker.log.zerolog": "broker.log.zerolog",
+    "chimera-broker.unparsed": "broker.unparsed",
+    "chimera-broker.governance.rejected": "broker.governance.rejected",
+    "chimera-broker.upstream.request": "broker.upstream.request",
+    "chimera-broker.upstream.response": "broker.upstream.response",
+    "chimera-broker.upstream.error": "broker.upstream.error",
+    "chimera-broker.shutdown": "broker.shutdown",
+    "chimera-broker.shutdown.signal": "broker.shutdown",
+    "qdrant.startup.banner": "vectorstore.startup.banner",
+    "component: chimera-vectorstore · backend: qdrant 1.12.0": "vectorstore.version",
+    "qdrant.version": "vectorstore.version",
+    "qdrant.web_ui_hint": "vectorstore.web_ui_hint",
+    "qdrant.config.optional_missing": "vectorstore.config.optional_missing",
+    "qdrant.consensus.raft_load": "vectorstore.consensus.raft_load",
+    "qdrant.collection.loading": "vectorstore.collection.loading",
+    "qdrant.shard.recover_progress": "vectorstore.shard.recover_progress",
+    "qdrant.shard.recovered": "vectorstore.shard.recovered",
+    "qdrant.cluster.single_node": "vectorstore.cluster.single_node",
+    "qdrant.listen.tls_disabled_rest": "vectorstore.listen.tls_disabled_rest",
+    "qdrant.listen.tls_enabled_rest": "vectorstore.listen.tls_enabled_rest",
+    "qdrant.listen.tls_enabled_grpc": "vectorstore.listen.tls_enabled_grpc",
+    "qdrant.listen.tls_disabled_grpc": "vectorstore.listen.tls_disabled_grpc",
+    "qdrant.cluster.internal_tls_disabled": "vectorstore.cluster.internal_tls_disabled",
+    "qdrant.cluster.internal_tls_enabled": "vectorstore.cluster.internal_tls_enabled",
+    "qdrant.telemetry.enabled": "vectorstore.telemetry.enabled",
+    "qdrant.telemetry.disabled": "vectorstore.telemetry.disabled",
+    "qdrant.hardware_reporting.enabled": "vectorstore.hardware_reporting.enabled",
+    "qdrant.inference.configured": "vectorstore.inference.configured",
+    "qdrant.inference.disabled": "vectorstore.inference.disabled",
+    "qdrant.grpc.endpoint_disabled": "vectorstore.grpc.endpoint_disabled",
+    "qdrant.listen.internal_grpc": "vectorstore.listen.internal_grpc",
+    "qdrant.storage.recovery_mode": "vectorstore.storage.recovery_mode",
+    "qdrant.cluster.bootstrap_uri_duplicate": "vectorstore.cluster.bootstrap_uri_duplicate",
+    "qdrant.process.server_start_failed": "vectorstore.process.server_start_failed",
+    "qdrant.runtime.panic": "vectorstore.runtime.panic",
+    "qdrant.gpu.init_failed": "vectorstore.gpu.init_failed",
+    "qdrant.runtime.init_file_warning": "vectorstore.runtime.init_file_warning",
+    "qdrant.security.jwt_rbac_warning": "vectorstore.security.jwt_rbac_warning",
+    "qdrant.process.shutdown_signal": "vectorstore.process.shutdown_signal",
+    "qdrant.debug.feature_flags": "vectorstore.debug.feature_flags",
+    "qdrant.debug.collection_loaded": "vectorstore.debug.collection_loaded",
+    "qdrant.ui.static_missing": "vectorstore.ui.static_missing",
+    "qdrant.actix.workers": "vectorstore.actix.workers",
+    "qdrant.actix.bind": "vectorstore.actix.bind",
+    "qdrant.http.access_other": "vectorstore.http.access_other",
+    "qdrant.trace.other": "vectorstore.trace.other",
+    "qdrant.unparsed": "vectorstore.unparsed",
+    "qdrant.listen.http": "vectorstore.listen.http",
+    "qdrant.listen.grpc": "vectorstore.listen.grpc",
+    "qdrant.http.collection_meta": "vectorstore.http.collection_meta",
+    "qdrant.http.points_upsert_ok": "vectorstore.http.points_upsert_ok",
+    "qdrant.http.points_upsert_rejected": "vectorstore.http.points_upsert_rejected",
+    "qdrant.http.points_delete": "vectorstore.http.points_delete",
+    "qdrant.http.vector_search": "vectorstore.http.vector_search",
+    "rag retrieved hits from source": "rag.retrieve.source",
+    "indexer supervised wait roots": "indexer.supervised.wait_roots",
+    "indexer state": "indexer.state",
+    "indexer storage stats": "indexer.storage.stats",
+    "indexer storage stats sync": "indexer.storage.stats",
+    "gateway indexer config": "gateway.indexer.config",
+    "indexer run start": "indexer.run.start",
+    "discovery summary": "indexer.discovery.summary",
+    "discovery summary (scope)": "indexer.discovery.summary.scope",
+    "scan fan-out budget": "indexer.scan.complete",
+    "indexer scope status": "indexer.scope.status",
+    "indexer scope active file": "indexer.scope.active_file",
+    "indexer queue snapshot": "indexer.queue.snapshot",
+    "job upload": "indexer.job.upload",
+    "ingested": "indexer.job.ingested",
+    "job skipped": "indexer.job.skipped",
+    "indexer run done": "indexer.run.done",
+    "indexer run stopped": "indexer.run.done",
+    "failed to enqueue fan-out list job": "indexer.fanout.enqueue_failed",
+    "queue full while retaining fan-out remainder": "indexer.fanout.remainder_blocked",
+    "work item failed (dropped)": "indexer.work.failed",
+    "sync state write failed": "indexer.sync_state.write_failed",
+    "ingest failed (dropped)": "indexer.job.failed"
+  };
+  var flatAliasRules = [
+    
+  ];
+  var prefixSlugs = [
+    
+  ];
+  var bySlug = {
+    "gateway.http.access": {summary: "GET /v1/chat/completions → 200 · 142 ms", formatter: "http_access"},
+    "conversation.merge.embed_failed": {summary: "Embedding failed so this turn cannot be associated with any current conversation; storing as a new conversation"},
+    "rag.query": {summary: "Vector search for this request: querying the index for chunks relevant to the user message.", formatter: "rag_collection"},
+    "conversation.received": {summary: "Inbound chat message recorded for this conversation."},
+    "chat.request": {summary: "Chat completion request accepted and prepared for upstream routing."},
+    "conversation.rag.span": {summary: "RAG retrieval span recorded for this conversation turn (links retrieval to the chat scope).", formatter: "rag_collection"},
+    "upstream.models.ok": {summary: "Upstream model catalog responded successfully.", formatter: "upstream_models_ok"},
+    "conversation.request.witness": {summary: "Request witness logged: structured snapshot of the chat payload after normalization (message counts, roles, prompt size, tools) for correlation and auditing."},
+    "rag.retrieve.error": {summary: "RAG retrieval failed; continuing without injected chunks.", formatter: "rag_retrieve_error"},
+    "conversation.errored": {summary: "This conversation turn ended with an error (no successful completion delivered).", formatter: "conversation_errored"},
+    "conversation.delivered": {summary: "Completion delivered to the client (this turn finished successfully).", formatter: "conversation_delivered"},
+    "conversation.routing.resolved": {summary: "Routing resolved: upstream model chosen for this completion.", formatter: "conversation_routing"},
+    "conversation.broker.started": {summary: "chimera-broker request started (POST to chat/completions).", formatter: "conversation_broker_started"},
+    "ingest.complete": {summary: "Ingest finished — document indexed.", formatter: "ingest_complete"},
+    "gateway.auth.reloaded": {summary: "Client credentials reloaded from disk.", formatter: "gateway_auth_reloaded"},
+    "gateway.health.upstream": {summary: "Upstream health OK", formatter: "gateway_health_upstream"},
+    "gateway.startup.listening": {summary: "Gateway listening for HTTP requests.", formatter: "gateway_startup_listening"},
+    "gateway.supervisor.indexer.starting": {summary: "Supervised indexer process starting.", formatter: "gateway_supervisor_bin_cfg"},
+    "gateway.supervisor.chimera-broker.ready": {summary: "chimera-broker passed health check — ready.", formatter: "gateway_supervisor_url_tail"},
+    "gateway.supervisor.vectorstore.ready": {summary: "chimera-vectorstore passed health check — ready.", formatter: "gateway_supervisor_url_tail"},
+    "gateway.supervisor.chimera-broker.starting": {summary: "chimera-broker subprocess starting.", formatter: "gateway_supervisor_broker_start"},
+    "gateway.supervisor.vectorstore.starting": {summary: "chimera-vectorstore subprocess starting.", formatter: "gateway_supervisor_vectorstore_start"},
+    "gateway.startup.seed": {summary: "Gateway startup seed (early init before full serve)."},
+    "gateway.startup.disk_log": {summary: "Disk logging enabled.", formatter: "gateway_startup_disk_log"},
+    "gateway.startup.config_resolved": {summary: "Gateway configuration paths resolved.", formatter: "gateway_startup_config_resolved"},
+    "broker.http.access": {summary: "Inbound GET /v1/models → 200 · 12 ms", formatter: "http_broker_inbound"},
+    "broker.rate_limit": {summary: "Rate limited POST /v1/chat/completions → 429 · 3 ms", formatter: "http_broker_inbound"},
+    "chat.chimera-broker.available_models": {summary: "Model list for routing · 42 models", formatter: "broker_chat_relay"},
+    "chat.chimera-broker.request": {summary: "Relay request · gpt-4o · streaming on", formatter: "broker_chat_relay"},
+    "chat.chimera-broker.response": {summary: "Relay response · HTTP 200 · 512 usage tok", formatter: "broker_chat_relay"},
+    "chat.chimera-broker.error": {summary: "Relay failed · connection reset", formatter: "broker_chat_relay"},
+    "chat.routing.fallback": {summary: "Fallback retry · claude-3-5-sonnet · HTTP 503", formatter: "broker_routing_relay"},
+    "chat.routing.attempt": {summary: "Routing attempt · gpt-4o · attempt 2/3", formatter: "broker_routing_relay"},
+    "chat.routing.resolved": {summary: "Routing resolved · gpt-4o · attempt 1/1 · HTTP 200", formatter: "broker_routing_relay"},
+    "chat.provider_limits.blocked": {summary: "Blocked by provider limits · daily token cap", formatter: "broker_provider_limits"},
+    "broker.startup.banner": {summary: "chimera-broker starting (backend: BiFrost)"},
+    "broker.version": {summary: "chimera-broker version (backend: BiFrost)", formatter: "broker_version"},
+    "broker.bootstrap.complete": {summary: "Startup finished · bootstrap complete", formatter: "broker_bootstrap_complete"},
+    "broker.client.ready": {summary: "Core client ready"},
+    "broker.jobs.async_ready": {summary: "Background jobs enabled"},
+    "broker.governance.startup": {summary: "Governance enabled"},
+    "broker.mcp.startup": {summary: "MCP catalog initializing"},
+    "broker.mcp.persistence.disabled": {summary: "MCP disabled · no config store"},
+    "broker.jwt.startup": {summary: "Auth · JWT", formatter: "broker_jwt_startup"},
+    "broker.auth.token_refresh": {summary: "Auth · token refresh worker started"},
+    "broker.config.loaded": {summary: "Configuration loaded · supervised"},
+    "broker.config.validation_failed": {summary: "Configuration invalid", formatter: "broker_trim_detail"},
+    "broker.config.schema_warn": {summary: "Configuration warning", formatter: "broker_trim_detail"},
+    "broker.store.config_ready": {summary: "Config store ready · sqlite", formatter: "broker_trim_detail"},
+    "broker.store.request_logs_ready": {summary: "Usage / request log store ready"},
+    "broker.catalog.sync": {summary: "Model catalog sync", formatter: "broker_catalog_sync"},
+    "broker.listen.http": {summary: "HTTP listening · :8081", formatter: "broker_trim_detail"},
+    "broker.ready": {summary: "Ready", formatter: "broker_ready"},
+    "broker.plugin.status": {summary: "Plugin status", formatter: "broker_plugin_status"},
+    "broker.provider.loaded": {summary: "Provider registered", formatter: "broker_provider_id"},
+    "broker.provider.health.ok": {summary: "Provider healthy", formatter: "broker_provider_id"},
+    "broker.provider.health.fail": {summary: "Provider health failed", formatter: "broker_provider_id"},
+    "broker.provider.key_loaded": {summary: "Provider API key loaded", formatter: "broker_provider_id"},
+    "broker.provider.key_missing": {summary: "Missing API key", formatter: "broker_provider_id"},
+    "broker.maintenance.log_retention": {summary: "Log retention / cleanup", formatter: "broker_log_retention"},
+    "broker.transport.serve_error": {summary: "Connection error", formatter: "broker_trim_detail"},
+    "broker.log.zerolog": {summary: "chimera-broker", formatter: "broker_trim_detail"},
+    "broker.unparsed": {summary: "Unrecognized chimera-broker backend log line", formatter: "broker_trim_detail"},
+    "broker.governance.rejected": {summary: "Rejected by governance", formatter: "broker_trim_detail"},
+    "broker.upstream.request": {summary: "Upstream request started", formatter: "broker_trim_detail"},
+    "broker.upstream.response": {summary: "Upstream response", formatter: "broker_trim_detail"},
+    "broker.upstream.error": {summary: "Upstream error", formatter: "broker_trim_detail"},
+    "broker.shutdown": {summary: "Shutting down", formatter: "broker_trim_detail"},
+    "vectorstore.startup.banner": {summary: "Starting up …"},
+    "vectorstore.version": {summary: "Component: chimera-vectorstore · Backend: Qdrant", formatter: "vectorstore_version"},
+    "vectorstore.web_ui_hint": {summary: "Optional web UI (dashboard may be unavailable without static assets)"},
+    "vectorstore.config.optional_missing": {summary: "Supervised configuration (no YAML config file)"},
+    "vectorstore.consensus.raft_load": {summary: "Loading collections …"},
+    "vectorstore.collection.loading": {summary: "Loading collection chimera-tenant-project-abc12345", formatter: "vectorstore_collection_http"},
+    "vectorstore.shard.recover_progress": {summary: "Loading collection chimera-tenant-project-abc12345 · recovering shard", formatter: "vectorstore_progress_detail"},
+    "vectorstore.shard.recovered": {summary: "Loaded collection chimera-tenant-project-abc12345", formatter: "vectorstore_collection_http"},
+    "vectorstore.cluster.single_node": {summary: "Cluster mode: single-node"},
+    "vectorstore.listen.tls_disabled_rest": {summary: "REST TLS disabled"},
+    "vectorstore.listen.tls_enabled_rest": {summary: "REST TLS enabled"},
+    "vectorstore.listen.tls_enabled_grpc": {summary: "gRPC TLS enabled (public API)"},
+    "vectorstore.listen.tls_disabled_grpc": {summary: "gRPC TLS disabled (public API)"},
+    "vectorstore.cluster.internal_tls_disabled": {summary: "Internal cluster gRPC TLS disabled"},
+    "vectorstore.cluster.internal_tls_enabled": {summary: "Internal cluster gRPC TLS enabled"},
+    "vectorstore.telemetry.enabled": {summary: "Telemetry reporting enabled"},
+    "vectorstore.telemetry.disabled": {summary: "Telemetry reporting disabled"},
+    "vectorstore.hardware_reporting.enabled": {summary: "Hardware metrics included in API responses"},
+    "vectorstore.inference.configured": {summary: "Inference service configured"},
+    "vectorstore.inference.disabled": {summary: "Inference service not configured"},
+    "vectorstore.grpc.endpoint_disabled": {summary: "gRPC API disabled in configuration"},
+    "vectorstore.listen.internal_grpc": {summary: "Internal gRPC listening on port 6335", formatter: "vectorstore_listen_ports"},
+    "vectorstore.storage.recovery_mode": {summary: "Recovery mode · see log line", formatter: "vectorstore_progress_detail"},
+    "vectorstore.cluster.bootstrap_uri_duplicate": {summary: "Cluster bootstrap: duplicate bootstrap URI warning"},
+    "vectorstore.process.server_start_failed": {summary: "Failed to start server", formatter: "vectorstore_progress_detail"},
+    "vectorstore.runtime.panic": {summary: "Runtime panic", formatter: "vectorstore_progress_detail"},
+    "vectorstore.gpu.init_failed": {summary: "GPU initialization failed", formatter: "vectorstore_progress_detail"},
+    "vectorstore.runtime.init_file_warning": {summary: "Init file indicator warning", formatter: "vectorstore_progress_detail"},
+    "vectorstore.security.jwt_rbac_warning": {summary: "JWT / API key configuration warning", formatter: "vectorstore_progress_detail"},
+    "vectorstore.process.shutdown_signal": {summary: "Shutdown signal", formatter: "vectorstore_progress_detail"},
+    "vectorstore.debug.feature_flags": {summary: "Feature flags (debug)"},
+    "vectorstore.debug.collection_loaded": {summary: "Collection loaded (debug)", formatter: "vectorstore_progress_detail"},
+    "vectorstore.ui.static_missing": {summary: "Web UI static assets missing or disabled"},
+    "vectorstore.actix.workers": {summary: "HTTP worker pool configured"},
+    "vectorstore.actix.bind": {summary: "HTTP server binding"},
+    "vectorstore.http.access_other": {summary: "HTTP request (other route)", formatter: "vectorstore_progress_detail"},
+    "vectorstore.trace.other": {summary: "Unclassified Qdrant trace", formatter: "vectorstore_progress_detail"},
+    "vectorstore.unparsed": {summary: "Unparsed Qdrant output", formatter: "vectorstore_progress_detail"},
+    "vectorstore.listen.http": {summary: "REST listening on port 6333", formatter: "vectorstore_listen_ports"},
+    "vectorstore.listen.grpc": {summary: "gRPC listening on port 6334", formatter: "vectorstore_listen_ports"},
+    "vectorstore.http.collection_meta": {summary: "Reading collection chimera-tenant-project-abc12345 · 200", formatter: "vectorstore_collection_http"},
+    "vectorstore.http.points_upsert_ok": {summary: "Upsert into collection chimera-tenant-project-abc12345 · 200", formatter: "vectorstore_collection_http"},
+    "vectorstore.http.points_upsert_rejected": {summary: "Upsert into collection chimera-tenant-project-abc12345 · 400", formatter: "vectorstore_collection_http"},
+    "vectorstore.http.points_delete": {summary: "Deleting from collection chimera-tenant-project-abc12345 · 200", formatter: "vectorstore_collection_http"},
+    "vectorstore.http.vector_search": {summary: "Searching collection chimera-tenant-project-abc12345 · 200", formatter: "vectorstore_collection_http"},
+    "rag.retrieve.source": {summary: "RAG retrieved · 3 hit(s) · docs/guide.md", formatter: "indexer_rag_source"},
+    "indexer.supervised.wait_roots": {summary: "Waiting for at least one watch root"},
+    "indexer.state": {summary: "Waiting for file changes · queue depth 0", formatter: "indexer_state"},
+    "indexer.storage.stats": {summary: "Indexed vectors: 1204", formatter: "indexer_storage_stats"},
+    "gateway.indexer.config": {summary: "Gateway indexer settings loaded (chunk 512, model text-embedding-3-small)", formatter: "indexer_gateway_config"},
+    "indexer.run.start": {summary: "Indexer started · 2 watch root(s) · roots root-a,root-b", formatter: "indexer_run_start"},
+    "indexer.discovery.summary": {summary: "Discovery: 120 candidates, 5 paths excluded by ignore rules", formatter: "indexer_discovery"},
+    "indexer.discovery.summary.scope": {summary: "Discovery · my-project / default · 12 files · 12 path(s) logged", formatter: "indexer_discovery"},
+    "indexer.scan.complete": {summary: "Scan done · 3 scope(s) · budget 50 pending bulk per scope · cap 200", formatter: "indexer_discovery"},
+    "indexer.scope.status": {summary: "~42 files in workspace · 3 waiting to embed · 1 waiting in discovery queue", formatter: "indexer_scope_status"},
+    "indexer.scope.active_file": {summary: "Indexing · project my-project · relative path src/main.go", formatter: "indexer_scope_active_file"},
+    "indexer.reconcile.summary": {summary: "Corpus inventory loaded"},
+    "indexer.queue.snapshot": {summary: "Queue · idle · 0 waiting · 12 completed this run", formatter: "indexer_queue_snapshot"},
+    "indexer.run.progress": {summary: "Progress · scanning · 4 enqueued"},
+    "indexer.job.upload": {summary: "Uploading · src/main.go · 12.4 KB · whole", formatter: "indexer_job_upload"},
+    "indexer.job.ingested": {summary: "Ingested · src/main.go · 8 chunk(s)", formatter: "indexer_job_ingested"},
+    "indexer.job.skipped": {summary: "Skipped · README.md · unchanged", formatter: "indexer_job_skipped"},
+    "indexer.retry.scheduled": {summary: "Retry scheduled · src/main.go · attempt 2 · backoff 500 ms", formatter: "indexer_retry_recovery"},
+    "indexer.recovery.poll": {summary: "Recovery poll #3 · storage OK", formatter: "indexer_retry_recovery"},
+    "indexer.recovery.resumed": {summary: "Storage recovered — resuming workers"},
+    "indexer.worker.paused": {summary: "Worker paused for recovery · src/main.go", formatter: "indexer_retry_recovery"},
+    "indexer.run.done": {summary: "Run finished · mode watch · ingested 12 · failures 0", formatter: "indexer_run_done"},
+    "indexer.fanout.enqueue_failed": {summary: "Couldn't queue discovery batch (queue full?) · 40 paths", formatter: "indexer_fanout"},
+    "indexer.fanout.remainder_blocked": {summary: "Could not re-queue remaining discovery work"},
+    "indexer.work.failed": {summary: "Background job failed · scan · dropped", formatter: "indexer_work_failed"},
+    "indexer.sync_state.write_failed": {summary: "Couldn't save sync checkpoint after ingest"},
+    "indexer.job.failed": {summary: "Ingest failed (dropped) · src/main.go", formatter: "indexer_job_failed"}
+  };
+  var indexerStateLabels = {};
+  var Slug = {
+    MsgGatewayHttpAccess: "gateway.http.access",
+    MsgConversationMergeEmbedFailed: "conversation.merge.embed_failed",
+    MsgRagQuery: "rag.query",
+    MsgConversationReceived: "conversation.received",
+    MsgChatRequest: "chat.request",
+    MsgConversationRagSpan: "conversation.rag.span",
+    MsgUpstreamModelsOk: "upstream.models.ok",
+    MsgConversationRequestWitness: "conversation.request.witness",
+    MsgRagRetrieveError: "rag.retrieve.error",
+    MsgConversationErrored: "conversation.errored",
+    MsgConversationDelivered: "conversation.delivered",
+    MsgConversationRoutingResolved: "conversation.routing.resolved",
+    MsgConversationBrokerStarted: "conversation.broker.started",
+    MsgIngestComplete: "ingest.complete",
+    MsgGatewayAuthReloaded: "gateway.auth.reloaded",
+    MsgGatewayHealthUpstream: "gateway.health.upstream",
+    MsgGatewayStartupListening: "gateway.startup.listening",
+    MsgGatewaySupervisorIndexerStarting: "gateway.supervisor.indexer.starting",
+    MsgGatewaySupervisorChimeraBrokerReady: "gateway.supervisor.chimera-broker.ready",
+    MsgGatewaySupervisorVectorstoreReady: "gateway.supervisor.vectorstore.ready",
+    MsgGatewaySupervisorChimeraBrokerStarting: "gateway.supervisor.chimera-broker.starting",
+    MsgGatewaySupervisorVectorstoreStarting: "gateway.supervisor.vectorstore.starting",
+    MsgGatewayStartupSeed: "gateway.startup.seed",
+    MsgGatewayStartupDiskLog: "gateway.startup.disk_log",
+    MsgGatewayStartupConfigResolved: "gateway.startup.config_resolved",
+    MsgBrokerHttpAccess: "broker.http.access",
+    MsgBrokerRateLimit: "broker.rate_limit",
+    MsgChatChimeraBrokerAvailableModels: "chat.chimera-broker.available_models",
+    MsgChatChimeraBrokerRequest: "chat.chimera-broker.request",
+    MsgChatChimeraBrokerResponse: "chat.chimera-broker.response",
+    MsgChatChimeraBrokerError: "chat.chimera-broker.error",
+    MsgChatRoutingFallback: "chat.routing.fallback",
+    MsgChatRoutingAttempt: "chat.routing.attempt",
+    MsgChatRoutingResolved: "chat.routing.resolved",
+    MsgChatProviderLimitsBlocked: "chat.provider_limits.blocked",
+    MsgBrokerStartupBanner: "broker.startup.banner",
+    MsgBrokerVersion: "broker.version",
+    MsgBrokerBootstrapComplete: "broker.bootstrap.complete",
+    MsgBrokerClientReady: "broker.client.ready",
+    MsgBrokerJobsAsyncReady: "broker.jobs.async_ready",
+    MsgBrokerGovernanceStartup: "broker.governance.startup",
+    MsgBrokerMcpStartup: "broker.mcp.startup",
+    MsgBrokerMcpPersistenceDisabled: "broker.mcp.persistence.disabled",
+    MsgBrokerJwtStartup: "broker.jwt.startup",
+    MsgBrokerAuthTokenRefresh: "broker.auth.token_refresh",
+    MsgBrokerConfigLoaded: "broker.config.loaded",
+    MsgBrokerConfigValidationFailed: "broker.config.validation_failed",
+    MsgBrokerConfigSchemaWarn: "broker.config.schema_warn",
+    MsgBrokerStoreConfigReady: "broker.store.config_ready",
+    MsgBrokerStoreRequestLogsReady: "broker.store.request_logs_ready",
+    MsgBrokerCatalogSync: "broker.catalog.sync",
+    MsgBrokerListenHttp: "broker.listen.http",
+    MsgBrokerReady: "broker.ready",
+    MsgBrokerPluginStatus: "broker.plugin.status",
+    MsgBrokerProviderLoaded: "broker.provider.loaded",
+    MsgBrokerProviderHealthOk: "broker.provider.health.ok",
+    MsgBrokerProviderHealthFail: "broker.provider.health.fail",
+    MsgBrokerProviderKeyLoaded: "broker.provider.key_loaded",
+    MsgBrokerProviderKeyMissing: "broker.provider.key_missing",
+    MsgBrokerMaintenanceLogRetention: "broker.maintenance.log_retention",
+    MsgBrokerTransportServeError: "broker.transport.serve_error",
+    MsgBrokerLogZerolog: "broker.log.zerolog",
+    MsgBrokerUnparsed: "broker.unparsed",
+    MsgBrokerGovernanceRejected: "broker.governance.rejected",
+    MsgBrokerUpstreamRequest: "broker.upstream.request",
+    MsgBrokerUpstreamResponse: "broker.upstream.response",
+    MsgBrokerUpstreamError: "broker.upstream.error",
+    MsgBrokerShutdown: "broker.shutdown",
+    MsgVectorstoreStartupBanner: "vectorstore.startup.banner",
+    MsgVectorstoreVersion: "vectorstore.version",
+    MsgVectorstoreWebUiHint: "vectorstore.web_ui_hint",
+    MsgVectorstoreConfigOptionalMissing: "vectorstore.config.optional_missing",
+    MsgVectorstoreConsensusRaftLoad: "vectorstore.consensus.raft_load",
+    MsgVectorstoreCollectionLoading: "vectorstore.collection.loading",
+    MsgVectorstoreShardRecoverProgress: "vectorstore.shard.recover_progress",
+    MsgVectorstoreShardRecovered: "vectorstore.shard.recovered",
+    MsgVectorstoreClusterSingleNode: "vectorstore.cluster.single_node",
+    MsgVectorstoreListenTlsDisabledRest: "vectorstore.listen.tls_disabled_rest",
+    MsgVectorstoreListenTlsEnabledRest: "vectorstore.listen.tls_enabled_rest",
+    MsgVectorstoreListenTlsEnabledGrpc: "vectorstore.listen.tls_enabled_grpc",
+    MsgVectorstoreListenTlsDisabledGrpc: "vectorstore.listen.tls_disabled_grpc",
+    MsgVectorstoreClusterInternalTlsDisabled: "vectorstore.cluster.internal_tls_disabled",
+    MsgVectorstoreClusterInternalTlsEnabled: "vectorstore.cluster.internal_tls_enabled",
+    MsgVectorstoreTelemetryEnabled: "vectorstore.telemetry.enabled",
+    MsgVectorstoreTelemetryDisabled: "vectorstore.telemetry.disabled",
+    MsgVectorstoreHardwareReportingEnabled: "vectorstore.hardware_reporting.enabled",
+    MsgVectorstoreInferenceConfigured: "vectorstore.inference.configured",
+    MsgVectorstoreInferenceDisabled: "vectorstore.inference.disabled",
+    MsgVectorstoreGrpcEndpointDisabled: "vectorstore.grpc.endpoint_disabled",
+    MsgVectorstoreListenInternalGrpc: "vectorstore.listen.internal_grpc",
+    MsgVectorstoreStorageRecoveryMode: "vectorstore.storage.recovery_mode",
+    MsgVectorstoreClusterBootstrapUriDuplicate: "vectorstore.cluster.bootstrap_uri_duplicate",
+    MsgVectorstoreProcessServerStartFailed: "vectorstore.process.server_start_failed",
+    MsgVectorstoreRuntimePanic: "vectorstore.runtime.panic",
+    MsgVectorstoreGpuInitFailed: "vectorstore.gpu.init_failed",
+    MsgVectorstoreRuntimeInitFileWarning: "vectorstore.runtime.init_file_warning",
+    MsgVectorstoreSecurityJwtRbacWarning: "vectorstore.security.jwt_rbac_warning",
+    MsgVectorstoreProcessShutdownSignal: "vectorstore.process.shutdown_signal",
+    MsgVectorstoreDebugFeatureFlags: "vectorstore.debug.feature_flags",
+    MsgVectorstoreDebugCollectionLoaded: "vectorstore.debug.collection_loaded",
+    MsgVectorstoreUiStaticMissing: "vectorstore.ui.static_missing",
+    MsgVectorstoreActixWorkers: "vectorstore.actix.workers",
+    MsgVectorstoreActixBind: "vectorstore.actix.bind",
+    MsgVectorstoreHttpAccessOther: "vectorstore.http.access_other",
+    MsgVectorstoreTraceOther: "vectorstore.trace.other",
+    MsgVectorstoreUnparsed: "vectorstore.unparsed",
+    MsgVectorstoreListenHttp: "vectorstore.listen.http",
+    MsgVectorstoreListenGrpc: "vectorstore.listen.grpc",
+    MsgVectorstoreHttpCollectionMeta: "vectorstore.http.collection_meta",
+    MsgVectorstoreHttpPointsUpsertOk: "vectorstore.http.points_upsert_ok",
+    MsgVectorstoreHttpPointsUpsertRejected: "vectorstore.http.points_upsert_rejected",
+    MsgVectorstoreHttpPointsDelete: "vectorstore.http.points_delete",
+    MsgVectorstoreHttpVectorSearch: "vectorstore.http.vector_search",
+    MsgRagRetrieveSource: "rag.retrieve.source",
+    MsgIndexerSupervisedWaitRoots: "indexer.supervised.wait_roots",
+    MsgIndexerState: "indexer.state",
+    MsgIndexerStorageStats: "indexer.storage.stats",
+    MsgGatewayIndexerConfig: "gateway.indexer.config",
+    MsgIndexerRunStart: "indexer.run.start",
+    MsgIndexerDiscoverySummary: "indexer.discovery.summary",
+    MsgIndexerDiscoverySummaryScope: "indexer.discovery.summary.scope",
+    MsgIndexerScanComplete: "indexer.scan.complete",
+    MsgIndexerScopeStatus: "indexer.scope.status",
+    MsgIndexerScopeActiveFile: "indexer.scope.active_file",
+    MsgIndexerReconcileSummary: "indexer.reconcile.summary",
+    MsgIndexerQueueSnapshot: "indexer.queue.snapshot",
+    MsgIndexerRunProgress: "indexer.run.progress",
+    MsgIndexerJobUpload: "indexer.job.upload",
+    MsgIndexerJobIngested: "indexer.job.ingested",
+    MsgIndexerJobSkipped: "indexer.job.skipped",
+    MsgIndexerRetryScheduled: "indexer.retry.scheduled",
+    MsgIndexerRecoveryPoll: "indexer.recovery.poll",
+    MsgIndexerRecoveryResumed: "indexer.recovery.resumed",
+    MsgIndexerWorkerPaused: "indexer.worker.paused",
+    MsgIndexerRunDone: "indexer.run.done",
+    MsgIndexerFanoutEnqueueFailed: "indexer.fanout.enqueue_failed",
+    MsgIndexerFanoutRemainderBlocked: "indexer.fanout.remainder_blocked",
+    MsgIndexerWorkFailed: "indexer.work.failed",
+    MsgIndexerSyncStateWriteFailed: "indexer.sync_state.write_failed",
+    MsgIndexerJobFailed: "indexer.job.failed"
+  };
+  ChimeraLogs.OperatorCopy = {
+    Slug: Slug,
+    aliasToCanonical: aliasToCanonical,
+    bySlug: bySlug,
+    indexerStateLabels: indexerStateLabels,
+    resolveCanonical: function (msg) {
+      var s = String(msg != null ? msg : "").trim();
+      if (!s) return "";
+      var low = s.toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(bySlug, low)) return low;
+      if (Object.prototype.hasOwnProperty.call(aliasToCanonical, low)) return aliasToCanonical[low];
+      return "";
+    },
+    resolveFlat: function (flat) {
+      if (!flat || typeof flat !== "object") return "";
+      var rawMsg = flat.msg != null ? flat.msg : flat.message;
+      var raw = String(rawMsg != null ? rawMsg : "").toLowerCase().trim();
+      if (!raw) return "";
+      if (Object.prototype.hasOwnProperty.call(bySlug, raw)) return raw;
+      var pi;
+      for (pi = 0; pi < prefixSlugs.length; pi++) {
+        var ps = prefixSlugs[pi];
+        if (raw === ps || raw.indexOf(ps) === 0) return ps;
+      }
+      var ri;
+      for (ri = 0; ri < flatAliasRules.length; ri++) {
+        var rule = flatAliasRules[ri];
+        if (raw === rule.alias && matchFields(flat, rule.match)) return rule.slug;
+      }
+      if (Object.prototype.hasOwnProperty.call(aliasToCanonical, raw)) return aliasToCanonical[raw];
+      return raw;
+    },
+    inferShapeForFlat: function (flat, source) {
+      if (!flat || typeof flat !== "object") {
+        if (source === "chimera-vectorstore" || source === "chimera-broker" || source === "chimera-indexer") return "service." + source;
+        return "";
+      }
+      var slug = ChimeraLogs.OperatorCopy.resolveFlat(flat);
+      if (slug && Object.prototype.hasOwnProperty.call(bySlug, slug) && bySlug[slug].shape) return bySlug[slug].shape;
+      return "";
+    },
+    metricsCounterForFlat: function (flat) {
+      if (!flat || typeof flat !== "object") return "";
+      var slug = ChimeraLogs.OperatorCopy.resolveFlat(flat);
+      if (slug && Object.prototype.hasOwnProperty.call(bySlug, slug) && bySlug[slug].metricsCounter) return bySlug[slug].metricsCounter;
+      return "";
+    }
+  };
+})();

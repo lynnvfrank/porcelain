@@ -4,12 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Embed UI component gallery (Phase 2)</title>
-  <link rel="stylesheet" href="../internal/server/embedui/theme-tokens.css" />
-  <link rel="stylesheet" href="../internal/server/embedui/logs.css" />
+  <link rel="stylesheet" href="../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/theme-tokens.css" />
+  <link rel="stylesheet" href="../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/ui.css" />
+  <link rel="stylesheet" href="../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs.css" />
   <link rel="stylesheet" href="gallery-shell.css" />
 </head>
 <body class="logs-summarized styleguide-body">
   <nav class="styleguide-nav" aria-label="Gallery sections">
+    <a href="#sg-primitives">Primitives</a><span class="styleguide-nav-sep">·</span>
     <a href="#sg-typography">Typography</a><span class="styleguide-nav-sep">·</span>
     <a href="#sg-chrome">Chrome</a><span class="styleguide-nav-sep">·</span>
     <a href="#sg-pills">Pills &amp; badges</a><span class="styleguide-nav-sep">·</span>
@@ -30,9 +32,8 @@
   <header class="styleguide-hero">
     <h1>Embed UI component gallery</h1>
     <p>
-      Static reference for <code>internal/server/embedui/logs.css</code> class names used by
-      <code>logs.js</code>. Loads production CSS from the repo via relative paths — reload after editing CSS
-      (no Go build). Theme tokens load first; <code>logs.css</code> still uses literals until Phase 3.
+      Static reference for <code>embedui/ui.css</code> primitives and <code>embedui/logs.css</code> (composition entry
+      that <code>@import</code>s <code>embedui/styles/*.css</code>). Reload after editing CSS (no Go build).
     </p>
   </header>
 
@@ -43,6 +44,29 @@
   </div>
 
   <div id="panel-summarized" class="styleguide-panel">
+
+    <section id="sg-primitives" class="styleguide-section">
+      <h2>Shared primitives (<code>ui.css</code>)</h2>
+      <p class="styleguide-sub">Buttons, form fields, callouts, errors, and base tables for standalone operator pages and setup. Production markup for pills, status, and chips is built via <code>ChimeraUI.*</code> modules under <code>embedui/ui/components/</code>.</p>
+      <div class="styleguide-demo-bg" style="max-width:28rem;padding:1rem">
+        <p><button type="button" class="btn">Secondary</button> <button type="button" class="btn btn--primary">Primary</button></p>
+        <label class="embed-field">
+          <span class="embed-field-label">Label</span>
+          <input class="embed-input" type="text" value="Sample input" />
+        </label>
+        <p class="err">Error message (`.err`)</p>
+        <p class="embed-ok">Success line (`.embed-ok`)</p>
+        <div class="callout">
+          <p class="embed-muted" style="margin:0">Callout body (`.callout`)</p>
+        </div>
+        <div class="embed-table-wrap" style="margin-top:0.75rem">
+          <table class="embed-table">
+            <thead><tr><th>Key</th><th class="num">Value</th></tr></thead>
+            <tbody><tr><td>row</td><td class="num">42</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
 
     <section id="sg-typography" class="styleguide-section">
       <h2>Typography &amp; labels</h2>
@@ -81,16 +105,16 @@
     </section>
 
     <section id="sg-event-log" class="styleguide-section">
-      <h2>Event log panel (Phase 1)</h2>
+      <h2>Event log panel (<code>sum-evlog</code>)</h2>
       <p class="styleguide-sub">
         <code>sum-metrics-table</code> shell; timestamps from <code>datetime</code> via <code>formatLogDateTimeLocal</code> in <code>logs.js</code>.
         Status filter: All / ⚠ Warnings / ✖ Errors. Row selection: click; Ctrl/⌘+click; Shift+click range.
         Copy: selected rows as TSV; with none selected, copies all visible rows.
         Unified streams may include lines from other services: put the source tag first in the message cell as <code>span.sum-svc-badge</code> (outline or filled), then the prose.
-        Plan: <a href="../docs/plans/embedui-event-log-panel.md"><code>docs/plans/embedui-event-log-panel.md</code></a>.
+        Plan: <a href="../plans/embedui-event-log-panel.md"><code>docs/plans/embedui-event-log-panel.md</code></a>.
       </p>
       <p class="styleguide-sub" style="margin-top:-0.45rem">
-        <strong>Phase 2 CSS contract</strong> (in <code>internal/server/embedui/logs.css</code>):
+        <strong>Phase 2 CSS contract</strong> (in <code>chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs.css</code>):
         <code>sum-evlog</code>,
         <code>sum-metrics-table-wrap.sum-evlog__table-scroll</code>, <code>sum-metrics-table.sum-evlog__table</code>,
         <code>sum-evlog__col-time</code>, <code>sum-evlog__col-msg</code>, <code>sum-evlog__col-status</code>,
@@ -152,7 +176,7 @@
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="a-svc-qdr" data-evlog-level="INFO" data-evlog-http="200">
                   <td class="sum-evlog__cell--time"><time datetime="2026-05-11T08:02:07.860Z"></time></td>
-                  <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-qdrant">qdrant</span>Scroll snapshot applied; HNSW index warmed for <code class="sum-mono-id">workspace_vectors</code>.</td>
+                  <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-vectorstore">chimera-vectorstore</span>Scroll snapshot applied; HNSW index warmed for <code class="sum-mono-id">workspace_vectors</code>.</td>
                   <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="pill-2xx">200</span></div></td>
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="a-svc-idx" data-evlog-level="INFO">
@@ -162,7 +186,7 @@
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="a-svc-up" data-evlog-level="WARN" data-evlog-http="429">
                   <td class="sum-evlog__cell--time"><time datetime="2026-05-11T08:02:07.890Z"></time></td>
-                  <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-upstream">upstream</span>Provider quota header <code class="sum-mono-id">x-ratelimit-remaining: 0</code>; gateway will retry with backoff.</td>
+                  <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-broker">chimera-broker</span>Provider quota header <code class="sum-mono-id">x-ratelimit-remaining: 0</code>; gateway will retry with backoff.</td>
                   <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN">WARN</span><span class="pill-4xx">429</span></div></td>
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="a-svc-web" data-evlog-level="INFO" data-evlog-http="304">
@@ -187,7 +211,7 @@
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="a-warn429" data-evlog-level="WARN" data-evlog-http="429">
                   <td class="sum-evlog__cell--time"><time datetime="2026-05-11T08:02:09.440Z"></time></td>
-                  <td class="sum-evlog__cell--msg">Upstream rate limit — backing off with Retry-After.</td>
+                  <td class="sum-evlog__cell--msg">chimera-broker rate limit — backing off with Retry-After.</td>
                   <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN">WARN</span><span class="pill-4xx">429</span></div></td>
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="a-err503" data-evlog-level="ERROR" data-evlog-http="503">
@@ -254,12 +278,12 @@
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="b-svc-qd" data-evlog-level="INFO" data-evlog-http="200">
                   <td class="sum-evlog__cell--time"><time datetime="2026-05-11T09:00:02.550Z"></time></td>
-                  <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-qdrant">qdrant</span>PUT <code class="sum-mono-id">/collections/*/points</code> acknowledged; vectors=128 dims.</td>
+                  <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-vectorstore">chimera-vectorstore</span>PUT <code class="sum-mono-id">/collections/*/points</code> acknowledged; vectors=128 dims.</td>
                   <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="pill-2xx">200</span></div></td>
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="b-svc-up" data-evlog-level="INFO" data-evlog-http="502">
                   <td class="sum-evlog__cell--time"><time datetime="2026-05-11T09:00:02.700Z"></time></td>
-                  <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-badge-filled sum-svc-upstream sum-svc-upstream-filled">upstream</span>Model host closed socket before headers; surfaced as 502 to caller.</td>
+                  <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-badge-filled sum-svc-broker sum-svc-broker-filled">chimera-broker</span>Model host closed socket before headers; surfaced as 502 to caller.</td>
                   <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="pill-5xx">502</span></div></td>
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="b-204" data-evlog-level="INFO" data-evlog-http="204">
@@ -299,7 +323,7 @@
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="b-500" data-evlog-level="INFO" data-evlog-http="500">
                   <td class="sum-evlog__cell--time"><time datetime="2026-05-11T09:00:10.900Z"></time></td>
-                  <td class="sum-evlog__cell--msg">Upstream opaque 500 bubble</td>
+                  <td class="sum-evlog__cell--msg">Broker opaque 500 bubble</td>
                   <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="pill-5xx">500</span></div></td>
                 </tr>
                 <tr class="sum-evlog__row" data-evlog-id="b-502" data-evlog-level="INFO" data-evlog-http="502">
@@ -418,16 +442,16 @@
         <div class="sum-section-label">sum-svc-badge (outline)</div>
         <p style="margin:0.25rem 0;display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center">
           <span class="sum-svc-badge sum-svc-web">web</span>
-          <span class="sum-svc-badge sum-svc-qdrant">qdrant</span>
+          <span class="sum-svc-badge sum-svc-vectorstore">chimera-vectorstore</span>
           <span class="sum-svc-badge sum-svc-indexer">indexer</span>
           <span class="sum-svc-badge sum-svc-gateway">gateway</span>
-          <span class="sum-svc-badge sum-svc-upstream">upstream</span>
+          <span class="sum-svc-badge sum-svc-broker">chimera-broker</span>
         </p>
         <div class="sum-section-label">sum-svc-badge (filled)</div>
         <p style="margin:0.25rem 0;display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center">
-          <span class="sum-svc-badge sum-svc-badge-filled sum-svc-qdrant sum-svc-qdrant-filled">qdrant</span>
+          <span class="sum-svc-badge sum-svc-badge-filled sum-svc-vectorstore sum-svc-vectorstore-filled">chimera-vectorstore</span>
           <span class="sum-svc-badge sum-svc-badge-filled sum-svc-indexer sum-svc-indexer-filled">indexer</span>
-          <span class="sum-svc-badge sum-svc-badge-filled sum-svc-upstream sum-svc-upstream-filled">upstream</span>
+          <span class="sum-svc-badge sum-svc-badge-filled sum-svc-broker sum-svc-broker-filled">chimera-broker</span>
         </p>
       </div>
     </section>
@@ -470,7 +494,7 @@
           <span class="log-line-sum__meta">
             <time class="log-line-sum__time">2026-05-10 14:32:05.102Z</time>
             <span class="log-line-sum__lvl lvl-INFO">INFO</span>
-            <span class="sum-svc-badge sum-svc-qdrant">qdrant</span>
+            <span class="sum-svc-badge sum-svc-vectorstore">chimera-vectorstore</span>
           </span>
           <span class="log-line-sum__msg">Collection heartbeat OK; vectors committed for workspace slice.</span>
         </div>
@@ -478,7 +502,7 @@
           <span class="log-line-sum__meta">
             <time class="log-line-sum__time">2026-05-10 14:32:08.440Z</time>
             <span class="log-line-sum__lvl lvl-WARN">WARN</span>
-            <span class="sum-svc-badge sum-svc-upstream">upstream</span>
+            <span class="sum-svc-badge sum-svc-broker">chimera-broker</span>
           </span>
           <span class="log-line-sum__msg">429 rate limit approaching for provider batch; retry scheduled.</span>
         </div>
@@ -530,14 +554,14 @@
             <span class="sum-conv-lifecycle-seg sum-conv-lifecycle-seg--done" title="Accepted: done"></span>
             <span class="sum-conv-lifecycle-seg sum-conv-lifecycle-seg--done" title="Context: done"></span>
             <span class="sum-conv-lifecycle-seg sum-conv-lifecycle-seg--pending" title="Routed: pending"></span>
-            <span class="sum-conv-lifecycle-seg sum-conv-lifecycle-seg--skipped" title="Upstream: skipped"></span>
+            <span class="sum-conv-lifecycle-seg sum-conv-lifecycle-seg--skipped" title="Broker: skipped"></span>
             <span class="sum-conv-lifecycle-seg sum-conv-lifecycle-seg--failed" title="Delivered: failed"></span>
           </div>
           <div class="sum-conv-lifecycle-bar-labels">
             <span class="sum-conv-lifecycle-bar-label">Accepted</span>
             <span class="sum-conv-lifecycle-bar-label">Context</span>
             <span class="sum-conv-lifecycle-bar-label">Routed</span>
-            <span class="sum-conv-lifecycle-bar-label">Upstream</span>
+            <span class="sum-conv-lifecycle-bar-label">Broker</span>
             <span class="sum-conv-lifecycle-bar-label">Delivered</span>
           </div>
         </div>
@@ -642,13 +666,13 @@
           <li class="sum-ev-item indexer-recent-row">
             <span class="muted indexer-recent-time">2026-05-10 13:59:58.102Z</span>
             <span class="log-line-sum__lvl indexer-recent-op lvl-INFO">ingested</span>
-            <code class="sum-mono-id indexer-recent-path">internal/server/embedui/logs.css</code>
+            <code class="sum-mono-id indexer-recent-path">chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs.css</code>
             <span class="muted indexer-recent-detail">sha256 verified</span>
           </li>
           <li class="sum-ev-item indexer-recent-row">
             <span class="muted indexer-recent-time">2026-05-10 13:59:57.881Z</span>
             <span class="log-line-sum__lvl indexer-recent-op lvl-WARN">skipped</span>
-            <code class="sum-mono-id indexer-recent-path">temp/theme/gallery.html</code>
+            <code class="sum-mono-id indexer-recent-path">docs/component-gallery/gallery.html</code>
             <span class="muted indexer-recent-detail">binary file</span>
           </li>
         </ul>
@@ -671,7 +695,7 @@
         <div class="sum-section-label" style="margin-top:0.75rem">Gateway summary KV</div>
         <dl class="indexer-run-kv indexer-run-kv--gateway-summary">
           <dt>listening</dt><dd><code class="sum-mono-id">127.0.0.1:8080</code></dd>
-          <dt>upstream</dt><dd><span class="muted">—</span></dd>
+          <dt>chimera-broker</dt><dd><span class="muted">—</span></dd>
           <dt>API keys</dt><dd class="gateway-kv-dd gateway-kv-dd--error">GROQ_API_KEY unset</dd>
           <dt>routing rules</dt><dd>42</dd>
         </dl>
@@ -757,8 +781,8 @@
       <div class="styleguide-row" style="gap:0.5rem;margin-top:0.5rem">
         <details class="sum-card" style="flex:1 1 12rem;min-width:10rem;margin-bottom:0">
           <summary>
-            <span class="sum-avatar sum-av-svc-qdrant">Qd</span>
-            <span class="sum-main"><span class="sum-title">Qdrant</span><span class="sum-sub">sum-av-svc-qdrant</span></span>
+            <span class="sum-avatar sum-av-svc-chimera-vectorstore">Vs</span>
+            <span class="sum-main"><span class="sum-title">Chimera vectorstore</span><span class="sum-sub">sum-av-svc-chimera-vectorstore</span></span>
             <span class="sum-chev"></span>
           </summary>
           <div class="sum-body"><p>Body</p></div>
@@ -824,7 +848,7 @@
               <span class="sum-conv-lifecycle-bar-label">Accepted</span>
               <span class="sum-conv-lifecycle-bar-label">Context</span>
               <span class="sum-conv-lifecycle-bar-label">Routed</span>
-              <span class="sum-conv-lifecycle-bar-label">Upstream</span>
+              <span class="sum-conv-lifecycle-bar-label">Broker</span>
               <span class="sum-conv-lifecycle-bar-label">Delivered</span>
             </div>
           </div>
@@ -833,7 +857,7 @@
               <thead><tr><th>Step</th><th class="num">ms</th></tr></thead>
               <tbody>
                 <tr><td>rag.retrieve</td><td class="num">124</td></tr>
-                <tr><td>upstream.first_token</td><td class="num">612</td></tr>
+                <tr><td>broker.first_token</td><td class="num">612</td></tr>
               </tbody>
             </table>
           </div>
@@ -907,7 +931,7 @@
                 <thead><tr><th>Step</th><th class="num">ms</th></tr></thead>
                 <tbody>
                   <tr><td>rag.retrieve</td><td class="num">98</td></tr>
-                  <tr><td>upstream.first_token</td><td class="num">412</td></tr>
+                  <tr><td>broker.first_token</td><td class="num">412</td></tr>
                   <tr><td>stream.complete</td><td class="num">1 884</td></tr>
                 </tbody>
               </table>
@@ -951,17 +975,17 @@
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="convx-2b" data-evlog-level="INFO">
                       <td class="sum-evlog__cell--time"><time datetime="2026-05-12T14:01:03.180Z"></time></td>
-                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-qdrant-filled">qdrant</span>Hybrid search returned 4 points; fusion weights <code class="sum-mono-id">dense=0.72</code>, <code class="sum-mono-id">sparse=0.28</code>.</td>
+                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-badge-filled sum-svc-vectorstore sum-svc-vectorstore-filled">chimera-vectorstore</span>Hybrid search returned 4 points; fusion weights <code class="sum-mono-id">dense=0.72</code>, <code class="sum-mono-id">sparse=0.28</code>.</td>
                       <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__empty" aria-hidden="true"></span></div></td>
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="convx-2c" data-evlog-level="INFO">
                       <td class="sum-evlog__cell--time"><time datetime="2026-05-12T14:01:03.310Z"></time></td>
-                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-indexer-filled">indexer</span>Slice <code class="sum-mono-id">repo/main@118</code> fingerprint matched; skipped redundant embed.</td>
+                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-badge-filled sum-svc-indexer sum-svc-indexer-filled">indexer</span>Slice <code class="sum-mono-id">repo/main@118</code> fingerprint matched; skipped redundant embed.</td>
                       <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__empty" aria-hidden="true"></span></div></td>
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="convx-3" data-evlog-level="WARN" data-evlog-http="429">
                       <td class="sum-evlog__cell--time"><time datetime="2026-05-12T14:01:04.881Z"></time></td>
-                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-upstream-filled">upstream</span>Rate limit on first provider; gateway retrying with backoff.</td>
+                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-badge-filled sum-svc-broker sum-svc-broker-filled">chimera-broker</span>Rate limit on first provider; gateway retrying with backoff.</td>
                       <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN">WARN</span><span class="pill-4xx">429</span></div></td>
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="convx-4" data-evlog-level="INFO" data-evlog-http="200">

@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `working-notes` |
 | **Owners / areas** | Gateway, BiFrost, desktop packaging |
-| **Status** | `shipped` |
+| **Status** | `done` |
 | **Targets** | Gateway v0.1 migration to Go + BiFrost |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Historical migration record; superseded operationally by [`supervisor.md`](../supervisor.md) and [`packaging.md`](../packaging.md) |
@@ -59,8 +59,8 @@ After completing work for a phase:
 | 2026-04-04 | Phase 3 | `chimera serve` / `supervise`: subprocess BiFrost (`APP_HOST`/`APP_PORT`, data dir, config copy), poll `/health`, gateway with `NewRuntimeWithUpstreamOverride` loopback URL; SIGINT/SIGTERM → HTTP Shutdown then child cancel. `internal/supervisor`, docs [supervisor.md](../supervisor.md). Tests: env merge, config copy, WaitHealthy, sleep killed on cancel (Unix). E2E with real BiFrost binary: optional/deferred. | [supervisor.md](../supervisor.md) |
 | 2026-04-04 | Phase 4 | GoReleaser v2: `.goreleaser.yaml`, `chimera -version` / `--version` (ldflags), archives linux/darwin amd64+arm64 + windows amd64, `checksums.txt`. CI: `package` job snapshot + smoke; `release.yml` on `v*` tags. `docs/packaging.md`, `make release-snapshot`. BiFrost not bundled; signing deferred. | [packaging.md](../packaging.md), `.goreleaser.yaml` |
 | 2026-04-04 | Phase 5 | Fyne v2 desktop app in nested module `gui/` showing `mew mew, Love Chimera`;  CI `gui` job: linux-amd64 compile with CGO + X11 deps. Manual checklist `docs/gui-testing.md`. GUI **not** in GoReleaser zip (CGO/cross-compile); documented in packaging. Supervisor launch from GUI deferred. | [gui-testing.md](../gui-testing.md), `gui/` |
-| 2026-04-04 | Phase 6 | `SECURITY.md`: tokens, log redaction, bind surface, supervisor. `docs/operator-migration-to-go.md`, `scripts/e2e-first-chat-curl.sh` (historical `docs/e2e-operator-path.md` later removed from tree). README + plan: **TypeScript sunset** (Go primary; `src/` legacy for Compose image). `src/README.md`. Config fuzz: `internal/config/fuzz_test.go` (`FuzzLoadGatewayYAML`). Audit: HTTP logs use `redactAuth`; config/tokens reload paths do not log secrets. **RC tag:** maintainers cut with `git tag v0.1.0-rc.1` (or semver) per [packaging.md](../packaging.md); not automated here. | [SECURITY.md](../SECURITY.md), [operator-migration-to-go.md](../operator-migration-to-go.md) |
-| 2026-04-04 | Follow-up | Removed **TypeScript** `src/`, **Dockerfile** / `docker-compose.yml`, and **LiteLLM** `config/litellm_config.yaml`. Repo is **Go-only**, local **BiFrost**. | [README.md](../README.md), [operator-migration-to-go.md](../operator-migration-to-go.md) |
+| 2026-04-04 | Phase 6 | `SECURITY.md`: tokens, log redaction, bind surface, supervisor. `scripts/e2e-first-chat-curl.sh` (historical `docs/e2e-operator-path.md` later removed from tree). README + plan: **TypeScript sunset** (Go primary; `src/` legacy for Compose image). `src/README.md`. Config fuzz: `internal/config/fuzz_test.go` (`FuzzLoadGatewayYAML`). Audit: HTTP logs use `redactAuth`; config/tokens reload paths do not log secrets. **RC tag:** maintainers cut with `git tag v0.1.0-rc.1` (or semver) per [packaging.md](../packaging.md); not automated here. | [SECURITY.md](../SECURITY.md) |
+| 2026-04-04 | Follow-up | Removed **TypeScript** `src/`, **Dockerfile** / `docker-compose.yml`, and **LiteLLM** `config/litellm_config.yaml`. Repo is **Go-only**, local **BiFrost**. | [README.md](../README.md) |
 
 ---
 
@@ -237,7 +237,7 @@ After completing work for a phase:
 **Tests / acceptance criteria**
 
 - [x] **Fuzz or static analysis** (optional): `go test -fuzz=FuzzLoadGatewayYAML ./internal/config -fuzztime=30s` (config loader); expand later if desired.
-- [x] **End-to-end script** (documented): `scripts/e2e-first-chat-curl.sh` at repo root (CLI; GUI does not host the API). The older `docs/e2e-operator-path.md` walkthrough was removed from the tree—use the script and [`operator-migration-to-go.md`](../operator-migration-to-go.md).
+- [x] **End-to-end script** (documented): `scripts/e2e-first-chat-curl.sh` at repo root (CLI; GUI does not host the API). The older `docs/e2e-operator-path.md` walkthrough was removed from the tree—use the script.
 - [x] **Regression suite** from Phase 2 still green (`go test ./...`).
 
 **TODO (Phase 6)**

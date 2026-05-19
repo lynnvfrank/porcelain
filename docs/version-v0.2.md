@@ -35,7 +35,7 @@ The **chat path** records **tiktoken-compatible `cl100k_base`** estimates on the
 | [Token counting (chat path)](#token-counting-chat-path)                                | `cl100k_base` estimate on outbound chat JSON; structured log (`outgoingTokens`); same estimate drives metrics + quota admission               | `done` |
 | [Usage metrics and provider limits](#usage-metrics-and-provider-limits)                | SQLite minute/day rollups; RPM/RPD/TPM/TPD from YAML; **429** `gateway_provider_limits` when a call would exceed                              | `done` |
 | [Health probe](#health-and-operations)                                                 | `/health` adds a Qdrant probe when RAG is enabled                                                                                             | `done` |
-| [Workspace indexer (`chimera-indexer` v0.2)](#file-indexer-v02)                          | Watch roots, ignore rules, queue-safe scan/fan-out, ingest aligned with v0.2 APIs                                                             | `done` |
+| [Workspace indexer (`chimera-indexer`, Phase 2)](#file-indexer-v02)                          | Watch roots, ignore rules, queue-safe scan/fan-out, ingest aligned with v0.2 APIs                                                             | `done` |
 | [Operator logs UI](#operator-logs-ui-correlation--summarized-views)                    | Correlation + tagging; conversation / subsystem views; Indexers cards; SSE/poll; desktop shell — **Themes** subsections                       | `done` |
 | [Indexer chunked ingestion](#themes-indexer-chunked-ingestion)                         | Session API when files exceed `**max_whole_file_bytes`**; indexer uses whole POST or chunked transport per config                             | `done` |
 | [Conversation headers & Continue](#themes-conversation-headers-and-continue-templates) | `**X-Chimera-Conversation-Id**` (+ project/flavor); gateway accepts or generates; templates in `**vscode-continue/**`                         | `done` |
@@ -51,7 +51,7 @@ The **chat path** records **tiktoken-compatible `cl100k_base`** estimates on the
 
 **Status:** The capabilities below are **shipped** in the **v0.2.0** baseline and subsequent patches (**v0.2.1** logging/UI/conversation merge, **v0.2.2** supervised indexer + shell). Per-patch operator detail lives in § **[Shipped releases: v0.2.0 through v0.2.2](#shipped-releases-v020-through-v022)** below.
 
-This document pulls together **everything scoped to product v0.2** from `[porcelain.plan.md](porcelain.plan.md)` (authoritative product roadmap), `[overview.md](overview.md)`, `[network.md](network.md)`, `[configuration.md](configuration.md)`, and cross-links the **file indexer** work in a **separate** plan: `[plans/indexer.md](plans/indexer.md)`.
+This document pulls together **everything scoped to product v0.2** from `[porcelain.plan.md](porcelain.plan.md)` (authoritative product roadmap), `[network.md](network.md)`, `[configuration.md](configuration.md)`, and cross-links the **file indexer** work in a **separate** plan: `[plans/indexer.md](plans/indexer.md)`.
 
 **Tone:** normative items below track **locked** product decisions in the gateway plan; where the **in-tree** stack differs from the original LiteLLM + TypeScript + Compose description, treat this document as the **capability target** and align the Go gateway + BiFrost implementation to the same **HTTP contracts** and **behavior**. Cross-reference topical requirements in `[porcelain.plan.md](porcelain.plan.md)` using *Section · item* notation (e.g. *Workspace indexing · 10*).
 
@@ -92,7 +92,7 @@ This document pulls together **everything scoped to product v0.2** from `[porcel
 
 - `POST /v1/ingest` — **one document per request** (multipart `file` and/or JSON with `text`, `source`, etc.); finalize and document the **exact schema** in `docs/` and implementation.
 - **Chunked ingest session** — For payloads larger than `**rag.ingest.max_whole_file_bytes`** (surfaced via `**GET /v1/indexer/config**` as `**max_whole_file_bytes**`), `**chimera-indexer**` uses the gateway `**/v1/ingest/session**` flow (start, chunk upload, complete) instead of a single whole-body POST. See `[indexer.md](indexer.md)` and § **Themes: indexer chunked ingestion** below.
-- Accept **client-supplied `content_hash`** (algorithm and field name per contract) for **inventory / change detection**; gateway stores it as specified in `[plans/indexer.md](plans/indexer.md)` (indexer v0.2–v0.3 uses client hash as local truth until server-authoritative hash lands in later milestones).
+- Accept **client-supplied `content_hash`** (algorithm and field name per contract) for **inventory / change detection**; gateway stores it as specified in `[plans/indexer.md](plans/indexer.md)` (indexer Phases 2–3 use client hash as local truth until server-authoritative hash in Phase 4).
 
 ### Indexer REST (gateway-owned)
 
@@ -313,7 +313,7 @@ All **indexer** milestones, configuration schema, gateway client behavior, Makef
 
 `**[plans/indexer.md](plans/indexer.md)`**
 
-**Summary for this release:** the first shippable `chimera-indexer` **aligns with gateway v0.2** — whole-file `POST /v1/ingest`, `GET /v1/indexer/config`, storage **health** (and related APIs), client `content_hash`, env-based token, watch roots + ignore rules, **no symlink follow** by default, debouncing/backpressure, and documented behavior for **oversized files** under whole-file-only ingest until **indexer v0.4** dual-mode exists.
+**Summary for this release:** the first shippable `chimera-indexer` **aligns with gateway v0.2** — whole-file `POST /v1/ingest`, `GET /v1/indexer/config`, storage **health** (and related APIs), client `content_hash`, env-based token, watch roots + ignore rules, **no symlink follow** by default, debouncing/backpressure, and documented behavior for **oversized files** under whole-file-only ingest until **indexer Phase 4** dual-mode (see [`plans/indexer.md`](plans/indexer.md); shipped in later gateway patches).
 
 #### Themes — indexer runtime and queue
 
@@ -477,7 +477,7 @@ The virtual model id stays `**Chimera-<gateway.semver>`** (set in `config/gatewa
 Keep these on later roadmap entries (see `[porcelain.plan.md](porcelain.plan.md)` **Release roadmap**):
 
 - **v0.3** — Chimera branding/onboarding, optional **internal embedding** exploration (see `[version-v0.3.md](version-v0.3.md)`), peer LiteLLM, virtual keys, cross-host publishing, per-key observability (*Resilience · 1*), etc.
-- **v0.4** — ensembles, escalation, **dual-mode / streaming large-file ingest**, server-authoritative hash in ingest response (indexer plan **v0.4**).
+- **v0.4** — ensembles, escalation, **dual-mode / streaming large-file ingest**, server-authoritative hash in ingest response (indexer plan **Phase 4**).
 - **v0.5+** — gateway MCP, conversation archive ingestion, etc.
 - **v0.7** — TLS, hardening, `/health` lockdown on untrusted networks.
 - **v0.8** — queues / priority scheduling (*Resilience · 2*).
@@ -501,8 +501,8 @@ Use this to track cross-cutting v0.2 work; gate detailed indexer items in `[plan
 | **Qdrant / adapter**       | Collections per triple; payload fields; collection naming; cosine/dot and dimension checks.                                                                                                                                                                                                                                         |
 | **Health**                 | Extend `GET /health` with Qdrant probe when RAG enabled.                                                                                                                                                                                                                                                                            |
 | **Logs UI**                | Themes under § **Operator logs UI** and § **File indexer**; correlation IDs; `/ui/logs` modes and APIs (`[plans/log-presentation-layer.md](plans/log-presentation-layer.md)`, `[plans/log-view-refactor.md](plans/log-view-refactor.md)`, `[plans/log-view-indexer.md](plans/log-view-indexer.md)`); desktop shell (`/ui/desktop`). |
-| **Docs**                   | Update `docs/overview.md`, `docs/network.md`, `docs/configuration.md`, ingestion/indexer references; `**vscode-continue/`** headers (project, flavor, **conversation**); § **Additional operator themes**.                                                                                                                          |
-| **Indexer**                | Follow `[plans/indexer.md](plans/indexer.md)` **Indexer v0.2** checklist and **Gateway coordination**; queue/fairness themes — `[plans/indexer-scan-and-fanout-jobs.md](plans/indexer-scan-and-fanout-jobs.md)`.                                                                                                                    |
+| **Docs**                   | Update `docs/network.md`, `docs/configuration.md`, ingestion/indexer references; `**vscode-continue/`** headers (project, flavor, **conversation**); § **Additional operator themes**.                                                                                                                          |
+| **Indexer**                | Follow `[plans/indexer.md](plans/indexer.md)` **Phase 2** checklist and **Gateway coordination**; queue/fairness themes — `[plans/indexer-scan-and-fanout-jobs.md](plans/indexer-scan-and-fanout-jobs.md)`.                                                                                                                    |
 
 
 ---
@@ -515,12 +515,12 @@ Use this to track cross-cutting v0.2 work; gate detailed indexer items in `[plan
 | `[porcelain.plan.md](porcelain.plan.md)`                             | Authoritative product requirements and roadmap                                                 |
 | `[plans/indexer.md](plans/indexer.md)`                                           | `chimera-indexer` milestones and gateway coordination                                            |
 | `[version-v0.1.md](version-v0.1.md)`                                             | v0.1 delivery notes and exploration                                                            |
-| `[overview.md](overview.md)`                                                     | Repo-oriented product summary                                                                  |
 | `[network.md](network.md)`                                                       | Ports and v0.2+ Qdrant data path                                                               |
 | `[configuration.md](configuration.md)`                                           | Config files and v0.2+ tenant scoping note                                                     |
 | `[plans/log-presentation-layer.md](plans/log-presentation-layer.md)`             | Log presentation layer (correlation, view modes; Phase E deferred)                             |
 | `[plans/log-view-refactor.md](plans/log-view-refactor.md)`                       | `/ui/logs` modularization, APIs (poll + SSE), view modes and deep-link params                  |
 | `[plans/log-view-indexer.md](plans/log-view-indexer.md)`                         | Indexer cards and summarized indexer UX in `/ui/logs`                                          |
+| `[plans/unified-logs-operator-shell.md](plans/unified-logs-operator-shell.md)`   | Single operator surface: logs stream plus overview/config cards; desktop shell unification   |
 | `[plans/indexer-scan-and-fanout-jobs.md](plans/indexer-scan-and-fanout-jobs.md)` | Queue-safe scan/fan-out, fairness, indexer telemetry aligned with logs                         |
 | `[plans/makefile.md](plans/makefile.md)`                                         | `**catalog-free`**, `**catalog-available**`, `**config-provider-free-tier**` targets           |
 | `[version-v0.1.1.md](version-v0.1.1.md)`                                         | Gateway metrics SQLite, upstream events — baseline for § **Usage metrics and provider limits** |

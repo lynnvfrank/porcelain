@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway embed UI (`embedui`), operator logs, indexer configuration |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway embed UI; aligns with workspace / project / flavor model in indexer docs |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None |

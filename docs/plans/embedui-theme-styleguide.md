@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway embed UI (`internal/server/embedui`) |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Summarized logs UI (cards, tables, chips, progress, lists) |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None |
@@ -72,6 +72,8 @@ Summarized logs embed UI is built from string templates in `internal/server/embe
 
 **Implemented:** `temp/theme/gallery.html` loads `theme-tokens.css`, `logs.css`, and `gallery-shell.css`; sections cover typography, `#filters` / `sum-full-log-toolbar`, pills/chips/tiers/service badges, `sum-status`, `log-line-sum` levels, timeline + lifecycle + indexer scope bars, `sum-metrics-table`, `sum-full-log` / indexer recent rows, `sum-conv-kv` + `indexer-run-kv`, and a card matrix (avatar hues, conversation collapsed/open, service + `sum-card--indexer-stale`). `temp/theme/sample.html` links to the gallery.
 
+**Gallery location (2026):** the static gallery moved to [`docs/component-gallery/`](../component-gallery/) (same HTML/CSS role as `temp/theme/`). See [`embedui-component-gallery.md`](embedui-component-gallery.md).
+
 ---
 
 ## Phase 3 — Align product CSS with tokens
@@ -103,6 +105,7 @@ Summarized logs embed UI is built from string templates in `internal/server/embe
 
 ## References
 
-- Code: `internal/server/embedui/logs.js`, `internal/server/embedui/logs.css`, `internal/server/embedui/theme-tokens.css`, `temp/theme/sample.html`, `temp/theme/gallery.html`, `temp/theme/gallery-shell.css`
+- Code: `chimera/chimera-gateway/internal/server/adminui/embedui/` (`logs_app.js`, `logs.css`, `theme-tokens.css`)
+- **Component gallery (moved from `temp/theme/`):** [`docs/component-gallery/`](../component-gallery/) — see [`embedui-component-gallery.md`](embedui-component-gallery.md) for repair/upkeep phases
 - Plans: [`embedui-logs-workspaces-merge.md`](embedui-logs-workspaces-merge.md)
 - Config (naming only): `config/tokens.yaml` — unrelated runtime tokens unless explicitly unified later

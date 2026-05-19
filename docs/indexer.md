@@ -1,4 +1,4 @@
-# chimera-indexer (v0.5)
+# chimera-indexer
 
 `chimera-indexer` is the workspace file indexer that ships alongside the Chimera
 Gateway v0.2+. It walks configured directory roots, applies ignore rules,
@@ -12,7 +12,7 @@ chunks locally.
 See [`plans/indexer.plan.md`](plans/indexer.plan.md) for the full product plan and
 non-goals; this document is the operator-facing quick start.
 
-## Supervised mode (`chimera serve` / desktop) — indexer plan v0.5 / gateway v0.2.2+
+## Supervised mode (`chimera serve` / desktop) — indexer plan Phase 5 / gateway v0.2.2+
 
 When `indexer.supervised.enabled: true` is set in `config/gateway.yaml`
 (and RAG is enabled, or `start_when_rag_disabled: true`), `chimera serve`
@@ -147,7 +147,7 @@ ignore_extra:
   - "*.snapshot"
 ```
 
-`tenant_id` is implied by the bearer token JSON response also returns `tenant_id`, `user_label` (from `api-keys.yaml` / UI label), `principal_id` (same id as `tenant_id`) for indexer operator logs. **v0.3** adds optional
+`tenant_id` is implied by the bearer token JSON response also returns `tenant_id`, `user_label` (from `api-keys.yaml` / UI label), `principal_id` (same id as `tenant_id`) for indexer operator logs. **Phase 3** adds optional
 `defaults`, per-root, and per-glob `project_id` / `flavor_id` / `workspace_id`
 in YAML. They are merged in order **defaults → root → overrides** (each
 `overrides[]` glob that matches the file’s root-relative path applies on top;
@@ -157,7 +157,7 @@ also sent on `GET /v1/indexer/config` at startup. Match the same headers (or
 Continue `config.yaml` project/flavor fields) as chat so RAG queries the same
 Qdrant collection the indexer wrote to.
 
-**v0.4:** Successful ingests record **client** and **server** SHA-256 digests under
+**Phase 4:** Successful ingests record **client** and **server** SHA-256 digests under
 `sync_state_path`. When omitted: **`indexer.sync-state.json` next to the `--config`
 file** if you pass `--config` (e.g. supervised `data/gateway/indexer.sync-state.json`
 alongside `indexer.supervised.yaml`), otherwise `.locus/indexer.sync-state.json`
@@ -236,5 +236,5 @@ debounce 750 ms).
 
 - `source` paths sent on the wire are always **relative to the configured
   root**. Absolute host paths are never transmitted.
-- Symlinks are not followed (no toggle in v0.2).
+- Symlinks are not followed (no toggle in Phase 2).
 - Tokens stay in the environment; YAML never contains secrets in supported releases.

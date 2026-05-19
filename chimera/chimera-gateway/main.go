@@ -393,7 +393,9 @@ func runGatewayBackend(args []string) error {
 		logStore := servicelogs.New(servicelogs.DefaultMaxLines)
 		uiOpts.LogStore = logStore
 		if supURL := strings.TrimSpace(os.Getenv(naming.EnvSupervisorControlURLTarget)); supURL != "" {
-			supervisorlogs.StartMirror(rootCtx, supURL, logStore, log)
+			supervisorlogs.StartMirror(rootCtx, supURL, logStore, log, func(ent servicelogs.Entry) {
+				rt.NoteIndexerSupervisorFromLogEntry(ent)
+			})
 		} else if log != nil {
 			log.Warn("supervised gateway missing supervisor control URL; logs UI disabled",
 				"msg", "gateway.supervisor_logs.control_url_missing",

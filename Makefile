@@ -90,7 +90,7 @@ endif
 	locus-clean locus-clean-install locus-clean-build locus-clean-configure locus-clean-run \
 	locus-desktop-clean locus-desktop-clean-install locus-desktop-clean-build locus-desktop-clean-configure locus-desktop-clean-run \
 	build bin-stage stage-bin-dir chimera-build run \
-	chimera-gateway-build chimera-gateway-install chimera-gateway-run chimera-gateway-audit chimera-gateway-test chimera-gateway-test-unit chimera-gateway-test-e2e \
+	chimera-gateway-build chimera-gateway-install chimera-gateway-run chimera-gateway-audit component-gallery-check chimera-gateway-test chimera-gateway-test-unit chimera-gateway-test-e2e \
 	chimera-supervisor-build chimera-supervisor-run chimera-supervisor-test chimera-supervisor-test-unit chimera-supervisor-test-e2e \
 	chimera-broker-install chimera-broker-build chimera-broker-run chimera-broker-test chimera-broker-test-unit chimera-broker-test-e2e \
 	chimera-vectorstore-install chimera-vectorstore-build chimera-vectorstore-run chimera-vectorstore-test chimera-vectorstore-test-unit chimera-vectorstore-test-e2e \
@@ -100,7 +100,7 @@ endif
 	locus-desktop-install locus-desktop-build locus-desktop-run locus-desktop-test locus-desktop-test-unit locus-desktop-test-e2e \
 	tokencount-file catalog-free catalog-available config-provider-free-tier \
 	release-install release-build release-package \
-	fmt fmt-check vet vet-desktop test precommit
+	fmt fmt-check vet vet-desktop test precommit operator-contracts-generate operator-contracts-check
 
 .DEFAULT_GOAL := help
 
@@ -308,7 +308,11 @@ chimera-gateway-audit:
 	@echo [STEP] Auditing chimera-gateway vocabulary (no legacy bifrost/upstream/qdrant paths)
 	@$(GITBASH) scripts/chimera-gateway-vocab-audit.sh
 
-chimera-gateway-test: chimera-gateway-audit chimera-gateway-test-unit chimera-gateway-test-e2e
+component-gallery-check:
+	@echo [STEP] Checking component gallery asset paths
+	@$(GITBASH) scripts/check-component-gallery-paths.sh
+
+chimera-gateway-test: chimera-gateway-audit component-gallery-check operator-contracts-check operator-copy-check chimera-gateway-test-unit chimera-gateway-test-e2e
 
 chimera-gateway-test-unit:
 	@echo [STEP] Running Chimera gateway unit tests
@@ -562,7 +566,6 @@ catalog-calculate: catalog-available
 		-out "$(if $(FREE_OUT),$(FREE_OUT),config/catalog-free-tier.snapshot.yaml)" \
 		-provider-free-tier-out "$(if $(PROVIDER_FT_OUT),$(PROVIDER_FT_OUT),config/provider-free-tier.generated.yaml)"
 
-
 # --- Release (install → build → package) ---
 
 release-install:
@@ -576,6 +579,23 @@ release-build: release-install
 release-package: chimera-build locus-desktop-build
 	@echo [STEP] Packaging personal desktop bundle
 	@$(GITBASH) scripts/release-package.sh "$(LOCUS_DESKTOP_BIN)"
+
+# --- Operator UI contracts (Phase 3: internal/naming → embedui/logs/contracts.js) ---
+
+contracts-generate:
+	@echo '[STEP] Generating data contracts from internal/naming'
+	@go generate ./internal/naming/...
+	@echo '[STEP] Regenerating operator copy (messages.yaml bootstrap + operator_copy.js)'
+	@go run ./internal/operatorcopy/cmd/bootstrap
+	@go generate ./internal/operatorcopy/...
+
+contracts-check:
+	@echo '[STEP] Checking data contracts are up to date'
+	@go test ./internal/naming/... -run TestGeneratedContractsJSMatchesFile -count=1
+	@echo '[STEP] Checking operator_copy.js and log_messages.go are up to date'
+	@go test ./internal/operatorcopy/... -run TestGeneratedOperatorCopyJSMatchesFile -count=1
+	@go test ./internal/naming/... -run 'TestGeneratedLogMessagesGoMatchesFile|TestLogMessageConstsHaveRegistryEntry' -count=1
+	@$(GITBASH) scripts/operatorcopy-msg-audit.sh
 
 # --- Quality gates ---
 

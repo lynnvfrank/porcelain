@@ -58,7 +58,7 @@ func LogPayloadSample(log *slog.Logger, emit bool, maxRunes int, kind string, pa
 	red := RedactSecrets(string(payload))
 	head, tail := SplitHeadTail(red, maxRunes)
 	log.Log(context.Background(), payloadSampleLogLevel, "conversation payload sample",
-		"msg", "conversation.payload.sample",
+		"msg", naming.MsgConversationPayloadSample,
 		"kind", kind,
 		"head", head,
 		"tail", tail,
@@ -76,7 +76,7 @@ func LogRequestWitness(log *slog.Logger, body map[string]json.RawMessage) {
 	if !ok {
 		return
 	}
-	log.Info("conversation request witness", "msg", "conversation.request.witness",
+	log.Info("conversation request witness", "msg", naming.MsgConversationRequestWitness,
 		"message_count", msgCount,
 		"role_counts", roleJSON,
 		"prompt_char_estimate", promptEst,
@@ -149,7 +149,7 @@ func LogResponseWitness(log *slog.Logger, stream bool, respBody []byte) {
 	if !ok {
 		return
 	}
-	log.Info("conversation response witness", "msg", "conversation.response.witness",
+	log.Info("conversation response witness", "msg", naming.MsgConversationResponseWitness,
 		"completion_char_estimate", comp,
 		"finish_reason", fr,
 		"chunk_count", chunks,

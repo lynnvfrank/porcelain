@@ -4,42 +4,42 @@ package naming
 // Shell scripts mirror binary basenames in scripts/chimera-names.sh.
 const (
 	// Product-layer names.
-	ProductSuiteName       = "Porcelain"
-	ProductGatewayName     = "Chimera"
-	ProductWorkspaceName   = "Locus"
-	ProductSupervisorName  = "chimera-supervisor"
-	ProductDesktopName     = "locus-desktop"
-	ProductBrokerName          = "chimera-broker"
-	ProductBrokerHTTPBinName   = "chimera-broker-http" // supervised BiFrost HTTP upstream
-	ProductBifrostHTTPBinName  = "bifrost-http"        // BiFrost build artifact basename (install scripts)
-	ProductVectorstoreName     = "chimera-vectorstore"
-	ProductQdrantBinName       = "qdrant"
+	ProductSuiteName             = "Porcelain"
+	ProductGatewayName           = "Chimera"
+	ProductWorkspaceName         = "Locus"
+	ProductSupervisorName        = "chimera-supervisor"
+	ProductDesktopName           = "locus-desktop"
+	ProductBrokerName            = "chimera-broker"
+	ProductBrokerHTTPBinName     = "chimera-broker-http" // supervised BiFrost HTTP upstream
+	ProductBifrostHTTPBinName    = "bifrost-http"        // BiFrost build artifact basename (install scripts)
+	ProductVectorstoreName       = "chimera-vectorstore"
+	ProductQdrantBinName         = "qdrant"
 	ProductGatewayBinName        = "chimera-gateway"
 	ProductGatewayBackendBinName = "chimera-gateway-backend"
 	ProductIndexerBinName        = "chimera-indexer"
 
 	// chimera-gateway wrapper environment (GATEWAY__*).
-	EnvGatewayListen              = "GATEWAY__LISTEN"
-	EnvGatewayBin                 = "GATEWAY__BIN"
-	EnvGatewayBackendListen       = "GATEWAY__BACKEND_LISTEN"
-	EnvGatewayBrokerOverride      = "GATEWAY__BROKER_OVERRIDE"
-	EnvGatewayTimeoutsStartup     = "GATEWAY__TIMEOUTS__STARTUP"
-	EnvGatewayTimeoutsShutdown    = "GATEWAY__TIMEOUTS__SHUTDOWN"
-	EnvGatewayBackendBinDefault   = "GATEWAY__BACKEND_BIN_DEFAULT"
+	EnvGatewayListen            = "GATEWAY__LISTEN"
+	EnvGatewayBin               = "GATEWAY__BIN"
+	EnvGatewayBackendListen     = "GATEWAY__BACKEND_LISTEN"
+	EnvGatewayBrokerOverride    = "GATEWAY__BROKER_OVERRIDE"
+	EnvGatewayTimeoutsStartup   = "GATEWAY__TIMEOUTS__STARTUP"
+	EnvGatewayTimeoutsShutdown  = "GATEWAY__TIMEOUTS__SHUTDOWN"
+	EnvGatewayBackendBinDefault = "GATEWAY__BACKEND_BIN_DEFAULT"
 
 	// chimera-gateway wrapper defaults.
 	DefaultGatewayListen = "127.0.0.1:7720"
 
 	// chimera-broker wrapper environment (BROKER__*).
-	EnvBrokerListen              = "BROKER__LISTEN"
-	EnvBrokerBin                 = "BROKER__BIN"
-	EnvBrokerBackend             = "BROKER__BACKEND"
-	EnvBrokerEndpoint            = "BROKER__ENDPOINT"
-	EnvBrokerDataPath            = "BROKER__DATA_PATH"
-	EnvBrokerLogLevel            = "BROKER__LOG_LEVEL"
-	EnvBrokerTimeoutsStartup     = "BROKER__TIMEOUTS__STARTUP"
-	EnvBrokerTimeoutsShutdown    = "BROKER__TIMEOUTS__SHUTDOWN"
-	EnvBrokerChimeraBrokerConfig = "BROKER__CHIMERA_BROKER_CONFIG"
+	EnvBrokerListen                = "BROKER__LISTEN"
+	EnvBrokerBin                   = "BROKER__BIN"
+	EnvBrokerBackend               = "BROKER__BACKEND"
+	EnvBrokerEndpoint              = "BROKER__ENDPOINT"
+	EnvBrokerDataPath              = "BROKER__DATA_PATH"
+	EnvBrokerLogLevel              = "BROKER__LOG_LEVEL"
+	EnvBrokerTimeoutsStartup       = "BROKER__TIMEOUTS__STARTUP"
+	EnvBrokerTimeoutsShutdown      = "BROKER__TIMEOUTS__SHUTDOWN"
+	EnvBrokerChimeraBrokerConfig   = "BROKER__CHIMERA_BROKER_CONFIG"
 	EnvBrokerChimeraBrokerLogStyle = "BROKER__CHIMERA_BROKER_LOG_STYLE"
 
 	// chimera-broker wrapper defaults.

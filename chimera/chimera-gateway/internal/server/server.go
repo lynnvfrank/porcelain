@@ -555,12 +555,12 @@ func attachConversationDelivery(routeLog *slog.Logger, opts **chat.ProxyOpts) {
 			return
 		}
 		if st >= 200 && st < 300 {
-			routeLog.Info("conversation delivered", "msg", "conversation.delivered",
+			routeLog.Info("conversation delivered", "msg", naming.MsgConversationDelivered,
 				"statusCode", st, "stream", stream, "bytes", nb, "total_ms", elapsedMs,
 				"timeline_kind", naming.TimelineKindBroker)
 			return
 		}
-		routeLog.Warn("conversation errored", "msg", "conversation.errored",
+		routeLog.Warn("conversation errored", "msg", naming.MsgConversationErrored,
 			"statusCode", st, "errorType", lifecycleErrorType(st), "timeline_kind", naming.TimelineKindBroker)
 	}
 	if *opts == nil {
@@ -668,7 +668,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		})
 		if err != nil && log != nil {
 			log.With("request_id", rid, "service", "gateway", "principal_id", sess.TenantID).
-				Debug("conversation merge resolve failed", "msg", "conversation.merge.resolve_failed", "err", err)
+				Debug("conversation merge resolve failed", "msg", naming.MsgConversationMergeResolveFailed, "err", err)
 		}
 		if len(out.DedupJSON) > 0 {
 			cid = out.ConversationID
@@ -679,7 +679,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 			dedupLog := chatRouteLogger(log, rid, cid, sess.TenantID, turnIdx)
 			w.Header().Set(headerConversationID, cid)
 			if dedupLog != nil {
-				dedupLog.Info("conversation received", "msg", "conversation.received",
+				dedupLog.Info("conversation received", "msg", naming.MsgConversationReceived,
 					"clientModel", clientModel, "stream", stream, "tenant", sess.TenantID,
 					"project", proj, "flavor", flav, "cid_source", "merge", "timeline_kind", naming.TimelineKindBroker)
 				emitConversationRequestWitness(dedupLog, res, raw)
@@ -695,7 +695,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 				if res.ShouldEmitPayloadSample() {
 					conversationwitness.LogPayloadSample(dedupLog, true, res.WitnessSampleMaxRunes(), "response", out.DedupJSON)
 				}
-				dedupLog.Info("conversation delivered", "msg", "conversation.delivered",
+				dedupLog.Info("conversation delivered", "msg", naming.MsgConversationDelivered,
 					"statusCode", http.StatusOK, "stream", false, "bytes", int64(n),
 					"total_ms", time.Since(flowStart).Milliseconds(), "timeline_kind", naming.TimelineKindBroker)
 			}
@@ -731,7 +731,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 	})
 
 	if routeLog != nil {
-		routeLog.Info("conversation received", "msg", "conversation.received",
+		routeLog.Info("conversation received", "msg", naming.MsgConversationReceived,
 			"clientModel", clientModel, "stream", stream, "tenant", sess.TenantID,
 			"project", proj, "flavor", flav, "cid_source", cidSource, "timeline_kind", naming.TimelineKindBroker)
 		routeLog.Info("chat completion request", "msg", "chat.request", "clientModel", clientModel, "stream", stream, "tenant", sess.TenantID, "timeline_kind", naming.TimelineKindBroker)
@@ -744,7 +744,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 				errStr = errStr[:300] + "…"
 			}
 		}
-		routeLog.Debug("conversation tool router", "msg", "conversation.tool.router",
+		routeLog.Debug("conversation tool router", "msg", naming.MsgConversationToolRouter,
 			"tools_before", trSum.ToolsBefore, "tools_after", trSum.ToolsAfter,
 			"router_model", trSum.RouterModel,
 			"err", errStr,
@@ -784,12 +784,12 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		collection := vectorstore.CollectionName(coords)
 		if !res.RAG.Enabled || rt.RAG() == nil {
 			if routeLog != nil {
-				routeLog.Debug("conversation RAG skipped", "msg", "conversation.rag.skipped",
+				routeLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
 					"reason", "disabled", "timeline_kind", naming.TimelineKindVectorstore)
 			}
 		} else if q := rag.LastUserText(raw["messages"]); strings.TrimSpace(q) == "" {
 			if routeLog != nil {
-				routeLog.Debug("conversation RAG skipped", "msg", "conversation.rag.skipped",
+				routeLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
 					"reason", "empty_query", "timeline_kind", naming.TimelineKindVectorstore)
 			}
 		} else {
@@ -823,7 +823,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 				}
 				rag.InjectSystemMessage(raw, ctxBlock)
 				if routeLog != nil {
-					routeLog.Info("conversation RAG attached", "msg", "conversation.rag.attached",
+					routeLog.Info("conversation RAG attached", "msg", naming.MsgConversationRagAttached,
 						"tenant", coords.TenantID,
 						"project", coords.ProjectID,
 						"flavor", coords.FlavorID,
@@ -832,7 +832,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 						"timeline_kind", naming.TimelineKindVectorstore)
 				}
 			} else if routeLog != nil {
-				routeLog.Debug("conversation RAG skipped", "msg", "conversation.rag.skipped",
+				routeLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
 					"reason", "no_hits", "timeline_kind", naming.TimelineKindVectorstore)
 			}
 		}
@@ -840,7 +840,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		initial, _ := pol.PickInitialModel(raw, res.FallbackChain, res.VirtualModelID)
 		if initial == "" {
 			if routeLog != nil {
-				routeLog.Warn("conversation errored", "msg", "conversation.errored",
+				routeLog.Warn("conversation errored", "msg", naming.MsgConversationErrored,
 					"statusCode", http.StatusServiceUnavailable, "errorType", "gateway_config", "timeline_kind", naming.TimelineKindBroker)
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -861,7 +861,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 
 	if clientModel == "" {
 		if routeLog != nil {
-			routeLog.Warn("conversation errored", "msg", "conversation.errored",
+			routeLog.Warn("conversation errored", "msg", naming.MsgConversationErrored,
 				"statusCode", http.StatusBadRequest, "errorType", "invalid_request", "timeline_kind", naming.TimelineKindBroker)
 		}
 		w.Header().Set("Content-Type", "application/json")

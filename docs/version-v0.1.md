@@ -28,7 +28,7 @@ Stand up the chimera-gateway in Go in front of BiFrost: chat completions work, t
 
 This document is for **Audrey** (and a Cursor agent helping her) to **explore** what "done enough" for **v0.1** means in practice, how the repo behaves **today**, and which directions are **worth investigating** versus **already decided** in the product plan.
 
-**Tone:** everything under *Explorations* is **optional research**, not a commitment. The authoritative roadmap and locked decisions remain in [`porcelain.plan.md`](porcelain.plan.md) and [`overview.md`](overview.md). Normative UI/desktop detail lives in [`plans/desktop-ui.md`](plans/desktop-ui.md).
+**Tone:** everything under *Explorations* is **optional research**, not a commitment. The authoritative roadmap and locked decisions remain in [`porcelain.plan.md`](porcelain.plan.md). Normative UI/desktop detail lives in [`plans/desktop-ui.md`](plans/desktop-ui.md).
 
 ---
 

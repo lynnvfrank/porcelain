@@ -1,5 +1,8 @@
 // Package vectorstoreline normalizes raw Qdrant process output into JSON lines with stable
 // vectorstore.* msg slugs and structured fields for the operator logs UI.
+//
+// Operator-facing copy for these slugs lives in internal/operatorcopy/messages.yaml
+// (legacy alias qdrant.* until 2026-08-01). Do not add prose here.
 package vectorstoreline
 
 import (

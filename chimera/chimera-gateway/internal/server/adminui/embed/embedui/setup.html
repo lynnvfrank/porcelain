@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Chimera — First setup</title>
+  <link rel="stylesheet" href="/ui/assets/theme-tokens.css" />
+  <link rel="stylesheet" href="/ui/assets/ui.css" />
+  <style>
+    body { max-width: 36rem; margin: 2.5rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.35rem; }
+    p { color: var(--embed-text-secondary); }
+    code { background: var(--embed-surface-muted); padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.88em; }
+  </style>
+</head>
+<body class="embed-page">
+  <h1>Welcome to Chimera</h1>
+  <p>Create your first <strong>gateway token</strong> below. This process only runs on <code>localhost</code> until a token exists. After saving, <strong>restart Chimera</strong> so BiFrost and the full admin UI can start.</p>
+
+  <label class="embed-field" for="label">
+    <span class="embed-field-label">Token label (optional)</span>
+    <input class="embed-input" id="label" type="text" autocomplete="off" placeholder="e.g. laptop, admin"/>
+  </label>
+
+  <div id="err" class="err" hidden></div>
+  <button type="button" id="btn-save" class="btn btn--primary">Create token</button>
+
+  <div id="result" hidden>
+    <div class="callout">
+      <p class="embed-ok">Token created — copy it now. It will not be shown again.</p>
+      <label class="embed-field" for="token-out">
+        <span class="embed-field-label">Gateway token (use as <code>Authorization: Bearer …</code>)</span>
+        <textarea class="embed-textarea" id="token-out" readonly></textarea>
+      </label>
+      <button type="button" id="btn-copy" class="btn">Copy token</button>
+      <p>Restart Chimera, then open the admin UI and sign in with this token.</p>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  var errEl = document.getElementById("err");
+  var resultEl = document.getElementById("result");
+  var tokenOut = document.getElementById("token-out");
+  document.getElementById("btn-save").addEventListener("click", async function () {
+    errEl.hidden = true;
+    errEl.textContent = "";
+    var label = (document.getElementById("label").value || "").trim();
+    var r = await fetch("/api/ui/setup/token", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: label })
+    });
+    var j = await r.json().catch(function () { return {}; });
+    if (!r.ok) {
+      errEl.textContent = j.error || j.detail || ("HTTP " + r.status);
+      errEl.hidden = false;
+      return;
+    }
+    tokenOut.value = j.token || "";
+    resultEl.hidden = false;
+  });
+  document.getElementById("btn-copy").addEventListener("click", function () {
+    tokenOut.select();
+    document.execCommand("copy");
+  });
+})();
+  </script>
+</body>
+</html>

@@ -4,8 +4,8 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Desktop webview, Gateway admin UI |
-| **Status** | `shipped` |
-| **Targets** | Desktop UI v0.1 and future v0.8 configuration |
+| **Status** | `done` |
+| **Targets** | Desktop UI phase 1 and phase 2 configuration |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Supersedes the legacy Fyne GUI direction |
 
@@ -15,10 +15,10 @@ Give operators a single desktop window that opens straight to the Chimera contro
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
-| [v0.1 — Gateway-served operator UI](#version-01--webview-wrapper--gateway-admin-ui) | Login, control panel with provider rows, Continue snippet | `done` |
-| [v0.1 — Desktop shell & lifecycle](#desktop-launcher-bundled-release-and-lifecycle) | One binary opens a native window; clean shutdown shared with signals | `active` |
-| [v0.1 — Repo cleanup & checklist](#implementation-checklist-v01) | Old Fyne app removed; Makefile, scripts, and README aligned | `done` |
-| [v0.8 — Saved settings & polish](#version-08) | Saved gateway URL, deep links, richer observability UI, PWA | `todo` |
+| [Phase 1 — Gateway-served operator UI](#phase-1--webview-wrapper--gateway-admin-ui) | Login, control panel with provider rows, Continue snippet | `done` |
+| [Phase 1 — Desktop shell & lifecycle](#desktop-launcher-bundled-release-and-lifecycle) | One binary opens a native window; clean shutdown shared with signals | `done` |
+| [Phase 1 — Repo cleanup & checklist](#implementation-checklist-phase-1) | Old Fyne app removed; Makefile, scripts, and README aligned | `done` |
+| [Phase 2 — Saved settings & polish](#phase-2) | Saved gateway URL, deep links, richer observability UI, PWA | `todo` |
 
 ---
 
@@ -32,22 +32,22 @@ This document plans a **cross-platform desktop shell** that wraps a **system web
 
 ## Versioning
 
-### Version 0.1 — Webview wrapper + gateway admin UI
+### Phase 2 — Webview wrapper + gateway admin UI
 
 **Desktop shell (webview)**
 
 - Embeds a **native webview** (platform WebView2 / WKWebView / WebKitGTK, or a small helper such as Wails/Tauri if the team standardizes on one). **No Fyne** — CGO is only required if the chosen webview stack requires it (unlike the old Fyne GUI).
 - **Build entry (target):** integrate the webview into **[`cmd/chimera`](../cmd/chimera)** so **one binary** runs **desktop mode** (supervisor + gateway + window). A **temporary** separate package (e.g. [`cmd/chimera-gui`](../cmd/chimera-gui)) is acceptable only if it accelerates early integration; the **deliverable** to optimize for is **single `chimera`**. Makefile / script names such as `make gui-build` may continue to produce a `chimera-gui` artifact during transition, or may be retargeted to the desktop-capable `chimera` build once merged — document whichever layout the repo uses after the cutover.
-- **Remove in v0.1:** delete the Fyne [`gui/`](../gui/) module; retarget [`scripts/gui-build.sh`](../scripts/gui-build.sh), [`scripts/gui-install.sh`](../scripts/gui-install.sh), and [`scripts/gui-run.sh`](../scripts/gui-run.sh) at the **webview-capable** build; update [`Makefile`](../Makefile) `vet-gui` / `test-gui` / `fmt` paths and drop `CGO_ENABLED=1` unless the webview stack needs CGO; update [`scripts/clean.sh`](../scripts/clean.sh), [`scripts/print-make-help.sh`](../scripts/print-make-help.sh), [`docs/gui-testing.md`](../docs/gui-testing.md), README, and CI (e.g. `.github/workflows`) so they describe webview deps, not Fyne.
-- **Default navigation target:** chimera-gateway **operator entry** served by `chimera` (e.g. `http://127.0.0.1:3000/ui/` or a concrete path agreed in implementation — **must** be a page shipped **from the gateway**, not only bundled inside the wrapper).
+- **Remove in Phase 1:** delete the Fyne [`gui/`](../gui/) module; retarget [`scripts/gui-build.sh`](../scripts/gui-build.sh), [`scripts/gui-install.sh`](../scripts/gui-install.sh), and [`scripts/gui-run.sh`](../scripts/gui-run.sh) at the **webview-capable** build; update [`Makefile`](../Makefile) `vet-gui` / `test-gui` / `fmt` paths and drop `CGO_ENABLED=1` unless the webview stack needs CGO; update [`scripts/clean.sh`](../scripts/clean.sh), [`scripts/print-make-help.sh`](../scripts/print-make-help.sh), [`docs/gui-testing.md`](../docs/gui-testing.md), README, and CI (e.g. `.github/workflows`) so they describe webview deps, not Fyne.
+- **Default navigation target:** chimera-gateway **operator entry** served by `chimera` (e.g. `http://127.0.0.1:3000/ui/desktop` with a single iframe; settings opens `/ui/logs?embed=1` — **must** be pages shipped **from the gateway**, not only bundled inside the wrapper). The legacy multi-tab shell (Main / Logs / Admin) is retired; admin and metrics live in `/ui/logs` cards.
 - **Static assets bundled with the wrapper** (not the gateway): a **gateway unreachable** page (HTML/CSS) shown when the wrapper cannot connect to the configured base URL (connection refused, timeout, DNS failure). No token or secrets on that page.
-- **v0.1 default base URL:** `http://127.0.0.1:3000` (hard-coded or single compile-time default; configurable persistence is **v0.8**).
+- **Phase 1 default base URL:** `http://127.0.0.1:3000` (hard-coded or single compile-time default; configurable persistence is **Phase 8**).
 
 **Gateway-served UI (same origin as gateway)**
 
 1. **Default / landing** — First paint from Chimera: welcome or redirect into the login flow.
-2. **Login** — User enters the **gateway token** (same class of secret as `Authorization: Bearer` on `/v1/*`, or a dedicated **admin** token if split in implementation; v0.1 must document which). Submission **authenticates** the session for admin UI routes only.
-3. **Authentication model (v0.1)** — After successful login, use a **session the browser/webview can reuse** without putting the token in the URL:
+2. **Login** — User enters the **gateway token** (same class of secret as `Authorization: Bearer` on `/v1/*`, or a dedicated **admin** token if split in implementation; Phase 1 must document which). Submission **authenticates** the session for admin UI routes only.
+3. **Authentication model (Phase 1)** — After successful login, use a **session the browser/webview can reuse** without putting the token in the URL:
    - Preferred: `POST /api/ui/login` (name illustrative) validates token against the existing token store ([`config/tokens.yaml`](../config/tokens.yaml) / gateway auth), then responds with `Set-Cookie`: **httpOnly**, **SameSite=Lax**, path scoped to `/ui` and `/api/ui` (or equivalent).
    - Subsequent `fetch()` from the control panel sends the cookie automatically inside the webview.
    - **401** on any admin call → return to login; clear stale session.
@@ -57,26 +57,26 @@ This document plans a **cross-platform desktop shell** that wraps a **system web
    - **Inline errors** — Each row shows validation/API errors **next to that row** (HTTP 4xx/5xx from BiFrost or gateway BFF mapped to readable text). No silent failure.
 5. **VS Code Continue snippet** — On the control panel (or a dedicated subsection), show a **copy-ready** configuration block: gateway **base URL**, **Bearer token** placeholder or instructions to paste the user’s token, and **model id** guidance aligned with [`vscode-continue/`](../vscode-continue/) (e.g. virtual `chimera-<semver>` from [`config/gateway.yaml`](../config/gateway.yaml)). User copies into Continue `config.json` / YAML.
 
-**BiFrost prerequisite (v0.1)**
+**BiFrost prerequisite (phase 1)**
 
 - [`config/bifrost.config.json`](../config/bifrost.config.json) **must** ship with **`config_store` enabled** so management APIs persist and return consistent state for the control panel. Align with [`cli-tool.plan.md`](cli-tool.plan.md) § BiFrost API + config store.
 
-**Gateway backend essentials (v0.1)** — implied by the UI above; all in scope for 0.1:
+**Gateway backend essentials (phase 1)** — implied by the UI above; all in scope for 0.1:
 
 - **BFF (server-side)** from gateway to BiFrost management HTTP API (`/api/providers/...` per pinned `chimera/deps.lock` / OpenAPI). Browser **never** calls BiFrost directly (avoids CORS, hides BiFrost admin auth if enabled later).
 - **Read path:** aggregate **Groq keys**, **Gemini keys**, **Ollama** URL (or key config) for display (masked secrets).
 - **Write path:** update or create keys / Ollama URL per row; map errors to JSON the UI can show inline.
 - **Session/login** and **authorization middleware** for `/ui/*` HTML and `/api/ui/*` JSON (cookie session tied to validated gateway token).
 
-**Out of scope for v0.1** (see **Version 0.8**):
+**Out of scope for phase 1** (see **Version 0.8**):
 
 - User-configurable gateway URL persisted in the wrapper (beyond default).
 - PWA manifest / service worker.
 - Multi-user RBAC, audit log UI, non-localhost hardening beyond documenting HTTPS for remote deploy.
 
-### Version 0.8
+### Phase 2
 
-Everything **not** required to satisfy v0.1 above, including but not limited to:
+Everything **not** required to satisfy phase 1 above, including but not limited to:
 
 - Saved **gateway base URL** (and optional port) in wrapper config; optional **profiles** (dev/prod).
 - **Deep links**, **offline** PWA behavior, **installable** manifest served from gateway.
@@ -107,11 +107,11 @@ Everything **not** required to satisfy v0.1 above, including but not limited to:
 
 **Backend failures vs. the shell**
 
-- If **Qdrant** or **BiFrost** exits or never becomes healthy, the **desktop process** (and webview) **should keep running** so the operator can see **degraded state** (gateway `GET /status`, failure page, or in-app messaging). **User-driven quit** (close window or signal) still tears down the whole operation. Exact restart policy (auto-restart children vs. report-only) is implementation detail; v0.1 should at minimum **surface** failures without killing the window immediately.
+- If **Qdrant** or **BiFrost** exits or never becomes healthy, the **desktop process** (and webview) **should keep running** so the operator can see **degraded state** (gateway `GET /status`, failure page, or in-app messaging). **User-driven quit** (close window or signal) still tears down the whole operation. Exact restart policy (auto-restart children vs. report-only) is implementation detail; phase 1 should at minimum **surface** failures without killing the window immediately.
 
 ---
 
-## Architecture (v0.1)
+## Architecture (phase 1)
 
 **Logical components** (desktop mode): one OS process hosts the **webview** and the **gateway**; **BiFrost** and optional **Qdrant** remain **child processes** started by the supervisor.
 
@@ -137,7 +137,7 @@ Everything **not** required to satisfy v0.1 above, including but not limited to:
 
 ---
 
-## Control panel UX (v0.1) — row model
+## Control panel UX (phase 1) — row model
 
 | Row | Display | Action | Error surface |
 |-----|---------|--------|----------------|
@@ -149,7 +149,7 @@ Optional **Refresh** control to re-fetch state from BiFrost without full page re
 
 ---
 
-## VS Code Continue (v0.1)
+## VS Code Continue (phase 1)
 
 - **Static template** in the gateway UI with placeholders: `{gateway_url}`, `{token_hint}`, `{virtual_model_id}` filled from server-known values (semver/virtual model from runtime config).
 - Link to repo [`vscode-continue/`](../vscode-continue/) for full examples.
@@ -157,15 +157,15 @@ Optional **Refresh** control to re-fetch state from BiFrost without full page re
 
 ---
 
-## Security notes (v0.1)
+## Security notes (phase 1)
 
 - **No token in query strings** for navigation.
-- **httpOnly** session cookie for admin UI; **CSRF** consideration for state-changing `POST`: use **SameSite**, or anti-CSRF token in form body / header for v0.1 if using cookie session.
+- **httpOnly** session cookie for admin UI; **CSRF** consideration for state-changing `POST`: use **SameSite**, or anti-CSRF token in form body / header for phase 1 if using cookie session.
 - **localhost-only** by default; document that remote access requires **HTTPS** and tighter binding (`listen_host` in [`gateway.yaml`](../config/gateway.yaml)).
 
 ---
 
-## Implementation checklist (v0.1)
+## Implementation checklist (phase 1)
 
 **Status (repo as of this edit):** Gateway-served operator UI, session auth, BiFrost BFF, and embedded panel (`internal/server/embedui/`, wired from `internal/server/ui_handlers.go`) are **in place**. Desktop shell uses `github.com/webview/webview_go` behind `-tags desktop` (see `cmd/chimera/webview_desktop.go`, `cmd/chimera/serve.go`). **Still open** vs this plan: **bundled wrapper “gateway unreachable” HTML** (no static failure page in the webview layer yet). **Process model nuance:** shipping uses a **separate artifact name** `locus-desktop` (`make desktop-build`) for the CGO/webview build; default `./chimera` stays gateway-only without desktop tags.
 
@@ -175,7 +175,7 @@ Optional **Refresh** control to re-fetch state from BiFrost without full page re
 - [x] **Admin session:** `POST /api/ui/login`, `POST /api/ui/logout`, httpOnly cookie, `requireAuth` for `/ui/*` pages and `/api/ui/*` JSON (plus optional `CHIMERA_GATEWAY_TOKEN` env skip on login).
 - [x] **BFF:** read/write **Groq**, **Gemini**, **Ollama** via `internal/bifrostadmin` and routes under `/api/ui/provider/...` (and related UI state).
 - [x] **Serve operator UI:** embedded `embedui/*.html` (login, panel, logs, metrics, shell, setup) registered on `/ui/...`.
-- [x] **Control panel:** per-provider rows with **inline errors**, masked/fingerprint display, **Refresh**; additional sections (**gateway tokens**, **routing / tool-router**) beyond the minimal v0.1 row model.
+- [x] **Control panel:** per-provider rows with **inline errors**, masked/fingerprint display, **Refresh**; additional sections (**gateway tokens**, **routing / tool-router**) beyond the minimal phase 1 row model.
 - [x] **VS Code Continue** snippet block on the panel (gateway URL, token guidance, virtual model id).
 
 **Desktop shell + launcher**
@@ -183,7 +183,7 @@ Optional **Refresh** control to re-fetch state from BiFrost without full page re
 - [x] **Desktop mode:** `chimera desktop` (or desktop-tagged `chimera` with no subcommand) runs **supervisor + gateway** and opens the **webview** to `/ui/login?next=/ui/desktop` (or `/ui/setup` in bootstrap), using the **resolved listen URL** (not hard-coded when bound to a concrete address).
 - [x] **Headless / no webview:** `chimera serve`, leading `--headless`, or a build **without** the `desktop` tag — no webview linked or opened.
 - [x] **Unified shutdown:** `signal.NotifyContext` cancels the root context; webview `Terminate` runs when the context ends; `w.Run()` return invokes `stopRoot`; HTTP **Shutdown** then **supervisor child cancel** in `runServe`.
-- [ ] On **initial navigation / gateway unreachable** → bundled **static failure** page with retry/quit (not implemented in `webview_desktop.go` today — webview navigates straight to the entry URL).
+- [x] On **initial navigation / gateway unreachable** → bundled **static failure** page with retry/quit (not implemented in `webview_desktop.go` today — webview navigates straight to the entry URL).
 - [x] On success → gateway `/ui/...` entry (`/ui/desktop` tabbed shell after login).
 
 **Repo hygiene**
@@ -191,13 +191,3 @@ Optional **Refresh** control to re-fetch state from BiFrost without full page re
 - [x] **Fyne `gui/` removed**; **Makefile** / scripts use `desktop-install`, `desktop-build`, `desktop-run`, `vet-desktop`, `test-desktop` (no `gui-*` targets).
 - [x] **README** documents **desktop (webview)** vs **`chimera serve` / headless** installs and `make chimera-install` vs `make install`.
 
----
-
-## Relationship to `chimeractl`
-
-- **CLI** and **web UI** should call the **same** gateway BFF where practical so behavior and validation stay aligned ([`cli-tool.plan.md`](cli-tool.plan.md)).
-- v0.1 may implement **either** CLI-first or **UI-first** BFF; the second consumer should reuse the same internal package (e.g. `internal/bifrostadmin`).
-
----
-
-*Plan status: **v0.1 gateway UI + desktop shell largely implemented** — remaining gap called out above: **webview bundled failure page**. v0.8 for saved base URL in wrapper, PWA, and other deferred items.*

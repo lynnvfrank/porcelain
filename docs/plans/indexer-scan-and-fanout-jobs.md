@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Indexer, queueing, logs UI |
-| **Status** | `active` |
+| **Status** | `done` |
 | **Targets** | Queue-safe initial indexing and fan-out jobs |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Replaces the old synchronous `EnqueueInitialScan` behavior |

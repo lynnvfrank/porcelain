@@ -16,7 +16,9 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routing"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/catalog"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore/qdrant"
+	indexeradapter "github.com/lynn/porcelain/chimera/chimera-indexer/adapter"
 	"github.com/lynn/porcelain/chimera/internal/config"
+	"github.com/lynn/porcelain/chimera/internal/servicelogs"
 	"github.com/lynn/porcelain/chimera/internal/providerlimits"
 	"github.com/lynn/porcelain/chimera/internal/tokens"
 	"github.com/lynn/porcelain/internal/naming"
@@ -327,6 +329,26 @@ func (rt *Runtime) IndexerSupervisorStatus() IndexerSupervisorStatus {
 	rt.indexerStatusMu.Lock()
 	defer rt.indexerStatusMu.Unlock()
 	return rt.indexerStatus
+}
+
+// NoteIndexerSupervisorFromLogEntry updates supervised-indexer health from a mirrored log line.
+func (rt *Runtime) NoteIndexerSupervisorFromLogEntry(ent servicelogs.Entry) {
+	if rt == nil {
+		return
+	}
+	src := strings.TrimSpace(ent.Source)
+	if src != servicelogs.SourceChimeraIndexer && src != "indexer" {
+		return
+	}
+	at := ent.Time
+	if at.IsZero() {
+		at = time.Now().UTC()
+	}
+	if declared, worker, ok := indexeradapter.ParseSupervisorHeartbeat(ent.Text); ok {
+		rt.NoteIndexerSupervisorHeartbeat(at, declared, worker)
+		return
+	}
+	rt.NoteIndexerSupervisorLog(at)
 }
 
 // LimitsGuard returns an admission guard combining the parsed limits spec with live metrics.

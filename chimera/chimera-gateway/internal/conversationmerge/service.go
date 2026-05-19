@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag/ragembed"
 	"github.com/lynn/porcelain/chimera/internal/config"
+	"github.com/lynn/porcelain/internal/naming"
 )
 
 const dedupRetention = 24 * time.Hour
@@ -55,7 +56,7 @@ func NewService(cfg config.ConversationMerge, db *sql.DB, upstreamBaseURL, upstr
 	url := rag.EmbeddingURL(upstreamBaseURL)
 	if url == "" || upstreamAPIKey == "" {
 		if log != nil {
-			log.Info("conversation merge disabled: missing embedding URL or upstream API key", "msg", "conversation.merge.disabled")
+			log.Info("conversation merge disabled: missing embedding URL or upstream API key", "msg", naming.MsgConversationMergeDisabled)
 		}
 		return nil
 	}
@@ -120,14 +121,14 @@ func (s *Service) Resolve(ctx context.Context, in ResolveInput) (ResolveOutcome,
 	if err != nil {
 		if s.log != nil {
 			s.log.Warn("conversation merge: embed failed; using fresh conversation id",
-				append([]any{"msg", "conversation.merge.embed_failed", "err", err}, mergeCorrelationAttrs(in, out.ConversationID)...)...)
+				append([]any{"msg", naming.MsgConversationMergeEmbedFailed, "err", err}, mergeCorrelationAttrs(in, out.ConversationID)...)...)
 		}
 		return out, nil
 	}
 	if len(vec) != s.expDim {
 		if s.log != nil {
 			s.log.Warn("conversation merge: embedding dim mismatch; using fresh id",
-				append([]any{"msg", "conversation.merge.embed_dim_mismatch",
+				append([]any{"msg", naming.MsgConversationMergeEmbedDimMismatch,
 					"got", len(vec), "want", s.expDim}, mergeCorrelationAttrs(in, out.ConversationID)...)...)
 		}
 		return out, nil
@@ -143,7 +144,7 @@ func (s *Service) Resolve(ctx context.Context, in ResolveInput) (ResolveOutcome,
 	if err != nil {
 		if s.log != nil {
 			s.log.Warn("conversation merge: list candidates failed",
-				append([]any{"msg", "conversation.merge.list_candidates_failed", "err", err}, mergeCorrelationAttrs(in, out.ConversationID)...)...)
+				append([]any{"msg", naming.MsgConversationMergeListCandidatesFailed, "err", err}, mergeCorrelationAttrs(in, out.ConversationID)...)...)
 		}
 		return out, nil
 	}
@@ -187,7 +188,7 @@ func (s *Service) Resolve(ctx context.Context, in ResolveInput) (ResolveOutcome,
 			cid = bestID
 		}
 		s.log.Debug("conversation merge: dedup read failed",
-			append([]any{"msg", "conversation.merge.dedup_read_failed", "err", err}, mergeCorrelationAttrs(in, cid)...)...)
+			append([]any{"msg", naming.MsgConversationMergeDedupReadFailed, "err", err}, mergeCorrelationAttrs(in, cid)...)...)
 	}
 	if hit && len(body) > 0 {
 		out.ConversationID = bestID
@@ -196,7 +197,7 @@ func (s *Service) Resolve(ctx context.Context, in ResolveInput) (ResolveOutcome,
 			out.TurnIndex = in.NextTurnIndex(bestID)
 		}
 		if s.log != nil {
-			args := append([]any{"msg", "conversation.dedup_hit", "dedup_bytes", len(body)}, mergeCorrelationAttrs(in, bestID)...)
+			args := append([]any{"msg", naming.MsgConversationDedupHit, "dedup_bytes", len(body)}, mergeCorrelationAttrs(in, bestID)...)
 			if out.TurnIndex != 0 {
 				args = append(args, "turn_index", out.TurnIndex)
 			}
@@ -214,7 +215,7 @@ func (s *Service) Resolve(ctx context.Context, in ResolveInput) (ResolveOutcome,
 	}
 	if s.log != nil {
 		args := append([]any{
-			"msg", "conversation.merged",
+			"msg", naming.MsgConversationMerged,
 			"match_score", bestScore,
 			"candidate_count", len(candidates),
 			"merge_reason", mergeReason,
@@ -257,13 +258,13 @@ func (s *Service) RecordTurn(ctx context.Context, tenantID, projectID, flavorID,
 
 	if err := s.store.UpsertConversation(ctx, tenantID, projectID, flavorID, conversationID, vec, userNorm, modelNorm, fp, now); err != nil && s.log != nil {
 		s.log.Warn("conversation merge: upsert failed",
-			append([]any{"msg", "conversation.merge.upsert_failed", "err", err}, mergeCorrelationAttrs(ResolveInput{TenantID: tenantID, RequestID: requestID}, conversationID)...)...)
+			append([]any{"msg", naming.MsgConversationMergeUpsertFailed, "err", err}, mergeCorrelationAttrs(ResolveInput{TenantID: tenantID, RequestID: requestID}, conversationID)...)...)
 	}
 
 	dk := DedupKey(conversationID, prevFP, userNorm)
 	if err := s.store.PutDedup(ctx, dk, completionJSON, now, dedupRetention); err != nil && s.log != nil {
 		s.log.Debug("conversation merge: dedup cache write failed",
-			append([]any{"msg", "conversation.merge.dedup_cache_write_failed", "err", err}, mergeCorrelationAttrs(ResolveInput{TenantID: tenantID, RequestID: requestID}, conversationID)...)...)
+			append([]any{"msg", naming.MsgConversationMergeDedupCacheWriteFailed, "err", err}, mergeCorrelationAttrs(ResolveInput{TenantID: tenantID, RequestID: requestID}, conversationID)...)...)
 	}
 	return fp
 }
@@ -284,7 +285,7 @@ func (s *Service) persistUserSnapshot(ctx context.Context, in ResolveInput, conv
 	}
 	if err := s.store.UpsertUserSnapshotAtResolve(ctx, in.TenantID, in.ProjectID, in.FlavorID, conversationID, vec, userNorm, at); err != nil && s.log != nil {
 		s.log.Warn("conversation merge: resolve snapshot upsert failed",
-			append([]any{"msg", "conversation.merge.snapshot_upsert_failed", "err", err}, mergeCorrelationAttrs(in, conversationID)...)...)
+			append([]any{"msg", naming.MsgConversationMergeSnapshotUpsertFailed, "err", err}, mergeCorrelationAttrs(in, conversationID)...)...)
 	}
 }
 

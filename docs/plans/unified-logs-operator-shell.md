@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway embed UI, desktop shell, operator logs |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway operator UI (post–log view refactor baseline) |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None |

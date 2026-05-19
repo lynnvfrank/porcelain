@@ -10,7 +10,6 @@ Current release line: **v0.2.x** — RAG, ingest, workspace indexer (`chimera-in
 
 | Document | Description |
 |----------|-------------|
-| [overview.md](overview.md) | What the gateway and BiFrost do; stack capabilities |
 | [network.md](network.md) | Local process layout, ports, traffic flow |
 | [installation.md](installation.md) | Toolchains, `make chimera-install` / `make install`, BiFrost/Qdrant binaries, `chimera` build |
 | [configuration.md](configuration.md) | Gateway config files, env vars, reload semantics |
@@ -22,7 +21,6 @@ Current release line: **v0.2.x** — RAG, ingest, workspace indexer (`chimera-in
 | [design.md](design.md) | Design notes for the gateway service |
 | [indexer.md](indexer.md) | `chimera-indexer` operator guide |
 | [gui-testing.md](gui-testing.md) | Desktop webview (`-tags desktop`), manual checklist, build deps |
-| [operator-migration-to-go.md](operator-migration-to-go.md) | Notes for operators coming from the legacy stack |
 | [../SECURITY.md](../SECURITY.md) | Tokens, logging redaction, local attack surface |
 
 Normative product requirements: [porcelain.plan.md](porcelain.plan.md).

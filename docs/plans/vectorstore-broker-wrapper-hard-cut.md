@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `refactor-plan` |
 | **Owners / areas** | Supervisor, wrappers, logs UI, docs, build/scripts |
-| **Status** | `active` |
+| **Status** | `done` |
 | **Targets** | gateway v0.4 naming and supervision cutover |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None |
@@ -26,8 +26,8 @@ Execution sequencing relative to v0.3 product naming:
 | [Phase 3 — Wrapper E2E contract matrix](#phase-3--wrapper-e2e-contract-matrix) | Executable end-to-end tests validate wrapper process lifecycle and all contract endpoints | `done` |
 | [Phase 4 — Supervisor cutover](#phase-4--supervisor-cutover) | Supervisor speaks only Chimera wrapper contracts and no longer manages upstream binaries directly | `done` |
 | [Phase 5 — Logs and UI naming hard cut](#phase-5--logs-and-ui-naming-hard-cut) | Operator logs/cards/chips use Chimera names with optional upstream debug drill-down | `done` |
-| [Phase 6 — Make, scripts, and packaging alignment](#phase-6--make-scripts-and-packaging-alignment) | Build/run/install/package flows consistently manage wrapper binaries | `todo` |
-| [Phase 7 — Documentation and migration closeout](#phase-7--documentation-and-migration-closeout) | Operator docs are Chimera-only and migration validation is complete | `todo` |
+| [Phase 6 — Make, scripts, and packaging alignment](#phase-6--make-scripts-and-packaging-alignment) | Build/run/install/package flows consistently manage wrapper binaries | `done` |
+| [Phase 7 — Documentation and migration closeout](#phase-7--documentation-and-migration-closeout) | Operator docs are Chimera-only and migration validation is complete | `done` |
 
 ---
 
@@ -387,7 +387,7 @@ Deterministic gated targets for this matrix:
 - Packaged artifacts and runtime docs reference wrappers as managed components.
 - No operator-facing script/help text uses upstream names as primary service identifiers.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -416,7 +416,7 @@ Deterministic gated targets for this matrix:
 - Conformance suite exists and is usable as a gate for future backend drivers.
 - Plan status can move from `draft` to `active` with clear execution readiness and no blocking unknowns.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 

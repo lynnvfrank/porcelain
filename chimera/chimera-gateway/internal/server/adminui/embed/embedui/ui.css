@@ -1,0 +1,156 @@
+/* Embed UI — shared primitives (buttons, forms, callouts, base tables) */
+
+/* —— Typography helpers —— */
+.embed-page {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  color: var(--embed-text-primary);
+  background: var(--embed-surface-page);
+  box-sizing: border-box;
+}
+.embed-page *,
+.embed-page *::before,
+.embed-page *::after {
+  box-sizing: border-box;
+}
+.embed-muted {
+  color: var(--embed-text-muted);
+}
+.embed-ok {
+  color: var(--embed-semantic-success-fg);
+  font-weight: 600;
+}
+
+/* —— Buttons —— */
+.btn {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.85rem;
+  margin: 0;
+  border-radius: 6px;
+  border: 1px solid var(--embed-border-default);
+  background: var(--embed-surface-page);
+  color: var(--embed-text-primary);
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--embed-raw-btn-hover-bg);
+  border-color: var(--embed-focus-ring);
+}
+.btn:active {
+  background: var(--embed-semantic-info-bg);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn--primary {
+  border-color: var(--embed-link-accent);
+  background: var(--embed-link-accent);
+  color: var(--embed-text-on-inverse);
+}
+.btn--primary:hover {
+  filter: brightness(0.92);
+  border-color: var(--embed-link-accent);
+  background: var(--embed-link-accent);
+}
+
+/* —— Form fields —— */
+.embed-field {
+  display: block;
+  margin-top: 1rem;
+}
+.embed-field-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--embed-text-secondary);
+}
+.embed-input,
+.embed-textarea,
+.embed-select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.5rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--embed-text-primary);
+  background: var(--embed-surface-page);
+  border: 1px solid var(--embed-border-default);
+  border-radius: 6px;
+}
+.embed-textarea {
+  min-height: 5rem;
+  resize: vertical;
+  font-family: ui-monospace, monospace;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.embed-select {
+  width: auto;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+/* —— Callouts & errors —— */
+.callout {
+  background: var(--embed-surface-muted);
+  border: 1px solid var(--embed-border-default);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1.25rem;
+}
+.err {
+  color: var(--embed-semantic-error-fg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+}
+.status-line.err,
+#status.err {
+  color: var(--embed-semantic-error-fg);
+  font-weight: 600;
+}
+
+/* —— Base data tables (standalone pages; logs uses #log-table / .sum-metrics-table) —— */
+.embed-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--embed-border-default);
+  border-radius: 6px;
+  background: var(--embed-surface-page);
+}
+table.embed-table {
+  width: 100%;
+  max-width: 64rem;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+table.embed-table th,
+table.embed-table td {
+  text-align: left;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--embed-border-medium);
+  vertical-align: top;
+}
+table.embed-table th {
+  background: var(--embed-surface-table-header);
+  font-weight: 600;
+  color: var(--embed-text-heading);
+}
+table.embed-table tr:last-child td {
+  border-bottom: none;
+}
+table.embed-table td.num,
+table.embed-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+table.embed-table code {
+  font-size: 0.78rem;
+  background: var(--embed-surface-muted);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}

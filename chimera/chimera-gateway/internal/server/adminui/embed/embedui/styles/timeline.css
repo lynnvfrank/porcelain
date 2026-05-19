@@ -1,0 +1,148 @@
+/* Embed UI — Progress (timeline bars, lifecycle, KV grids) */
+.sum-conv-lifecycle-bar {
+  margin: 0.25rem 0 0.65rem;
+  max-width: 100%;
+}
+.sum-conv-lifecycle-bar-track {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  align-items: stretch;
+}
+.sum-conv-lifecycle-bar-labels {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 3px;
+  margin-top: 0.35rem;
+}
+.sum-conv-lifecycle-bar-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--embed-text-bluegrey-455);
+  line-height: 1.25;
+  hyphens: auto;
+}
+/* Segments: square inner edges; rounded only on outer ends (Accepted left, Delivered right), like one timeline bar */
+.sum-conv-lifecycle-seg {
+  display: block;
+  min-height: 9px;
+  border-radius: 0;
+  border: 1px solid var(--embed-sum-card-border);
+  background: var(--embed-surface-table-header);
+  box-sizing: border-box;
+}
+.sum-conv-lifecycle-bar-track .sum-conv-lifecycle-seg:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.sum-conv-lifecycle-bar-track .sum-conv-lifecycle-seg:last-child {
+  border-radius: 0 4px 4px 0;
+}
+/* Filled state: background matches border (solid) */
+.sum-conv-lifecycle-seg--pending {
+  background: var(--embed-lifecycle-pending);
+  border-color: var(--embed-lifecycle-pending);
+}
+.sum-conv-lifecycle-seg--done {
+  background: var(--embed-lifecycle-done);
+  border-color: var(--embed-lifecycle-done);
+}
+.sum-conv-lifecycle-seg--skipped {
+  background: var(--embed-lifecycle-skipped);
+  border-color: var(--embed-lifecycle-skipped);
+}
+.sum-conv-lifecycle-seg--failed {
+  background: var(--embed-lifecycle-failed);
+  border-color: var(--embed-lifecycle-failed);
+}
+/* Collapsed summary: capsule clip, no stroke; gaps show card bg; height aligns with .sum-metric pills */
+.sum-conv-lifecycle-bar--compact {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 7.5rem;
+  margin: 0;
+}
+.sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-bar-track {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 3px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: none;
+  background: transparent;
+  box-sizing: border-box;
+  /* Align capsule height to summary row pills (--sum-pill-* on .sum-card) */
+  min-height: calc(1.25 * var(--sum-pill-fs) + 2 * var(--sum-pill-py));
+}
+.sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-bar-track .sum-conv-lifecycle-seg {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  border: none;
+  border-radius: 0 !important;
+}
+.sum-card[open] > summary .sum-conv-lifecycle-bar--compact {
+  display: none;
+}
+.sum-conv-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0;
+}
+.sum-conv-chip-row--summary {
+  margin-top: 0.25rem;
+}
+.sum-conv-chip {
+  border: 1px solid var(--embed-conv-chip-border);
+  background: var(--embed-conv-chip-bg);
+  color: var(--embed-conv-chip-fg);
+}
+.sum-conv-kv { margin: 0.35rem 0 0.5rem; }
+.sum-conv-kv-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.2rem 0.75rem;
+  font-size: 0.74rem;
+  margin: 0.25rem 0 0;
+}
+.sum-conv-kv-row { display: contents; }
+.sum-conv-kv-grid dt {
+  color: var(--embed-text-bluegrey-607);
+  font-weight: 600;
+  margin: 0;
+}
+.sum-conv-kv-grid dd { margin: 0; color: var(--embed-text-heading); word-break: break-word; }
+.sum-conv-ingest {
+  margin: 0.5rem 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px dashed var(--embed-conv-ingest-dash);
+  border-radius: 8px;
+  background: var(--embed-surface-muted);
+}
+.sum-conv-ingest summary {
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--embed-text-bluegrey-537);
+}
+.sum-conv-ingest-hint { margin: 0.35rem 0 0; font-size: 0.72rem; }
+.sum-conv-tier {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: lowercase;
+  padding: 0.08rem 0.35rem;
+  margin-left: 0.25rem;
+  border-radius: 4px;
+  border: 1px solid var(--embed-conv-tier-border);
+  color: var(--embed-text-bluegrey-537);
+  background: var(--embed-chip-strip-bg);
+  vertical-align: middle;
+}
+.sum-conv-tier--request_id { border-color: var(--embed-focus-ring); background: var(--embed-semantic-info-bg); color: var(--embed-semantic-info-fg); }
+.sum-conv-tier--ingest { border-color: var(--embed-tier-ingest-border); background: var(--embed-tier-ingest-bg); color: var(--embed-tier-ingest-fg); }
+.sum-conv-tier--inferred { border-color: var(--embed-tier-inferred-border); background: var(--embed-tier-inferred-bg); color: var(--embed-tier-inferred-fg); }
+.sum-conv-tier--anchored_inferred { border-color: var(--embed-tier-anchored-border); background: var(--embed-tier-anchored-bg); color: var(--embed-tier-anchored-fg); }
+

@@ -13,7 +13,7 @@
 
 ## At a glance
 
-Make the gateway easier to set up, friendlier to share between operators, and clearer about what it is. This plan’s **sections follow a single narrative**: **rename** (Porcelain · Chimera · Locus), **credential file naming** (`api-keys` / `secret`), **internal embedding** exploration, **workspace embedding scope** (**user + project + flavor**, base corpus + unions), then **first-run token handoff** and the **setup wizard** (including **VS Code Cline** integration instead of Continue-oriented samples), and finally **peer backends** for cross-host upstream routing. Multiple operators can call each other's models.
+Make the gateway easier to set up, friendlier to share between operators, and clearer about what it is. This plan’s **sections follow a single narrative**: **rename** (Porcelain · Chimera · Locus), **credential file naming** (`api-keys` / `secret`), **internal embedding** exploration, **operator-managed virtual models** (per-model routing from `/ui/logs`), **workspace embedding scope** (**user + project + flavor**, base corpus + unions), then **first-run token handoff** and the **setup wizard** (including **VS Code Cline** integration instead of Continue-oriented samples), and finally **peer backends** for cross-host upstream routing. Multiple operators can call each other's models.
 
 
 | Theme                                                                                      | Outcome                                                                                                                                  | Status        |
@@ -21,6 +21,7 @@ Make the gateway easier to set up, friendlier to share between operators, and cl
 | [Product naming](#product-naming)                                                          | Layered names in docs, UI, and startup logs with hard-cut naming contracts ([`plans/v0-3-naming-migration.md`](plans/v0-3-naming-migration.md)) | `done`        |
 | [Credential file naming](#credential-file-naming)                                          | `api-keys.yaml` / `api_keys` / `secret`; reserve "token" for tokenizer counts                                                            | `done`        |
 | [Internal embedding provider (exploration)](#internal-embedding-provider-exploration)      | Optional in-repo or first-install embedding runtime to reduce reliance on Ollama for `/embeddings`                                       | `exploration` |
+| [Operator-managed virtual models](#operator-managed-virtual-models)                        | Create virtual models from `/ui/logs`; per-model fallback, routing rules, and tool-router; operator SQLite + scoped routing logs         | `todo`        |
 | [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor) | Ingestion keys `(user, project, flavor)`; project-only = base corpus; flavored queries union base + flavor; multi-workspace request pool | `todo`        |
 | [First-run token handoff](#first-run-token-handoff)                                        | Show, copy, and optionally save the gateway token; restart-friendly                                                                      | `todo`        |
 | [Setup wizard](#setup-wizard)                                                              | Guided keys -> local server -> test chat -> indexing -> integration                                                                      | `todo`        |
@@ -32,11 +33,11 @@ Make the gateway easier to set up, friendlier to share between operators, and cl
 
 ## What this version is
 
-This document is the **working plan for v0.3** for this repository (**Chimera**: intelligent routing and memory layer; see [Product naming](#product-naming)). Body **sections are ordered** for delivery narrative: [Product naming](#product-naming) and [Credential file naming](#credential-file-naming) first; then [Internal embedding provider (exploration)](#internal-embedding-provider-exploration) and [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor); then [First-run token handoff](#first-run-token-handoff) and [Setup wizard](#setup-wizard); then [IDE integration (VS Code Cline)](#ide-integration-vs-code-cline) (operator samples and wizard step 7 target **Cline** instead of **Continue**); then [Peer backends](#peer-backends) from the master product plan (`[porcelain.plan.md](porcelain.plan.md)`). **v0.3** targets **layered product naming** (**Porcelain**, **Chimera**, **Locus**), **api-keys** language, optional **in-repo / first-install** embedding weights **within license**, and **RAG** rules for **project + flavor** unions and **multi-workspace** pools. Naming and README wording in line with branch `origin/feat/chimera-branding` should be folded into this release unless superseded by a written decision.
+This document is the **working plan for v0.3** for this repository (**Chimera**: intelligent routing and memory layer; see [Product naming](#product-naming)). Body **sections are ordered** for delivery narrative: [Product naming](#product-naming) and [Credential file naming](#credential-file-naming) first; then [Internal embedding provider (exploration)](#internal-embedding-provider-exploration), [Operator-managed virtual models](#operator-managed-virtual-models), and [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor); then [First-run token handoff](#first-run-token-handoff) and [Setup wizard](#setup-wizard); then [IDE integration (VS Code Cline)](#ide-integration-vs-code-cline) (operator samples and wizard step 7 target **Cline** instead of **Continue**); then [Peer backends](#peer-backends) from the master product plan (`[porcelain.plan.md](porcelain.plan.md)`). **v0.3** targets **layered product naming** (**Porcelain**, **Chimera**, **Locus**), **api-keys** language, optional **in-repo / first-install** embedding weights **within license**, **multi-model routing** (virtual models with per-model policy), and **RAG** rules for **project + flavor** unions and **multi-workspace** pools. Naming and README wording in line with branch `origin/feat/chimera-branding` should be folded into this release unless superseded by a written decision.
 
-**Companion docs:** `[porcelain.plan.md](porcelain.plan.md)`, `[configuration.md](configuration.md)`, `[plans/indexer.md](plans/indexer.md)`, `[plans/v0-3-naming-migration.md](plans/v0-3-naming-migration.md)` (product naming execution).
+**Companion docs:** `[porcelain.plan.md](porcelain.plan.md)`, `[configuration.md](configuration.md)`, `[plans/indexer.md](plans/indexer.md)`, `[plans/v0-3-naming-migration.md](plans/v0-3-naming-migration.md)` (product naming execution), `[plans/virtual-models-operator.md](plans/virtual-models-operator.md)` (virtual models execution), plus implementation plans in [Related plans](#related-plans) (gateway/embed UI refactor, supervisor contract, wrapper hard cut).
 
-Authoritative **architecture and numbered requirements** remain in `[porcelain.plan.md](porcelain.plan.md)` unless this plan explicitly revises them. **Indexer** milestones labeled “v0.3” in `[plans/indexer.md](plans/indexer.md)` (e.g. scoped overrides, headers) are **indexer product versions**, not necessarily the same shipping train as **gateway desktop v0.3**; cross-link when both touch the same API.
+Authoritative **architecture and numbered requirements** remain in `[porcelain.plan.md](porcelain.plan.md)` unless this plan explicitly revises them. **Indexer** **Phase 3** in `[plans/indexer.md](plans/indexer.md)` (e.g. scoped overrides, headers) is **not** the same shipping train as **gateway desktop v0.3**; cross-link when both touch the same API.
 
 ---
 
@@ -265,7 +266,7 @@ Aim for **~4–6 GB RAM** total, **quantized** execution, **sub‑300 ms** per h
 
 ### Relationship to the setup wizard
 
-- **Document order:** This section appears **after** [Product naming](#product-naming) and [Credential file naming](#credential-file-naming) and **immediately before** [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor); together they precede [First-run token handoff](#first-run-token-handoff) and [Setup wizard](#setup-wizard) so wizard copy and combobox sources can include an **internal** embedding entry once the contract is clear—see [Setup wizard](#setup-wizard) step 5 below.
+- **Document order:** This section appears **after** [Product naming](#product-naming) and [Credential file naming](#credential-file-naming) and **immediately before** [Operator-managed virtual models](#operator-managed-virtual-models); together with [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor) they precede [First-run token handoff](#first-run-token-handoff) and [Setup wizard](#setup-wizard) so wizard copy and combobox sources can include an **internal** embedding entry once the contract is clear—see [Setup wizard](#setup-wizard) step 5 below.
 - If exploration is still open when wizard ships, the wizard keeps today’s behavior (Ollama / provider-derived lists) and this section’s **config sketch** becomes the **forward-looking** contract.
 
 **Deliverables checklist**
@@ -279,6 +280,80 @@ Aim for **~4–6 GB RAM** total, **quantized** execution, **sub‑300 ms** per h
 - Written recommendation: **ship in v0.3**, **pilot behind a flag**, or **defer**—with explicit notes for [Setup wizard](#setup-wizard) step 5 (combobox includes internal provider + model when implemented).
 
 **Status:** `exploration`
+
+---
+
+## Operator-managed virtual models
+
+**Execution plan:** [`plans/virtual-models-operator.md`](plans/virtual-models-operator.md) — phased delivery for virtual models in operator SQLite, gateway runtime resolution, `/api/ui` CRUD, and `/ui/logs` cards.
+
+**Goal:** Replace the single hard-coded virtual model (`Chimera-<semver>` from `gateway.semver`) with **first-class virtual models** operators create from `/ui/logs`, the same way they manage **users** and **indexer workspaces**. Each virtual model has its own client-facing id, metadata, enable toggle, and visibility (**public** = any user; **private** = creator only). Routing that is global today — **fallback chain**, **routing-policy rules**, and **tool-router** settings — becomes **per virtual model**.
+
+**Scope**
+
+### Virtual model object
+
+Each row in **operator SQLite** (same store family as workspaces; see [`plans/indexer-workspaces-sqlite-gateway-api.md`](plans/indexer-workspaces-sqlite-gateway-api.md)):
+
+| Field | Default | Notes |
+|-------|---------|-------|
+| **name** | — | Human label |
+| **version** | — | With name forms the OpenAI `model` id sent by clients |
+| **description** | empty | UI + optional `GET /v1/models` metadata |
+| **enabled** | `true` | Disabled models hidden from catalog and rejected on chat |
+| **visibility** | `public` | `private` limits catalog and chat to the creating principal |
+
+**Bootstrap:** on first open of an empty operator DB, import the legacy stack — one public enabled model with id `Chimera-<semver>`, current `routing.fallback_chain`, `routing-policy.yaml`, and global tool-router settings from `gateway.yaml`.
+
+### Per-model routing stack
+
+| Block | Required | Toggleable | Parity with today |
+|-------|----------|------------|-------------------|
+| **Fallback chain** | yes | no | Ordered upstream model ids; 429/5xx (and virtual-path 413) failover |
+| **Routing rules** | no | yes | `ambiguous_default_model` + ordered `rules[]` (`when.min_message_chars`, …) |
+| **Tool router** | no | yes | `router_models[]`, `enabled`, `confidence_threshold` |
+| **Future routers** | no | yes | Schema placeholder only in v0.3 unless a router ships |
+
+### Routing rule catalog
+
+Reusable **routing rule definitions** in the database (not duplicated logic per VM):
+
+| Field | Purpose |
+|-------|---------|
+| **name** | Operator label (e.g. `long-user-turn`) |
+| **routing.slug** | Stable key for logs and metrics (aligns with [`plans/operator-message-registry.md`](plans/operator-message-registry.md)) |
+| **default configuration** | Default `when` + `models` fragment; VM attachment may override |
+
+v1 may store a monolithic **policy YAML** per virtual model for fastest parity with [`config/routing-policy.yaml`](../config/routing-policy.yaml); normalized bindings to the catalog can follow in a later phase (see open questions in the execution plan).
+
+### Runtime and API
+
+- **`POST /v1/chat/completions`:** resolve `body.model` against the virtual model registry; enforce enabled + visibility; run **that model’s** policy, fallback, and tool-router (RAG stays gateway-global in v0.3 unless decided otherwise).
+- **`GET /v1/models`:** list all enabled **public** models plus **private** models for the authenticated principal.
+- **`/api/ui/virtual-models/*`:** session-authenticated CRUD; per-model generate / evaluate (port of today’s `/api/ui/routing/*`); deprecate global YAML writes once UI lands.
+- **Logs:** emit **`virtual_model_id`** on routing and conversation lines; cards show **24h usage** and **scoped evlog** panels (rule match, fallback, tool-router) filtered to that model.
+
+### Logs UI (`/ui/logs`)
+
+- New **Virtual models** section: **Add virtual model** draft card (workspace pattern); one **collapsible card per model** with nested **Fallback**, **Routing rules**, and **Tool router** sub-panels — reuse existing admin card renderers ([`adminFallback.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminFallback.js), [`adminRouting.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminRouting.js), [`adminRouterModels.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminRouterModels.js)) wired to per-model API endpoints.
+- Retire or collapse the current **global** Routing / Fallback / Router model cards after bootstrap migration.
+
+**Deliverables checklist**
+
+- Operator SQLite migrations + repository; bootstrap import from legacy YAML.
+- Gateway runtime: multi-model chat + models list; `virtual_model_id` in structured logs.
+- `/api/ui/virtual-models` CRUD and scoped routing generate/evaluate.
+- `/ui/logs` virtual model cards with create/edit/enable/disable and scoped routing logs.
+- [`configuration.md`](configuration.md) update: `gateway.semver` no longer implies a single routable model id once DB is populated; global `routing.*` keys deprecated (import-only).
+
+**Acceptance**
+
+- Operator creates a second virtual model with a distinct fallback chain; a client using that `model` id routes differently from the bootstrap `Chimera-<semver>` model.
+- Disabled and other users’ **private** models are absent from catalog and rejected on chat.
+- Per-model card scoped log panel shows routing decisions for that model only.
+- Existing single-VM installs auto-import without manual YAML edit.
+
+**Status:** `todo`
 
 ---
 
@@ -572,6 +647,7 @@ From the master **Release roadmap** table:
 | Product naming                   | README, onboarding, UI copy, and startup logs reflect Porcelain / Chimera / Locus decisions; [`plans/v0-3-naming-migration.md`](plans/v0-3-naming-migration.md) closed. |
 | Credential naming                | `api-keys.yaml`, `api_keys`, `secret`, and `paths.api_keys` are implemented or migration behavior is documented.                                                   |
 | Internal embedding (exploration) | Spike or design note, per-model legal/distribution checklist, and ship / pilot / defer decision; config sketch matches indexer-style opt-in start.                 |
+| Operator-managed virtual models  | Bootstrap import; multi-model chat + catalog; per-model fallback/policy/tool-router from SQLite; `/ui/logs` CRUD cards; scoped routing logs with `virtual_model_id`. |
 | Workspace embedding scope        | Ingestion keys `(user, project, flavor?)`; flavored chat unions base + flavor; multi-workspace requests pool all valid scopes; wizard step 5–6 matches production. |
 | First-run token handoff          | First launch shows a copyable gateway API key and optional safe dotenv save.                                                                                       |
 | Setup wizard                     | Seven steps navigate correctly, support skip/finish, and use shared router regeneration; embedding combobox reflects internal provider when implemented.           |
@@ -583,12 +659,30 @@ When this plan is implemented, update `[porcelain.plan.md](porcelain.plan.md)` *
 
 ---
 
+## Related plans
+
+| Document | Role | Status |
+| -------- | ---- | ------ |
+| `[plans/chimera-gateway-package-boundaries.md](plans/chimera-gateway-package-boundaries.md)` | Admin UI / operator API package split; shared DTOs | `draft` |
+| `[plans/chimera-gateway-refactor.md](plans/chimera-gateway-refactor.md)` | Gateway naming clarity; logs UI modularization train | `draft` |
+| `[plans/embedui-component-gallery.md](plans/embedui-component-gallery.md)` | Static component gallery paths and upkeep | `done` |
+| `[plans/embedui-component-system.md](plans/embedui-component-system.md)` | Reusable embed UI primitives and module split | `draft` |
+| `[plans/embedui-event-log-panel.md](plans/embedui-event-log-panel.md)` | Per-card event log layout and interaction | `done` |
+| `[plans/embedui-logs-workspaces-merge.md](plans/embedui-logs-workspaces-merge.md)` | Unify logs and workspace indexers in embed UI | `draft` |
+| `[plans/embedui-theme-styleguide.md](plans/embedui-theme-styleguide.md)` | Theme tokens and static styleguide | `draft` |
+| `[plans/env-precedence-contract.md](plans/env-precedence-contract.md)` | Unified env/config precedence across binaries | `draft` |
+| `[plans/locus-desktop-supervisor-contract.md](plans/locus-desktop-supervisor-contract.md)` | Desktop ↔ supervisor process and readiness contract | `active` |
+| `[plans/vectorstore-broker-wrapper-hard-cut.md](plans/vectorstore-broker-wrapper-hard-cut.md)` | **chimera-vectorstore** / **chimera-broker** wrapper binaries and supervisor cutover | `active` |
+| `[plans/indexer.md](plans/indexer.md)` | Indexer milestones that may cross-link with this release | — |
+| `[plans/v0-3-naming-migration.md](plans/v0-3-naming-migration.md)` | Product naming hard-cut execution | `done` |
+| `[plans/virtual-models-operator.md](plans/virtual-models-operator.md)` | Operator-managed virtual models (execution plan) | `todo` |
+| `[plans/_template.md](plans/_template.md)` | Phase-level plan template | — |
+
+---
+
 ## See also
 
 - `[version-v0.2.md](version-v0.2.md)` - previous version
 - `[porcelain.plan.md](porcelain.plan.md)` - product roadmap and requirements
 - `[configuration.md](configuration.md)` - configuration reference
-- `[plans/indexer.md](plans/indexer.md)` - indexer milestones that may cross-link with this release
-- `[plans/v0-3-naming-migration.md](plans/v0-3-naming-migration.md)` - product naming hard-cut execution (done)
-- `[plans/_template.md](plans/_template.md)` - phase-level plan template
 
