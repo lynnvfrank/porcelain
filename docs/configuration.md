@@ -13,7 +13,7 @@ In UI, logs, supervisor output, and this doc set, use **Chimera product names**:
 | **chimera-vectorstore** | Vector retrieval for RAG (supervised wrapper around the storage backend) |
 | **chimera-indexer** | File ingest into collections scoped by workspace |
 
-**Config file keys** may still say `upstream.*` or `rag.qdrant.*` (wire names unchanged until a dedicated env/YAML hard-cut). **`GET /status`** exposes `broker` and `vectorstore` blocks; nested `broker.upstream` / `vectorstore` debug fields name the wrapped implementation only.
+**Config file keys** use `broker.*`, top-level `vectorstore.*`, and `rag.*` (orchestration) in `gateway.yaml`. **`GET /status`** exposes `broker` and `vectorstore` blocks; nested debug fields name the wrapped storage/relay implementation only.
 
 Naming refactor status: [plans/chimera-gateway-refactor.md](plans/chimera-gateway-refactor.md). Vocabulary audit: `make chimera-gateway-audit` or `pwsh -File scripts/chimera-gateway-vocab-audit.ps1`. `gateway.yaml`, `api-keys.yaml`, `routing-policy.yaml`, and `provider-free-tier.yaml` (when configured) are picked up when their file **modification time** changes (`gateway.yaml` reload also runs when `provider-free-tier.yaml` alone changes). **Gateway metrics** (the `metrics` block in `gateway.yaml`) are applied **at process start** only (changing paths requires a **restart**).
 
@@ -24,7 +24,7 @@ The `chimera` program (`go build -o chimera ./cmd/chimera`) reads:
 - **Config path:** `CHIMERA_GATEWAY_CONFIG`, or `-config /path/to/gateway.yaml`, or default `./config/gateway.yaml` (relative to the process working directory).
 - **Listen address:** from `gateway.listen_host` and `gateway.listen_port`, unless overridden with `-listen` (e.g. `:3001` or `host:port`).
 - **Log level:** `gateway.log_level` unless `LOG_LEVEL` is set (`debug`, `info`, `warn`, `error`); Go uses `log/slog` text logs on stdout.
-- **Broker endpoint (YAML `upstream.*`):** `upstream.base_url`, `upstream.api_key_env`, `health.*`, `routing.fallback_chain`, `paths.*` — see tables below. Points at **chimera-broker** (or a standalone OpenAI-compatible proxy such as BiFrost during local dev).
+- **Broker endpoint (YAML `broker.*`):** `broker.base_url`, `broker.api_key_env`, `health.*`, `routing.fallback_chain`, `paths.*` — see tables below. Points at **chimera-broker** (or a standalone OpenAI-compatible proxy during local dev).
 - **`.env`:** At startup, the runtime loads an optional `.env` in the **process working directory** (via `github.com/joho/godotenv`). Missing file is normal when the environment is injected by your shell or service manager.
 
 `GET /health` returns JSON including `checks.vectorstore` when RAG is enabled and `checks.upstream` (broker/backend probe). `GET /v1/models` prepends the virtual model id (`Chimera-<semver>`), then merges the **chimera-broker** catalog when available. `POST /v1/chat/completions` validates the gateway Bearer token, applies routing for the virtual model, and walks the fallback chain on 429/selected 5xx.
@@ -35,7 +35,7 @@ To run **chimera-broker** and **chimera-vectorstore** as supervised wrappers, us
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `CHIMERA_BROKER_API_KEY` | Yes for typical BiFrost setups | Bearer token the gateway sends to its OpenAI-compatible upstream (`upstream.base_url`). Name is configurable via `upstream.api_key_env` in `gateway.yaml` (default `CHIMERA_BROKER_API_KEY`). For BiFrost without governance virtual keys, any non-empty placeholder works. |
+| `CHIMERA_BROKER_API_KEY` | Yes for typical setups | Bearer token the gateway sends to chimera-broker (`broker.base_url`). Name is configurable via `broker.api_key_env` in `gateway.yaml` (default `CHIMERA_BROKER_API_KEY`). Any non-empty placeholder works when the broker does not enforce governance keys. |
 | `LOG_LEVEL` | No | Log level for `log/slog`: `debug`, `info`, `warn`, `error`. Overrides `gateway.log_level` when set. |
 | `CHIMERA_GATEWAY_CONFIG` | No | Path to `gateway.yaml`. Default `./config/gateway.yaml` on the host. |
 
@@ -50,9 +50,16 @@ Provider keys (`GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, etc.) are **n
 | `gateway.semver` | Semantic version string used to build the virtual model id (`Chimera-<semver>`). |
 | **`gateway.listen_port` / `listen_host`** | HTTP bind address. |
 | `gateway.log_level` | Suggested log level (use `LOG_LEVEL` env for a simple override). |
-| `upstream.base_url` | OpenAI-compatible upstream root (no trailing slash required), e.g. `http://127.0.0.1:8080` for local BiFrost. |
-| `upstream.api_key_env` | Name of the process env var holding the upstream Bearer token (e.g. `CHIMERA_BROKER_API_KEY`; default `CHIMERA_BROKER_API_KEY`). |
-| `health.upstream_url` | Optional explicit URL for `GET /health` upstream probe; default `{upstream.base_url}/health`. The probe sends `Authorization: Bearer` + that token when set (BiFrost’s `/health` is typically unauthenticated). Deprecated alias: `health.litellm_url`. |
+| `broker.base_url` | chimera-broker root URL (no trailing slash required), e.g. `http://127.0.0.1:8080`. |
+| `broker.api_key_env` | Name of the process env var holding the Bearer token (default `CHIMERA_BROKER_API_KEY`). |
+| `broker.log_level` | Log level for the chimera-broker wrapper subprocess (typical: `info` or `debug`). |
+| `vectorstore.url` | chimera-vectorstore HTTP endpoint for RAG (default `http://127.0.0.1:6333`). Required when `rag.enabled` is **true**. |
+| `vectorstore.log_level` | Storage-backend log level when chimera-vectorstore supervises the child process. |
+| `vectorstore.api_key` | Optional API key for the vector store HTTP API. |
+| `rag.enabled` | **true** → ingest, indexer APIs, retrieval, and `GET /health` `checks.vectorstore`. |
+| `rag.embedding.*` | Embedding model/path/dim; `base_url` defaults to `broker.base_url` when empty. |
+| `rag.chunking.*` / `rag.retrieval.*` / `rag.ingest.*` / `rag.defaults.*` | Chunking, search, ingest limits, and default project/flavor ids. |
+| `health.upstream_url` | Optional explicit URL for `GET /health` broker probe; default `{broker.base_url}/health`. Deprecated alias: `health.litellm_url`. |
 | `health.timeout_ms` | Timeout for the upstream health request and for `GET /v1/models` upstream list (default **5000**). |
 | `health.chat_timeout_ms` | Timeout for each upstream `POST /v1/chat/completions` attempt (default **300000**). |
 | `paths.api_keys` | Path to `api-keys.yaml` (relative to `gateway.yaml`’s directory unless absolute). |
@@ -74,7 +81,7 @@ Used by `chimera serve` and `locus-desktop`: optional supervision of `chimera-in
 | Field | Description |
 |-------|-------------|
 | `indexer.supervised.enabled` | **true** → start `chimera-indexer` beside the gateway binary (or `indexer.supervised.bin` / `PATH`). Ignored unless `rag.enabled` is **true** or `start_when_rag_disabled` is **true**. |
-| `indexer.supervised.log_json` | **true** → pass `--log-json` so the indexer writes structured JSON logs on stderr (same ring buffer as other supervised services; filter `/ui/logs` by source `indexer`). |
+| `indexer.supervised.log_json` | Default **true** (omitted = JSON). Passes `--log-json` so the indexer writes structured logs on stderr (filter `/ui/logs` by source `indexer`). Set **false** to opt out. |
 | `indexer.supervised.bin` | Optional explicit path to the `chimera-indexer` executable. Empty → resolve next to the gateway binary or `PATH`. |
 | `indexer.supervised.config_path` | Path to the single merged config passed as `--config` (default `../data/gateway/indexer.supervised.yaml` relative to `gateway.yaml`’s directory). |
 | `indexer.supervised.start_when_rag_disabled` | **true** → allow starting the supervised indexer when `rag.enabled` is **false** (default **false**). |

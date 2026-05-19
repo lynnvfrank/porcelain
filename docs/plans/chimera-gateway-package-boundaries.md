@@ -178,7 +178,7 @@ Today:
 ## Decisions (resolved)
 
 1. **`operatorapi` location:** repo-root [`internal/operatorapi/`](../../internal/operatorapi/) (shared with future Locus CLI). Phase 2 deliverable.
-2. **Module split:** stay monorepo single module (`github.com/lynn/porcelain`) until v0.5.
+2. **Module split:** stay monorepo single module (`github.com/lynn/porcelain`) until later version.
 
 ---
 

@@ -19,7 +19,7 @@ type RAG struct {
 	QdrantAPIKey   string
 	QdrantLogLevel string // supervised native Qdrant: QDRANT__LOGGER__LOG_LEVEL when non-empty; `-qdrant-log-level` overrides.
 
-	// Embedding configuration. EmbeddingBaseURL falls back to upstream.base_url
+	// Embedding configuration. EmbeddingBaseURL falls back to broker.base_url
 	// when empty; EmbeddingPath is appended (default "/v1/embeddings").
 	EmbeddingBaseURL string
 	EmbeddingPath    string
@@ -52,14 +52,21 @@ const (
 	defaultQdrantURL      = "http://127.0.0.1:6333"
 )
 
-// effective returns a RAG with defaults filled. When the doc block is nil this
-// returns RAG{Enabled: false}; when Enabled is true all defaults apply.
-func (d ragDoc) effective() RAG {
+// vectorstoreDoc is the YAML shape for chimera-vectorstore (top-level in gateway.yaml).
+type vectorstoreDoc struct {
+	URL      string `yaml:"url"`
+	APIKey   string `yaml:"api_key"`
+	LogLevel string `yaml:"log_level"`
+}
+
+// effective returns a RAG with defaults filled. When rag.enabled is false the
+// gateway stays on the v0.1 path; vectorstore fields are still resolved for health URLs.
+func (d ragDoc) effective(vs vectorstoreDoc) RAG {
 	r := RAG{
 		Enabled:           d.Enabled != nil && *d.Enabled,
-		QdrantURL:         strings.TrimSpace(d.Qdrant.URL),
-		QdrantAPIKey:      strings.TrimSpace(d.Qdrant.APIKey),
-		QdrantLogLevel:    strings.TrimSpace(d.Qdrant.LogLevel),
+		QdrantURL:         strings.TrimSpace(vs.URL),
+		QdrantAPIKey:      strings.TrimSpace(vs.APIKey),
+		QdrantLogLevel:    strings.TrimSpace(vs.LogLevel),
 		EmbeddingBaseURL:  strings.TrimSpace(d.Embedding.BaseURL),
 		EmbeddingPath:     strings.TrimSpace(d.Embedding.Path),
 		EmbeddingModel:    strings.TrimSpace(d.Embedding.Model),
@@ -135,10 +142,10 @@ func (r RAG) Validate() error {
 		return nil
 	}
 	if r.QdrantURL == "" {
-		return fmt.Errorf("rag.qdrant.url is required when rag.enabled=true")
+		return fmt.Errorf("vectorstore.url is required when rag.enabled=true")
 	}
 	if !strings.HasPrefix(r.QdrantURL, "http://") && !strings.HasPrefix(r.QdrantURL, "https://") {
-		return fmt.Errorf("rag.qdrant.url must be http:// or https://, got %q", r.QdrantURL)
+		return fmt.Errorf("vectorstore.url must be http:// or https://, got %q", r.QdrantURL)
 	}
 	if r.EmbeddingDim <= 0 {
 		return fmt.Errorf("rag.embedding.dim must be > 0")
@@ -152,14 +159,9 @@ func (r RAG) Validate() error {
 	return nil
 }
 
-// ragDoc is the YAML shape parsed out of gateway.yaml's "rag" block.
+// ragDoc is the YAML shape parsed out of gateway.yaml's "rag" block (orchestration only).
 type ragDoc struct {
-	Enabled *bool `yaml:"enabled"`
-	Qdrant  struct {
-		URL      string `yaml:"url"`
-		APIKey   string `yaml:"api_key"`
-		LogLevel string `yaml:"log_level"`
-	} `yaml:"qdrant"`
+	Enabled   *bool `yaml:"enabled"`
 	Embedding struct {
 		BaseURL string `yaml:"base_url"`
 		Path    string `yaml:"path"`

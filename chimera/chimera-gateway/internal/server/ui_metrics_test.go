@@ -181,7 +181,7 @@ func TestMetricsWithWorkingStore_queryRollups(t *testing.T) {
   semver: "0.1.0"
   listen_port: 0
   listen_host: "127.0.0.1"
-upstream:
+broker:
   base_url: "` + up.URL + `"
   api_key_env: "` + naming.EnvBrokerAPIKeyTarget + `"
 health:

@@ -35,10 +35,10 @@ func TestRAG_EnabledFillsDefaults(t *testing.T) {
 gateway: { listen_port: 3000 }
 paths: { tokens: "./t.yaml", routing_policy: "./r.yaml" }
 routing: { fallback_chain: ["a/b"] }
+vectorstore:
+  url: "http://127.0.0.1:6333"
 rag:
   enabled: true
-  qdrant:
-    url: "http://127.0.0.1:6333"
   embedding:
     model: "text-embedding-3-small"
     dim: 1536
@@ -79,10 +79,10 @@ func TestRAG_InvalidConfigDisables(t *testing.T) {
 gateway: { listen_port: 3000 }
 paths: { tokens: "./t.yaml", routing_policy: "./r.yaml" }
 routing: { fallback_chain: ["a/b"] }
+vectorstore:
+  url: "ftp://nope"
 rag:
   enabled: true
-  qdrant:
-    url: "ftp://nope"
   embedding:
     model: "x"
     dim: 64

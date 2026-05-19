@@ -440,7 +440,7 @@ New **key-value** fields:
 - **HTTP access slug vs shape:** `msg: "gateway.http.access"` is emitted; `inferShape` returns `http.access` for **`gateway.http.access`**, legacy **`http response`**, or `method`+`path`+`statusCode` alone (alias window).
 - **Headline wording:** Locale stays English (matches qdrant + indexer); confirm headline rewrites do not break any operator-facing tools that grep the human text.
 - **Periodic health events:** `gateway.health.upstream` cadence — fixed interval vs only-on-change. Default proposal: **only-on-change** with a max once-per-30s rate cap, plus a one-shot Info on first observation.
-- **Backwards compat window:** How long to keep alias names in derive modules (proposal: one minor release, e.g. v0.4 → v0.5).
+- **Backwards compat window:** How long to keep alias names in derive modules
 - **Probe filter UX:** Should the "hide probes" default also apply to the **structured logs** raw view, or only to the gateway service card?
 
 ---

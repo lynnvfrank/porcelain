@@ -67,6 +67,26 @@ func PassthroughSlogJSON(raw []byte, defaultService string) ([]byte, bool) {
 	return MarshalOrdered(rec), true
 }
 
+// IsGatewayDomainMsg reports gateway chat/ingest/RAG slugs that must not pass through
+// PassthroughSlogJSON (which only keeps canonical wrapper fields). gatewayline.normalizeJSON
+// copies the full attribute set for these messages.
+func IsGatewayDomainMsg(msg string) bool {
+	msg = strings.TrimSpace(msg)
+	switch {
+	case strings.HasPrefix(msg, "gateway."),
+		strings.HasPrefix(msg, "routing."),
+		strings.HasPrefix(msg, "ingest."),
+		strings.HasPrefix(msg, "rag."),
+		strings.HasPrefix(msg, "chat."),
+		strings.HasPrefix(msg, "conversation."),
+		strings.HasPrefix(msg, "upstream."),
+		strings.HasPrefix(msg, "scope."):
+		return true
+	default:
+		return false
+	}
+}
+
 // IsDomainServiceMsg reports whether msg is already a service-scoped event slug (not wrapper slog).
 func IsDomainServiceMsg(msg, service string) bool {
 	msg = strings.TrimSpace(msg)
@@ -75,7 +95,7 @@ func IsDomainServiceMsg(msg, service string) bool {
 	}
 	switch service {
 	case "chimera-gateway", "gateway":
-		return strings.HasPrefix(msg, "gateway.")
+		return IsGatewayDomainMsg(msg)
 	case "chimera-broker", "broker":
 		return strings.HasPrefix(msg, "broker.")
 	case "chimera-vectorstore", "vectorstore":

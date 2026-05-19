@@ -1,78 +1,87 @@
-# Copy to `gateway.yaml` and edit. See docs/configuration.md.
+# Copy to `gateway.yaml` and edit. Full reference: docs/configuration.md
+#
+# Comment style in this file:
+#   - Block comments introduce each top-level section.
+#   - Active settings have a short comment on the line above the key.
+#   - Optional overrides appear as commented lines (# key: value) directly under the field they replace.
 
+# chimera-gateway: client-facing API, operator UI, routing, and RAG orchestration.
+#
+# Binds HTTP (listen_host / listen_port), defines the virtual model id (Chimera-<semver>),
+# and controls this process's own logs (/ui/logs ring). Does not configure broker or vectorstore.
 gateway:
+  # Semantic version for the virtual model id (Chimera-<semver>).
   semver: "0.2.0"
-  listen_port: 3000
+  # HTTP listen address for chimera-gateway.
   listen_host: "0.0.0.0"
-  # Gateway process logger (text slog to stdout and the in-memory log ring for /ui/logs).
-  # Allowed: trace | debug | info | warn | error. Empty or unknown → info.
+  listen_port: 3000
+  # chimera-gateway process log level (text slog → stdout and /ui/logs ring).
+  # Levels: trace | debug | info | warn | error. Empty or unknown → info.
+  # LOG_LEVEL in the environment overrides this value.
+  log_level: "info"
+  # chimera-broker logging is separate: broker.log_level below.
   #
-  # Rough verbosity (lower = more chatty):
-  #   trace — includes very chatty traces (e.g. RAG) and Phase 8 `conversation.payload.sample`
-  #           (redacted head/tail of request/response JSON when that path is enabled).
-  #   debug — developer detail without full trace noise.
-  #   info  — default for production-style runs; still includes Phase 8 witness *summaries*
-  #           (`conversation.request.witness` / `conversation.response.witness`: counts, sizes,
-  #           role histograms — no raw body text).
-  #   warn | error — quieter.
-  #
-  # Override (takes precedence over this file): environment variable LOG_LEVEL with the same names.
-  # Example: LOG_LEVEL=trace chimera-supervisor
-  #
-  # BiFrost (upstream proxy) logging is separate: see upstream.bifrost_log_level below.
-  log_level: "debug"
-  #
-  # Optional: *payload samples* only (`msg` = conversation.payload.sample).
-  # Witness *summaries* at info are unaffected; they always follow chat paths when implemented.
-  #
-  #   payload_sample_max_chars — max UTF-8 runes for each of head and tail after redaction
-  #     (default 256 if you omit `log_witness`; clamped between 32 and 4096 when set).
-  #   force_payload_sample_at_debug — if true, allow emitting payload samples when log_level is
-  #     debug (still redacted; dev-only). When false, samples are only *attempted* when
-  #     log_level is trace. Note: each sample line is logged at slog "trace" (-8), so it only
-  #     appears in output if the effective logger level includes trace — typically set
-  #     log_level: trace or LOG_LEVEL=trace when you want to see samples.
-  #
-  # Examples (uncomment and adjust):
-  #   # Dev: see redacted JSON snippets in logs.
-  #   log_level: trace
-  #   log_witness:
-  #     payload_sample_max_chars: 512
-  #     force_payload_sample_at_debug: false
-  #
-  #   # Dev: keep log_level at debug but opt in to sample emission (still need trace visible;
-  #   # use LOG_LEVEL=trace if samples do not appear).
-  #   log_level: trace
-  #   log_witness:
-  #     payload_sample_max_chars: 256
-  #     force_payload_sample_at_debug: true
+  # Optional redacted request/response snippets (msg = conversation.payload.sample).
+  # Witness summaries at info are independent of this block.
+  # log_witness:
+  #   payload_sample_max_chars: 256
+  #   force_payload_sample_at_debug: false
 
-upstream:
-  # OpenAI-compatible upstream (BiFrost on the host).
+# chimera-broker: OpenAI-compatible LLM relay (chat, models, embeddings for RAG).
+#
+# The gateway sends provider traffic here (broker.base_url). Under chimera-supervisor this
+# is usually a local wrapper; provider API keys live in the broker config, not here.
+broker:
+  # Base URL for chimera-broker (no trailing slash required).
   base_url: "http://127.0.0.1:8080"
+  # Environment variable name for the Bearer token sent to chimera-broker.
   api_key_env: "CHIMERA_BROKER_API_KEY"
-  # BiFrost subprocess only (not the Go gateway). Typical: info | debug. CLI `-bifrost-log-level` overrides when non-empty.
-  bifrost_log_level: "info"
-  # api_key: optional Bearer for upstream /v1/*. If omitted and api_key_env is unset/empty, a secret is generated and written here on first gateway start.
+  # Log level for the chimera-broker wrapper subprocess (typical: info | debug).
+  log_level: "info"
+  # Bearer token for chimera-broker /v1/* when not using api_key_env.
+  # When omitted and api_key_env is unset, a secret is generated on first start and written here.
+  # api_key: ""
 
+# chimera-vectorstore: vector database for semantic search (RAG collections).
+#
+# chimera-gateway reads and writes vectors at this HTTP URL when rag.enabled is true.
+# Log level applies when chimera-supervisor runs the vectorstore wrapper with a storage child.
+vectorstore:
+  url: "http://127.0.0.1:6333"
+  # Storage-backend log level when chimera-vectorstore supervises the child process.
+  log_level: "info"
+  # api_key: ""
+
+# Timeouts and background checks against chimera-broker and related probes.
+#
+# Used for GET /health, catalog polling in /ui/logs, and upstream chat completion deadlines.
 health:
+  # Timeout (ms) for chimera-broker health and GET /v1/models catalog fetch.
   timeout_ms: 5000
+  # Timeout (ms) per chimera-broker POST /v1/chat/completions attempt.
   chat_timeout_ms: 300000
-  # Period (ms) for the BiFrost `/v1/models` poll that drives the Provider health
-  # strip in /ui/logs and runtime catalog auditors. 0 disables periodic polling
-  # (one-shot startup refresh and per-home-page-load refresh still happen).
+  # Period (ms) for chimera-broker GET /v1/models (Provider strip in /ui/logs). 0 = disable polling.
   available_models_poll_ms: 30000
+  # Optional explicit health probe URL (default: {broker.base_url}/health).
+  # upstream_url: "http://127.0.0.1:8080/health"
 
+# Paths to companion YAML files (relative to this file unless absolute).
+#
+# Reloaded when the file mtime changes (gateway.yaml also reloads when provider-free-tier changes).
 paths:
   api_keys: "./api-keys.yaml"
   routing_policy: "./routing-policy.yaml"
   provider_free_tier: "./provider-free-tier.yaml"
-  # Vendor quota ceilings for admission/guards; see docs/plans/version-v0.1.1.md §3.7.
-  # Omitting the file entirely or shipping it empty means no enforcement.
   provider_model_limits: "./provider-model-limits.yaml"
 
+# Virtual-model routing: which chimera-broker models to call and how to filter the catalog.
+#
+# Clients may request the Chimera-<semver> virtual id; the gateway maps that to fallback_chain
+# models and optional tool-router slimming before the main completion.
 routing:
+  # When true, intersect GET /v1/models with provider_free_tier allowlist.
   filter_free_tier_models: true
+  # Ordered chimera-broker model ids for virtual-model chat; try next on 429 / selected 5xx.
   fallback_chain:
     - "groq/llama-3.3-70b-versatile"
     - "groq/openai/gpt-oss-120b"
@@ -84,10 +93,6 @@ routing:
     - "groq/allam-2-7b"
     - "groq/meta-llama/llama-prompt-guard-2-22m"
     - "groq/meta-llama/llama-prompt-guard-2-86m"
-    - "gemini/gemini-2.5-flash"
-    - "gemini/gemini-2.5-flash-native-audio-preview-12-2025"
-    - "gemini/gemini-2.5-flash-preview-tts"
-    - "gemini/gemini-3-flash-preview"
     - "gemini/gemini-3.1-flash-live-preview"
     - "groq/canopylabs/orpheus-arabic-saudi"
     - "groq/canopylabs/orpheus-v1-english"
@@ -102,84 +107,94 @@ routing:
     - "groq/groq/compound-mini"
     - "ollama/llama3.2:3b"
     - "ollama/qwen3.5:9b"
-  # Ordered list of upstream models used for the tool-router transformer (try in order; see docs/plans/version-v0.1.1.md).
-  # Leave empty to skip router calls. When non-empty, POST /v1/chat/completions may call the first working model
-  # to score tools before the main upstream completion.
+  # chimera-broker models for tool-router scoring before the main completion. Empty = disabled.
   router_models: []
-    # - "ollama/llama3.2:3b"
-    # - "ollama/qwen3.5:9b"
-    # - "groq/groq/compound-mini"
-    # - "groq/groq/compound"
-    # - "gemini/gemini-3.1-flash-lite-preview"
-    # - "gemini/gemini-2.5-flash-lite"
+  # - "ollama/llama3.2:3b"
+  # - "groq/groq/compound-mini"
   tool_router:
+    # Requires non-empty router_models.
     enabled: false
+    # Keep tools with router score >= threshold (0–1).
     confidence_threshold: 0.5
 
-# Gateway metrics (SQLite under ../data/gateway/ relative to this file; see docs/plans/version-v0.1.1.md §3.6).
+# Gateway metrics: SQLite usage and chat outcomes for quotas and operator views.
+#
+# Applied at process start only (changing paths requires a restart). When enabled, supports
+# provider_model_limits enforcement and conversation_merge embedding history.
 metrics:
   enabled: true
   # sqlite_path: "../data/gateway/metrics.sqlite"
   # migrations_dir: "../migrations/chimera-gateway/metrics"
 
-# Operator SQLite: supervised indexer workspaces (paths + project/flavor). Separate file from metrics.
+# Operator database: indexer workspaces (project/flavor paths and supervised state).
+#
+# Always opened at default paths unless you uncomment overrides below. Separate from metrics.sqlite.
 # operator:
 #   sqlite_path: "../data/gateway/operator.sqlite"
 #   migrations_dir: "../migrations/chimera-gateway/operator"
 
-# Merge chat sessions per tenant + X-Chimera-Project / X-Chimera-Flavor-Id when the client omits
-# X-Chimera-Conversation-Id, using embeddings (rag.embedding) + operator SQLite state.
-# conversation_merge:
-#   enabled: true
-#   match_threshold: 0.75
-#   recent_window_minutes: 10
-#   candidate_limit: 32
-#   max_idle_hours: 168
-#   # When enabled, defaults attach follow-ups to the latest session within 45m if cosine ≥ 0.18
-#   # or the user message is short (≤220 runes). Set session_attach_minutes: 0 to disable only sticky attach.
-#   # session_attach_minutes: 45
-#   # session_attach_min_cosine: 0.18
-#   # session_short_follow_up_runes: 220
+# Conversation merge: reuse an existing chat session when the client omits a conversation id.
+#
+# Uses rag.embedding (when RAG is on) plus operator SQLite to match recent sessions by similarity.
+# Optional sticky-attach fields link short follow-ups without a full embedding match.
+conversation_merge:
+  enabled: true
+  # Minimum cosine similarity to attach to an existing session.
+  match_threshold: 0.75
+  # Only consider sessions updated within this many minutes.
+  recent_window_minutes: 10
+  # Max candidate sessions to score per request.
+  candidate_limit: 32
+  # Drop idle sessions after this many hours.
+  max_idle_hours: 168
+  # Sticky attach: link short follow-ups to the latest session within a time window.
+  # session_attach_minutes: 45
+  # session_attach_min_cosine: 0.18
+  # session_short_follow_up_runes: 220
 
-# Optional: supervise chimera-indexer under `chimera-supervisor` / locus-desktop (v0.5+).
-# When enabled, the gateway starts the file indexer after BiFrost is healthy; the child
-# receives CHIMERA_GATEWAY_URL and a merged --config at config_path (default under ../data/gateway/).
-# Set CHIMERA_GATEWAY_TOKEN in the environment so ingest can authenticate. Structured stderr
-# (--log-json) lands in the same ring buffer as BiFrost — filter /ui/logs by source "indexer".
-# Full behavior: docs/indexer.md (supervised mode), docs/supervisor.md.
+# chimera-indexer: file watcher that ingests workspace files into vectorstore via the gateway.
+#
+# When supervised.enabled is true, chimera-supervisor starts the indexer after chimera-broker is
+# healthy. Set CHIMERA_GATEWAY_TOKEN in the environment for authenticated POST /v1/ingest.
+# See docs/indexer.md.
 indexer:
   supervised:
+    # Start chimera-indexer after chimera-broker is healthy (needs CHIMERA_GATEWAY_TOKEN for ingest).
     enabled: true
-    log_json: true
-    # bin: ""                          # optional path to chimera-indexer; empty → next to chimera-indexer or PATH
+    # JSON logs on stderr are always enabled (source "indexer" in /ui/logs). Set log_json: false to opt out.
+    # bin: ""
     # config_path: "../data/gateway/indexer.supervised.yaml"
-    # start_when_rag_disabled: false # if true, start indexer even when rag.enabled is false
+    # start_when_rag_disabled: false
 
-# v0.2 Retrieval-Augmented Generation. When enabled, the virtual Chimera model
-# performs Qdrant retrieval before chat; POST /v1/ingest, GET /v1/indexer/*,
-# and the /health Qdrant probe are activated. See docs/plans/version-v0.2.md.
+# Retrieval-augmented generation ("RAG"): gateway behavior for knowledge-backed chat.
+#
+# When enabled, chimera-gateway can index text into vectorstore, search it at chat time,
+# and inject matching snippets into requests to the virtual Chimera model (Chimera-<semver>).
+# vectorstore.* above is where vectors are stored; this block controls embeddings, chunking,
+# search limits, ingest size, and default project/flavor ids.
 rag:
+  # Master switch: ingest APIs, indexer APIs, chat-time retrieval, and vectorstore health checks.
   enabled: true
-  qdrant:
-    url: "http://127.0.0.1:6333"
-    log_level: "info"        # supervised native Qdrant QDRANT__LOGGER__LOG_LEVEL; `-qdrant-log-level` overrides when non-empty
-    # api_key: "..."          # optional Qdrant API key
+  # How text is turned into vectors (usually via chimera-broker /v1/embeddings).
   embedding:
-    # base_url defaults to upstream.base_url when empty.
+    # Defaults to broker.base_url when empty.
     # base_url: ""
     path: "/v1/embeddings"
     model: "ollama/nomic-embed-text:latest"
     dim: 768
+  # How documents are split before indexing.
   chunking:
     size: 512
     overlap: 128
+  # How many chunks to fetch from vectorstore per chat request and minimum similarity.
   retrieval:
     top_k: 8
     score_threshold: 0.50
+  # POST /v1/ingest and session ingest size limits.
   ingest:
-    max_bytes: 10485760       # 10 MiB; total bytes per document (whole or chunked session)
-    # Largest body for a single POST /v1/ingest; larger files use /v1/ingest/session (default = max_bytes)
+    max_bytes: 10485760
     # max_whole_file_bytes: 2097152
+  # Default X-Chimera-Project / X-Chimera-Flavor-Id when clients omit headers.
   defaults:
     project_id: "default"
     flavor_id: ""

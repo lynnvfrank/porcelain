@@ -11,7 +11,7 @@ import (
 func TestPatchGatewayYAMLBytesWithFilterFreeTierModels(t *testing.T) {
 	raw := []byte(`gateway:
   semver: "0.1.0"
-upstream:
+broker:
   base_url: "http://127.0.0.1:8080"
 paths:
   api_keys: "./api-keys.yaml"
@@ -134,7 +134,7 @@ func TestLoadGatewayYAML_filterFreeTierDefaultTrueWhenOmitted(t *testing.T) {
 	p := filepath.Join(dir, "gateway.yaml")
 	raw := `gateway:
   semver: "0.1.0"
-upstream:
+broker:
   base_url: "http://127.0.0.1:8080"
 paths:
   api_keys: "./api-keys.yaml"
@@ -176,7 +176,7 @@ func TestWriteGatewayFallbackChain_roundTrip(t *testing.T) {
   semver: "0.1.0"
   listen_port: 3000
   listen_host: "127.0.0.1"
-upstream:
+broker:
   base_url: "http://127.0.0.1:8080"
   api_key_env: "CHIMERA_BROKER_API_KEY"
 paths:

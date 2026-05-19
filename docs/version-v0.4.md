@@ -188,17 +188,6 @@ For **`model: Chimera-<gateway_semver>`**, the gateway continues to own **routin
 
 ---
 
-## Explicitly not this version
-
-- **Gateway MCP** or unified gateway tool surface (*Release roadmap · v0.5*, *MCP boundaries · 1*).
-- **Conversation archive ingestion** automated pipeline (*Workspace indexing and retrieval · 14*, *Release roadmap · v0.5*).
-- **Security & TLS** milestone: encryption posture, **`/health` hardening**, rate limiting, audit/redaction, threat model (*Release roadmap · v0.7*, *Security · 2–5*).
-- **Queues** and priority scheduling for busy backends (*Release roadmap · v0.8*, *Chat turn resilience · 2*).
-- Using **LLM-as-MCP-tool** for primary routing (*MCP boundaries · 3*) or **optional routing judge** as the default selection path (*Routing mechanics · 2*)—out of scope unless explicitly pulled into a later plan.
-- **Full** secrets management entirely in UI without file/OS backing—unless explicitly brought into v0.4 under *Security · 1*; default assumption is **defer** sensitive material to files or later security work.
-
----
-
 ## Verification
 
 | Area | Quick check |

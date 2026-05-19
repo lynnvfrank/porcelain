@@ -43,6 +43,14 @@ func TestPassthroughSlogJSONSkipsNonSlog(t *testing.T) {
 	}
 }
 
+func TestPassthroughSlogJSONSkipsGatewayConversationSlug(t *testing.T) {
+	raw := []byte(`{"time":"2026-05-09T12:00:00Z","level":"INFO","msg":"conversation.received","conversation_id":"c1"}`)
+	_, ok := PassthroughSlogJSON(raw, "chimera-gateway")
+	if ok {
+		t.Fatal("conversation.* must not use PassthroughSlogJSON (drops correlation attrs)")
+	}
+}
+
 func TestReorderNormalizedJSON(t *testing.T) {
 	raw := []byte(`{"_chimera_norm":1,"msg":"broker.ready","service":"broker","level":"INFO","timestamp":"2026-05-16T12:00:00Z"}`)
 	b, ok := ReorderNormalizedJSON(raw)

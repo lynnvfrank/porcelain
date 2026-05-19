@@ -472,20 +472,6 @@ The virtual model id stays `**Chimera-<gateway.semver>`** (set in `config/gatewa
 
 ---
 
-## Explicitly not v0.2
-
-Keep these on later roadmap entries (see `[porcelain.plan.md](porcelain.plan.md)` **Release roadmap**):
-
-- **v0.3** — Chimera branding/onboarding, optional **internal embedding** exploration (see `[version-v0.3.md](version-v0.3.md)`), peer LiteLLM, virtual keys, cross-host publishing, per-key observability (*Resilience · 1*), etc.
-- **v0.4** — ensembles, escalation, **dual-mode / streaming large-file ingest**, server-authoritative hash in ingest response (indexer plan **Phase 4**).
-- **v0.5+** — gateway MCP, conversation archive ingestion, etc.
-- **v0.7** — TLS, hardening, `/health` lockdown on untrusted networks.
-- **v0.8** — queues / priority scheduling (*Resilience · 2*).
-
-**Exploration from v0.1** (e.g. embedded vector store to avoid a dedicated Qdrant process) remains **research**; v0.2 still assumes a **vector-store adapter** boundary so embedded and remote backends can swap under the same interface (`[version-v0.1.md](version-v0.1.md)` §4c and gateway plan).
-
----
-
 ## Implementation checklist (high level)
 
 Use this to track cross-cutting v0.2 work; gate detailed indexer items in `[plans/indexer.md](plans/indexer.md)`.

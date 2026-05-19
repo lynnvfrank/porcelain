@@ -36,8 +36,7 @@ ingest can authenticate.
   merged YAML and optional `--root` as before.
 - **Logs:** stderr/stdout are teed into the same ring buffer as BiFrost/Qdrant;
   open `/ui/logs` and filter source `indexer`.
-- **Structured stderr:** enable `indexer.supervised.log_json: true` to add
-  `--log-json` (JSON **slog** on stderr).
+- **Structured stderr:** supervised indexer passes `--log-json` by default (JSON **slog** on stderr). Set `indexer.supervised.log_json: false` to opt out.
 
 ### Structured operator logs (`--log-json`)
 

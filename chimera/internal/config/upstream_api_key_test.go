@@ -15,7 +15,7 @@ func TestEnsureGeneratedUpstreamAPIKey_generatesAndPersists(t *testing.T) {
   semver: "0.1.0"
   listen_port: 3000
   listen_host: "127.0.0.1"
-upstream:
+broker:
   base_url: "http://127.0.0.1:8080"
   api_key_env: "CHIMERA_BROKER_API_KEY"
 paths:
@@ -61,7 +61,7 @@ func TestEnsureGeneratedUpstreamAPIKey_envSkipsWrite(t *testing.T) {
 	p := filepath.Join(dir, "gateway.yaml")
 	raw := `gateway:
   semver: "0.1.0"
-upstream:
+broker:
   base_url: "http://127.0.0.1:8080"
   api_key_env: "CHIMERA_BROKER_API_KEY"
 paths:
@@ -96,7 +96,7 @@ func TestLoadGatewayYAML_upstreamAPIKey(t *testing.T) {
 	p := filepath.Join(dir, "gateway.yaml")
 	raw := `gateway:
   semver: "0.1.0"
-upstream:
+broker:
   base_url: "http://x"
   api_key: "yaml-secret"
 paths:

@@ -15,15 +15,15 @@ import (
 
 // Resolved matches TypeScript ResolvedGatewayConfig (src/config.ts).
 type Resolved struct {
-	Semver                string
-	VirtualModelID        string
-	ListenPort            int
-	ListenHost            string
-	LogLevel              string
-	ChimeraBrokerLogLevel string // supervised chimera-broker-http -log-level (upstream.chimera_broker_log_level); `-chimera-broker-log-level` overrides when non-empty.
-	UpstreamBaseURL       string
-	UpstreamAPIKeyEnv     string
-	// UpstreamAPIKey is the Bearer token from gateway.yaml (upstream.api_key). Non-empty process env named by UpstreamAPIKeyEnv overrides at runtime.
+	Semver            string
+	VirtualModelID    string
+	ListenPort        int
+	ListenHost        string
+	LogLevel          string
+	BrokerLogLevel    string // supervised chimera-broker wrapper (broker.log_level).
+	UpstreamBaseURL   string
+	UpstreamAPIKeyEnv string
+	// UpstreamAPIKey is the Bearer token from gateway.yaml (broker.api_key). Non-empty process env named by UpstreamAPIKeyEnv overrides at runtime.
 	UpstreamAPIKey    string
 	HealthUpstreamURL string
 	HealthTimeoutMs   int
@@ -110,11 +110,11 @@ func (r *Resolved) WitnessSampleMaxRunes() int {
 	return r.WitnessSampleMaxChars
 }
 
-type upstreamBlock struct {
-	BaseURL               string `yaml:"base_url"`
-	APIKeyEnv             string `yaml:"api_key_env"`
-	APIKey                string `yaml:"api_key"`
-	ChimeraBrokerLogLevel string `yaml:"chimera_broker_log_level"`
+type brokerBlock struct {
+	BaseURL   string `yaml:"base_url"`
+	APIKeyEnv string `yaml:"api_key_env"`
+	APIKey    string `yaml:"api_key"`
+	LogLevel  string `yaml:"log_level"`
 }
 
 type gatewayDoc struct {
@@ -128,8 +128,8 @@ type gatewayDoc struct {
 			ForcePayloadSampleAtDebug *bool `yaml:"force_payload_sample_at_debug"`
 		} `yaml:"log_witness"`
 	} `yaml:"gateway"`
-	Upstream upstreamBlock `yaml:"upstream"`
-	Health   struct {
+	Broker brokerBlock `yaml:"broker"`
+	Health struct {
 		UpstreamURL           string `yaml:"upstream_url"`
 		TimeoutMs             int    `yaml:"timeout_ms"`
 		ChatMs                int    `yaml:"chat_timeout_ms"`
@@ -159,7 +159,8 @@ type gatewayDoc struct {
 		SQLitePath    string `yaml:"sqlite_path"`
 		MigrationsDir string `yaml:"migrations_dir"`
 	} `yaml:"operator"`
-	RAG ragDoc `yaml:"rag"`
+	Vectorstore vectorstoreDoc `yaml:"vectorstore"`
+	RAG         ragDoc         `yaml:"rag"`
 
 	Indexer struct {
 		Supervised struct {
@@ -204,17 +205,17 @@ func LoadGatewayYAML(filePath string, log *slog.Logger) (*Resolved, error) {
 		semver = defaultSemver
 	}
 
-	upBase := strings.TrimSuffix(doc.Upstream.BaseURL, "/")
+	upBase := strings.TrimSuffix(doc.Broker.BaseURL, "/")
 	if upBase == "" {
 		upBase = strings.TrimSuffix(defaultBaseURL, "/")
 	}
 
-	apiKeyEnv := doc.Upstream.APIKeyEnv
+	apiKeyEnv := doc.Broker.APIKeyEnv
 	if apiKeyEnv == "" {
 		apiKeyEnv = defaultAPIKeyEnv
 	}
 
-	apiKey := strings.TrimSpace(doc.Upstream.APIKey)
+	apiKey := strings.TrimSpace(doc.Broker.APIKey)
 
 	healthURL := strings.TrimSpace(doc.Health.UpstreamURL)
 	if healthURL == "" {
@@ -375,7 +376,7 @@ func LoadGatewayYAML(filePath string, log *slog.Logger) (*Resolved, error) {
 	if logLevel == "" {
 		logLevel = defaultLogLevel
 	}
-	chimeraBrokerLogLevel := strings.TrimSpace(doc.Upstream.ChimeraBrokerLogLevel)
+	brokerLogLevel := strings.TrimSpace(doc.Broker.LogLevel)
 
 	witnessMax := 256
 	if doc.Gateway.LogWitness.PayloadSampleMaxChars != nil && *doc.Gateway.LogWitness.PayloadSampleMaxChars > 0 {
@@ -386,7 +387,7 @@ func LoadGatewayYAML(filePath string, log *slog.Logger) (*Resolved, error) {
 		witnessForceDebug = *doc.Gateway.LogWitness.ForcePayloadSampleAtDebug
 	}
 
-	rag := doc.RAG.effective()
+	rag := doc.RAG.effective(doc.Vectorstore)
 	if err := rag.Validate(); err != nil {
 		if log != nil {
 			log.Error("rag config invalid; disabling RAG", "msg", "rag.config.invalid", "err", err)
@@ -398,7 +399,10 @@ func LoadGatewayYAML(filePath string, log *slog.Logger) (*Resolved, error) {
 
 	idxSupEnabled := doc.Indexer.Supervised.Enabled != nil && *doc.Indexer.Supervised.Enabled
 	idxStartWhenRAGOff := doc.Indexer.Supervised.StartWhenRAGDisabled != nil && *doc.Indexer.Supervised.StartWhenRAGDisabled
-	idxLogJSON := doc.Indexer.Supervised.LogJSON != nil && *doc.Indexer.Supervised.LogJSON
+	idxLogJSON := true
+	if doc.Indexer.Supervised.LogJSON != nil {
+		idxLogJSON = *doc.Indexer.Supervised.LogJSON
+	}
 	idxCfgRel := strings.TrimSpace(doc.Indexer.Supervised.ConfigPath)
 	if idxCfgRel == "" {
 		// Same layout as metrics.sqlite: repo `config/` → data under ../data/gateway/
@@ -420,7 +424,7 @@ func LoadGatewayYAML(filePath string, log *slog.Logger) (*Resolved, error) {
 		ListenPort:                            listenPort,
 		ListenHost:                            listenHost,
 		LogLevel:                              logLevel,
-		ChimeraBrokerLogLevel:                 chimeraBrokerLogLevel,
+		BrokerLogLevel:                        brokerLogLevel,
 		UpstreamBaseURL:                       upBase,
 		UpstreamAPIKeyEnv:                     apiKeyEnv,
 		UpstreamAPIKey:                        apiKey,

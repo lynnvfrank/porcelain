@@ -21,20 +21,7 @@ var gatewayReservedKeys = map[string]struct{}{
 }
 
 func isGatewayPassthroughMsg(msg string) bool {
-	msg = strings.TrimSpace(strings.ToLower(msg))
-	switch {
-	case strings.HasPrefix(msg, "gateway."),
-		strings.HasPrefix(msg, "routing."),
-		strings.HasPrefix(msg, "ingest."),
-		strings.HasPrefix(msg, "rag."),
-		strings.HasPrefix(msg, "chat."),
-		strings.HasPrefix(msg, "conversation."),
-		strings.HasPrefix(msg, "upstream."),
-		strings.HasPrefix(msg, "scope."):
-		return true
-	default:
-		return false
-	}
+	return wline.IsGatewayDomainMsg(msg)
 }
 
 func mergeGatewayExtras(b []byte, fields map[string]json.RawMessage) []byte {
@@ -83,6 +70,18 @@ type normalized struct {
 // NormalizePayload converts one raw line (no trailing \n) into a JSON log line.
 func NormalizePayload(raw string) []byte {
 	return wline.NormalizePerLine(raw, alreadyNormalized, normalizePlain, normalizeJSON)
+}
+
+func normalizeSlogText(raw string) []byte {
+	kv := wline.ParseSlogTextLine(raw)
+	if len(kv) == 0 {
+		return nil
+	}
+	b, err := json.Marshal(kv)
+	if err != nil {
+		return nil
+	}
+	return normalizeJSON(string(b))
 }
 
 func normalizeJSON(raw string) []byte {
@@ -138,6 +137,11 @@ func normalizePlain(raw string) []byte {
 	s := strings.TrimSpace(raw)
 	if s == "" {
 		return nil
+	}
+	if wline.LooksLikeSlogText(s) {
+		if b := normalizeSlogText(s); len(b) > 0 {
+			return b
+		}
 	}
 	out := normalized{
 		Timestamp:      wline.UTCTimestampNow(),

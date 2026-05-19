@@ -24,7 +24,7 @@ func GenerateUpstreamAPIKey() (string, error) {
 	return hex.EncodeToString(b[:]), nil
 }
 
-// EnsureGeneratedUpstreamAPIKey writes upstream.api_key to gateway.yaml when the env var is unset
+// EnsureGeneratedUpstreamAPIKey writes broker.api_key to gateway.yaml when the env var is unset
 // and the loaded config has no upstream API key. Otherwise returns res unchanged.
 func EnsureGeneratedUpstreamAPIKey(gatewayPath string, res *Resolved, log *slog.Logger) (*Resolved, error) {
 	if res == nil {
@@ -44,7 +44,7 @@ func EnsureGeneratedUpstreamAPIKey(gatewayPath string, res *Resolved, log *slog.
 		return nil, err
 	}
 	if log != nil {
-		log.Info("wrote auto-generated upstream.api_key to gateway.yaml", "msg", "gateway.auth.upstream_api_key.autogen", "path", gatewayPath)
+		log.Info("wrote auto-generated broker.api_key to gateway.yaml", "msg", "gateway.auth.upstream_api_key.autogen", "path", gatewayPath)
 	}
 	out := CloneResolved(res)
 	out.UpstreamAPIKey = key
@@ -67,9 +67,9 @@ func writeUpstreamAPIKeyYAML(gatewayPath, apiKey string) error {
 	if docMap.Kind != yaml.MappingNode {
 		return fmt.Errorf("gateway yaml: expected mapping at document root")
 	}
-	upNode := mappingGetOrCreateChildMapping(docMap, "upstream")
+	upNode := mappingGetOrCreateChildMapping(docMap, "broker")
 	if upNode == nil {
-		return fmt.Errorf("gateway yaml: upstream block")
+		return fmt.Errorf("gateway yaml: broker block")
 	}
 	setOrReplaceMappingScalar(upNode, upstreamAPIKeyYAML, apiKey)
 	var buf bytes.Buffer

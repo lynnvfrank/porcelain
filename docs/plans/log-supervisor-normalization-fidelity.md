@@ -200,6 +200,12 @@ Run after `make build` (or `make chimera-build`) and a supervised desktop sessio
 
 ---
 
+## Follow-up (2026-05-18)
+
+**Conversation cards missing:** `gatewayline.alreadyNormalized` called `PassthroughSlogJSON` for raw slog JSON whose `msg` was `conversation.*` (and other gateway domain slugs). That path only kept canonical wrapper fields and dropped `conversation_id`, `principal_id`, `request_id`, etc., so the Logs UI could not group conversations. Fixed by treating gateway domain slugs like `gateway.*` in `IsDomainServiceMsg` (`wline.IsGatewayDomainMsg`) and parsing slog **text** lines in `gatewayline.normalizePlain` when `CHIMERA_LOG_JSON` is off.
+
+---
+
 ## Open questions
 
 1. **`raw_line` field:** Should every normalized row optionally retain the pre-normalization upstream string (size-capped) for a future “raw” column, or is fixing structured passthrough enough?

@@ -96,6 +96,53 @@ func TestNormalizePayloadStartupListeningPreservesKV(t *testing.T) {
 	}
 }
 
+func TestNormalizePayloadConversationSlogTextPreservesCorrelation(t *testing.T) {
+	raw := `time=2026-05-09T12:00:00.000Z level=INFO msg=conversation.received request_id=lc-req-1 conversation_id=lc-conv-1 principal_id=lc-principal-1 turn_index=1`
+	b := NormalizePayload(raw)
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["conversation_id"] != "lc-conv-1" || m["principal_id"] != "lc-principal-1" {
+		t.Fatalf("correlation fields stripped: %v", m)
+	}
+}
+
+func TestNormalizePayloadConversationPreservesCorrelation(t *testing.T) {
+	raw := `{"time":"2026-05-09T12:00:00.000Z","level":"INFO","msg":"conversation.received","request_id":"lc-req-1","conversation_id":"lc-conv-1","principal_id":"lc-principal-1","turn_index":1}`
+	b := NormalizePayload(raw)
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["conversation_id"] != "lc-conv-1" {
+		t.Fatalf("conversation_id=%v", m["conversation_id"])
+	}
+	if m["principal_id"] != "lc-principal-1" {
+		t.Fatalf("principal_id=%v", m["principal_id"])
+	}
+	if m["request_id"] != "lc-req-1" {
+		t.Fatalf("request_id=%v", m["request_id"])
+	}
+}
+
+func TestNormalizePayloadConversationSupervisorSecondPass(t *testing.T) {
+	raw := `{"time":"2026-05-09T12:00:00.000Z","level":"INFO","msg":"conversation.received","request_id":"lc-req-1","conversation_id":"lc-conv-1","principal_id":"lc-principal-1","turn_index":1}`
+	first := NormalizePayload(raw)
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	if _, err := w.Write(append(first, '\n')); err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(buf.Bytes()), &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["conversation_id"] != "lc-conv-1" {
+		t.Fatalf("supervisor second pass stripped conversation_id: %v", m)
+	}
+}
+
 func TestNormalizePayloadSupervisorSecondPass(t *testing.T) {
 	raw := `{"time":"2026-05-14T12:34:56Z","level":"INFO","msg":"gateway.http.access","method":"GET","path":"/health","statusCode":200,"responseTimeMs":12,"service":"gateway"}`
 	first := NormalizePayload(raw)

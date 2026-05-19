@@ -142,7 +142,7 @@ This section specifies a **second major panel** in the presentation layer: **hea
 | **Gateway** | The `chimera` process itself: listen address, config loads, auth outcomes, chat/RAG/orchestration **without** duplicating every HTTP row—**headline** events plus errors. |
 | **Qdrant** | Vector store (supervised or external): readiness, collection health, query/update **summaries** when logged; errors and latency **rollup**. |
 | **BiFrost** | Upstream LLM hub: startup, provider health, request/response **metadata** (not bodies), errors, fallbacks **as seen by the gateway or BiFrost logs**. |
-| **Indexer** | `chimera-indexer` (standalone or supervised): run lifecycle, progress, backoff, ingest outcomes—aligned with [`indexer.plan.md`](indexer.plan.md) v0.5+ observability when available. |
+| **Indexer** | `chimera-indexer` (standalone or supervised): run lifecycle, progress, backoff, ingest outcomes—aligned with [`indexer.plan.md`](indexer.plan.md) |
 
 ### 4.2 Service card model (what each row shows)
 

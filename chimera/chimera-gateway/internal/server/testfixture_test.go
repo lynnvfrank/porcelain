@@ -28,12 +28,13 @@ func writeGateway(t *testing.T, path, upstream string, chain []string, qdrantURL
 		semver = "0.2.0"
 	}
 	raw := "gateway:\n  semver: \"" + semver + "\"\n  listen_port: 0\n  listen_host: \"127.0.0.1\"\n" +
-		"upstream:\n  base_url: \"" + upstream + "\"\n  api_key_env: \"" + naming.EnvBrokerAPIKeyTarget + "\"\n" +
+		"broker:\n  base_url: \"" + upstream + "\"\n  api_key_env: \"" + naming.EnvBrokerAPIKeyTarget + "\"\n" +
 		"health:\n  timeout_ms: 2000\n  chat_timeout_ms: 60000\n" +
 		"paths:\n  tokens: \"./" + naming.APIKeysFileTarget + "\"\n  routing_policy: \"./" + naming.RoutingPolicyFileTarget + "\"\n" +
 		"routing:\n  fallback_chain:\n" + chainYAML
 	if qdrantURL != "" {
-		raw += "rag:\n  enabled: true\n  qdrant:\n    url: \"" + qdrantURL + "\"\n" +
+		raw += "vectorstore:\n  url: \"" + qdrantURL + "\"\n" +
+			"rag:\n  enabled: true\n" +
 			"  embedding:\n    model: \"test-embed\"\n    dim: 8\n" +
 			"  chunking:\n    size: 128\n    overlap: 32\n" +
 			"  ingest:\n    max_bytes: 10485760\n" +
