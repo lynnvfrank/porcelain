@@ -58,7 +58,7 @@ globalThis.ChimeraLogs.Render.Cards.mountAdminRouting = function (ctx) {
     if (!tableRows) tableRows = '<tr><td colspan="4" class="muted">No routing rules configured.</td></tr>';
     return (
       '<details class="sum-card" id="admin-routing-rules">' +
-      '<summary><span class="sum-avatar sum-av-svc-gateway">Rt</span><span class="sum-main"><span class="sum-title">Routing rules</span>' +
+      '<summary><span class="sum-avatar sum-av-svc-chimera-gateway">Rt</span><span class="sum-main"><span class="sum-title">Routing rules</span>' +
       '<span class="sum-sub sum-sub--clamp">Virtual model policy with editable YAML and live catalog generation.</span></span>' +
       '<span class="sum-metrics"><span class="chip">' + escapeHtml(formatInt(rulesCount)) + ' active rules</span></span>' +
       '<span class="sum-chev"></span></summary>' +

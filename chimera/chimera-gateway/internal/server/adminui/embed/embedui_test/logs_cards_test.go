@@ -52,6 +52,103 @@ func TestLogsCards_serviceAvatarInitials(t *testing.T) {
 	}
 }
 
+func TestLogsCards_adminProvider_keyDraftInHtml(t *testing.T) {
+	vm := goja.New()
+	loadCardTestCtx(t, vm)
+
+	_, err := vm.RunString(`
+		ctx.adminProviderKeyDraft.groq = "gsk-draft-secret";
+		ctx.adminOllamaUrlDraft = "http://draft.local:11434";
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v, err := vm.RunString(`ctx.buildAdminProviderCardHtml("groq", "Groq", "G", "Fast inference")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groqHTML := v.String()
+	if !strings.Contains(groqHTML, `id="admin-groq-key"`) || !strings.Contains(groqHTML, `value="gsk-draft-secret"`) {
+		t.Fatalf("groq draft not in html: %q", groqHTML)
+	}
+
+	v2, err := vm.RunString(`ctx.buildAdminProviderCardHtml("ollama", "Ollama", "O", "Local")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ollamaHTML := v2.String()
+	if !strings.Contains(ollamaHTML, `id="admin-ollama-url"`) || !strings.Contains(ollamaHTML, `value="http://draft.local:11434"`) {
+		t.Fatalf("ollama draft not in html: %q", ollamaHTML)
+	}
+}
+
+func TestLogsCards_adminProvider_keyChipReflectsState(t *testing.T) {
+	vm := goja.New()
+	loadCardTestCtx(t, vm)
+
+	_, err := vm.RunString(`
+		ctx.adminStateCache = {
+			providers: {
+				groq: { keys: [{ name: "k1" }, { name: "k2" }], ok: true },
+				gemini: { keys: [], ok: false },
+				ollama: { keys: [], ok: true, ollama_base_url: "http://127.0.0.1:11434" }
+			}
+		};
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v, err := vm.RunString(`ctx.buildAdminProviderCardHtml("groq", "Groq", "Gq", "subtitle")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := v.String()
+	for _, want := range []string{`id="admin-provider-groq"`, "keys 2", `id="admin-groq-key"`} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("missing %q in %q", want, html)
+		}
+	}
+}
+
+func TestLogsCards_adminRoutingCards_stableIds(t *testing.T) {
+	vm := goja.New()
+	loadCardTestCtx(t, vm)
+
+	_, err := vm.RunString(`
+		ctx.adminStateCache = {
+			gateway: {
+				routing_policy_yaml: "rules: []\n",
+				fallback_chain: ["groq/llama"],
+				router_models: ["groq/llama"],
+				tool_router_enabled: true,
+				tool_router_confidence_threshold: 0.5
+			}
+		};
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, spec := range []struct {
+		fn   string
+		want string
+	}{
+		{`ctx.buildAdminRoutingRulesCardHtml()`, `id="admin-routing-rules"`},
+		{`ctx.buildAdminFallbackCardHtml()`, `id="admin-fallback-chain"`},
+		{`ctx.buildAdminRouterModelCardHtml()`, `id="admin-router-model"`},
+	} {
+		v, err := vm.RunString(spec.fn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(v.String(), spec.want) {
+			t.Fatalf("%s: missing %q", spec.fn, spec.want)
+		}
+	}
+}
+
 func TestLogsCards_formatMergedConversationSubtitle(t *testing.T) {
 	vm := goja.New()
 	loadCardTestCtx(t, vm)

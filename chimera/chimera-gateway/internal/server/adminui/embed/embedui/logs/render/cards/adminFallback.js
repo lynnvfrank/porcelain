@@ -46,7 +46,7 @@ globalThis.ChimeraLogs.Render.Cards.mountAdminFallback = function (ctx) {
     if (!tableRows) tableRows = '<tr><td colspan="4" class="muted">No fallback routes configured.</td></tr>';
     return (
       '<details class="sum-card" id="admin-fallback-chain">' +
-      '<summary><span class="sum-avatar sum-av-svc-gateway">Fb</span><span class="sum-main"><span class="sum-title">Fallback chain</span>' +
+      '<summary><span class="sum-avatar sum-av-svc-chimera-gateway">Fb</span><span class="sum-main"><span class="sum-title">Fallback chain</span>' +
       '<span class="sum-sub sum-sub--clamp">Ordered failover list used when the first route cannot serve.</span></span>' +
       '<span class="sum-metrics"><span class="chip">' + escapeHtml(formatInt(fallback.length)) + ' tiers</span></span>' +
       '<span class="sum-chev"></span></summary>' +

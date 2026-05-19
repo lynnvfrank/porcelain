@@ -63,6 +63,10 @@ globalThis.ChimeraLogs.Main = function () {
   var routerEnabledDraft = null;
   var adminUserDrafts = [];
   var nextAdminUserDraftId = 1;
+  /** In-flight provider API key inputs (groq/gemini); survives summarized panel rebuild. */
+  var adminProviderKeyDraft = { groq: null, gemini: null };
+  /** In-flight Ollama base URL; null = use adminStateCache value on render. */
+  var adminOllamaUrlDraft = null;
   var adminRoutingEditing = false;
   var adminFallbackEditing = false;
   var adminRouterEditing = false;
@@ -73,11 +77,16 @@ globalThis.ChimeraLogs.Main = function () {
   var lastIndexerOperatorRootsJson = "";
   /** Nested workspaces from GET /api/ui/indexer/config (or POST save / derived from roots). Drives cards when logs have no bucket yet. */
   var lastIndexerOperatorWorkspacesNested = [];
+  var lastIndexerOperatorWorkspacesFingerprint = "";
+  var lastIndexerOperatorConfigPath = "";
+  var indexerOperatorConfigHydratedOnce = false;
+  var indexerOperatorConfigUnavailable = false;
+  var indexerServiceSummaryFetchInFlight = false;
+  var indexerServiceSummaryFetchWanted = false;
   /** Populated during Workspaces card render: watched paths per synthetic `opws\x1e…` bucket id for full-log filtering. */
   var operatorWsFullLogCtx = {};
   /** From latest indexer.run.start root_scopes in buffer: root_id slug → { workspace_id, path, … }. */
   var indexerRootScopeByRootId = {};
-  var indexerOperatorRootsRefreshQueued = false;
   /** Unsaved workspace rows created from Workspaces → Create (Phase 3). */
   var workspaceDrafts = [];
   var nextWorkspaceDraftId = 1;
@@ -924,6 +933,12 @@ globalThis.ChimeraLogs.Main = function () {
     lastIndexerOperatorRoots: lastIndexerOperatorRoots,
     lastIndexerOperatorRootsJson: lastIndexerOperatorRootsJson,
     lastIndexerOperatorWorkspacesNested: lastIndexerOperatorWorkspacesNested,
+    lastIndexerOperatorWorkspacesFingerprint: lastIndexerOperatorWorkspacesFingerprint,
+    lastIndexerOperatorConfigPath: lastIndexerOperatorConfigPath,
+    indexerOperatorConfigHydratedOnce: indexerOperatorConfigHydratedOnce,
+    indexerOperatorConfigUnavailable: indexerOperatorConfigUnavailable,
+    indexerServiceSummaryFetchInFlight: indexerServiceSummaryFetchInFlight,
+    indexerServiceSummaryFetchWanted: indexerServiceSummaryFetchWanted,
     operatorWsFullLogCtx: operatorWsFullLogCtx,
     indexerRootScopeByRootId: indexerRootScopeByRootId,
     workspaceDrafts: workspaceDrafts,
@@ -932,6 +947,8 @@ globalThis.ChimeraLogs.Main = function () {
     workspaceManagedStaging: workspaceManagedStaging,
     adminUserDrafts: adminUserDrafts,
     nextAdminUserDraftId: nextAdminUserDraftId,
+    adminProviderKeyDraft: adminProviderKeyDraft,
+    adminOllamaUrlDraft: adminOllamaUrlDraft,
     adminCreatedTokenByTenant: adminCreatedTokenByTenant,
     routingPolicyTouched: routingPolicyTouched,
     routingPolicyDraft: routingPolicyDraft,

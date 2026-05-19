@@ -53,22 +53,29 @@ globalThis.ChimeraLogs.Render.Cards.mountAdminProvider = function (ctx) {
       }
       usageHtml += "</tbody></table></div>";
     }
+    var keyDrafts = ctx.adminProviderKeyDraft || {};
+    var groqKeyVal = keyDrafts.groq != null ? String(keyDrafts.groq) : "";
+    var geminiKeyVal = keyDrafts.gemini != null ? String(keyDrafts.gemini) : "";
+    var ollamaUrlVal =
+      ctx.adminOllamaUrlDraft != null ? String(ctx.adminOllamaUrlDraft) : String(row.ollama_base_url || "");
+
     var body = "";
     if (isOllama) {
       body =
         providerIntro +
         '<div class="sum-section-label">Model usage (24h)</div>' + usageHtml +
         '<div class="sg-op-provider-edit-row"><div class="sg-op-provider-edit-main"><label class="sg-op-label">Server base URL</label>' +
-        '<input id="admin-ollama-url" class="sg-op-input" type="url" placeholder="http://127.0.0.1:11434" value="' + escapeHtml(row.ollama_base_url || "") + '"/></div>' +
+        '<input id="admin-ollama-url" class="sg-op-input" type="url" placeholder="http://127.0.0.1:11434" value="' + escapeHtml(ollamaUrlVal) + '"/></div>' +
         '<button class="sum-workspaces-create-btn sg-op-save-btn" type="button" data-admin-action="ollama-save">Save</button></div>';
     } else {
+      var keyInputVal = providerId === "groq" ? groqKeyVal : providerId === "gemini" ? geminiKeyVal : "";
       body =
         providerIntro +
         '<div class="sum-section-label">Model usage (24h)</div>' + usageHtml +
         '<div class="sum-section-label">API KEYS</div>' +
         '<ul class="sg-op-key-list">' + providerRowsHtml(providerId, row) + "</ul>" +
         '<div class="sg-op-provider-edit-row"><div class="sg-op-provider-edit-main">' +
-        '<input id="admin-' + escapeHtml(providerId) + '-key" class="sg-op-input" type="password" placeholder="' + (providerId === "groq" ? "gsk-…" : "AIza…") + '"/></div>' +
+        '<input id="admin-' + escapeHtml(providerId) + '-key" class="sg-op-input" type="password" placeholder="' + (providerId === "groq" ? "gsk-…" : "AIza…") + '" value="' + escapeHtml(keyInputVal) + '"/></div>' +
         '<button class="sum-workspaces-create-btn sg-op-save-btn" type="button" data-admin-action="provider-key-add" data-provider="' + escapeHtml(providerId) + '">Save</button></div>';
     }
     var scoped = [];

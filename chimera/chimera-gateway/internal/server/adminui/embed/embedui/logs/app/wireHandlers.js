@@ -230,13 +230,31 @@ globalThis.ChimeraLogs.App.mountWireHandlers = function (ctx) {
       tbody.insertBefore(tr, tbody.firstChild);
       return tr;
     }
+    function ensureDataEmptyRow(tbody) {
+      var existing = tbody.querySelector("[data-sum-evlog-data-empty]");
+      if (existing) return existing;
+      var tr = document.createElement("tr");
+      tr.className = "sum-evlog__row sum-evlog__search-empty-row";
+      tr.setAttribute("data-sum-evlog-data-empty", "");
+      tr.setAttribute("hidden", "");
+      tr.setAttribute("role", "status");
+      var td = document.createElement("td");
+      td.className = "sum-evlog__search-empty-cell";
+      td.colSpan = 3;
+      td.appendChild(document.createTextNode("No events to display"));
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return tr;
+    }
     function sumEvlogSyncFooter(root) {
       var foot = root.querySelector("[data-sum-evlog-oldest]");
+      var footLeft = root.querySelector(".sum-evlog__footer-left");
       var tbody = root.querySelector("[data-sum-evlog-tbody]");
       if (!foot || !tbody) return;
       var picked = tbody.querySelector(
         "tr[data-evlog-id].sum-evlog__row--selected:not(.sum-evlog__row--hidden)"
       );
+      var visibleRows = tbody.querySelectorAll("tr[data-evlog-id]:not(.sum-evlog__row--hidden)");
       if (picked) {
         var msSel = rowTimespec(picked);
         var absSel = formatLogDateTimeLocal(msSel);
@@ -260,8 +278,11 @@ globalThis.ChimeraLogs.App.mountWireHandlers = function (ctx) {
           "</time> <span class=\"sum-evlog__footer-rel\">(" +
           escapeHtml(relSel) +
           ")</span>";
+        if (footLeft) footLeft.hidden = false;
         return;
       }
+      if (footLeft) footLeft.hidden = visibleRows.length === 0;
+      if (visibleRows.length === 0) return;
       var oldestMs = root._sumEvlogOldestVisible;
       foot.innerHTML =
         "Oldest <strong>visible</strong> entry: <time title=\"" +
@@ -299,6 +320,10 @@ globalThis.ChimeraLogs.App.mountWireHandlers = function (ctx) {
       var searchEmptyRow = tbody.querySelector("[data-sum-evlog-search-empty]");
       if (searchEmptyRow) {
         searchEmptyRow.hidden = !(q !== "" && visibleCount === 0);
+      }
+      var dataEmptyRow = ensureDataEmptyRow(tbody);
+      if (dataEmptyRow) {
+        dataEmptyRow.hidden = rows.length > 0;
       }
       root._sumEvlogOldestVisible = oldest === Infinity ? NaN : oldest;
       sumEvlogSyncFooter(root);
@@ -352,6 +377,7 @@ globalThis.ChimeraLogs.App.mountWireHandlers = function (ctx) {
       var tbody = root.querySelector("[data-sum-evlog-tbody]");
       if (!tbody) return;
       ensureSearchEmptyRow(tbody);
+      ensureDataEmptyRow(tbody);
       sumEvlogRebuildRoot(root);
     }
     globalThis.sumEvlogHydrateAllIn = function (container) {
@@ -474,6 +500,19 @@ globalThis.ChimeraLogs.App.mountWireHandlers = function (ctx) {
         if (!t || typeof t.closest !== "function") return;
         var root = t.closest("[data-sum-evlog-root]");
         if (!root || !root.closest("#panel-summarized")) return;
+        ctx.sumEvlogPointerSuppressedUntil = Date.now() + 480;
+      },
+      true
+    );
+    document.body.addEventListener(
+      "pointerdown",
+      function (ev) {
+        var t = ev.target;
+        if (!t || typeof t.closest !== "function") return;
+        var summary = t.closest("summary");
+        if (!summary) return;
+        var card = summary.closest("details.sum-card");
+        if (!card || summary.parentElement !== card || !card.closest("#panel-summarized")) return;
         ctx.sumEvlogPointerSuppressedUntil = Date.now() + 480;
       },
       true
@@ -762,6 +801,14 @@ globalThis.ChimeraLogs.App.mountWireHandlers = function (ctx) {
       else if (t.id === "admin-router-threshold") {
         ctx.routerThresholdTouched = true;
         ctx.routerThresholdDraft = t.value != null ? String(t.value) : "";
+      } else if (t.id === "admin-groq-key") {
+        if (!ctx.adminProviderKeyDraft) ctx.adminProviderKeyDraft = { groq: null, gemini: null };
+        ctx.adminProviderKeyDraft.groq = t.value != null ? String(t.value) : "";
+      } else if (t.id === "admin-gemini-key") {
+        if (!ctx.adminProviderKeyDraft) ctx.adminProviderKeyDraft = { groq: null, gemini: null };
+        ctx.adminProviderKeyDraft.gemini = t.value != null ? String(t.value) : "";
+      } else if (t.id === "admin-ollama-url") {
+        ctx.adminOllamaUrlDraft = t.value != null ? String(t.value) : "";
       }
     });
     document.body.addEventListener("input", function (ev) {
@@ -1012,6 +1059,10 @@ globalThis.ChimeraLogs.App.mountWireHandlers = function (ctx) {
           .then(function () {
             var inp = document.getElementById(inputId);
             if (inp) inp.value = "";
+            if (ctx.adminProviderKeyDraft) {
+              if (prov === "groq") ctx.adminProviderKeyDraft.groq = null;
+              if (prov === "gemini") ctx.adminProviderKeyDraft.gemini = null;
+            }
             adminSetMessage("", "Provider key added.");
             reloadAdmin();
           })
@@ -1040,7 +1091,11 @@ globalThis.ChimeraLogs.App.mountWireHandlers = function (ctx) {
         }
         setAdminSaveBtnPending(t, true);
         adminPostJSON("/api/ui/provider/ollama/base_url", { base_url: baseURL })
-          .then(function () { adminSetMessage("", "Ollama URL saved."); reloadAdmin(); })
+          .then(function () {
+            ctx.adminOllamaUrlDraft = null;
+            adminSetMessage("", "Ollama URL saved.");
+            reloadAdmin();
+          })
           .catch(function (e) {
             setAdminSaveBtnPending(t, false);
             adminSetMessage("err", e && e.message ? e.message : String(e));

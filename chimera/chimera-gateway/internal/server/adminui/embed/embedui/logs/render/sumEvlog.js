@@ -239,6 +239,19 @@ globalThis.ChimeraLogs.Render.mountSumEvlog = function (ctx) {
     );
   }
 
+  function scopedEvlogTitle(subject) {
+    var s = subject != null ? String(subject).trim() : "";
+    return s ? "Scoped log — " + s : "Scoped log";
+  }
+
+  function sumEvlogDataEmptyRowHtml() {
+    return (
+      '<tr class="sum-evlog__row sum-evlog__search-empty-row" data-sum-evlog-data-empty role="status">' +
+      '<td class="sum-evlog__search-empty-cell" colspan="3">No events to display</td>' +
+      "</tr>"
+    );
+  }
+
   function sumEvlogToolbarStaticHtml() {
     return (
       '<div class="sum-evlog__toolbar">' +
@@ -262,7 +275,10 @@ globalThis.ChimeraLogs.Render.mountSumEvlog = function (ctx) {
     var warnN = o.warnN != null ? o.warnN : 0;
     var failN = o.failN != null ? o.failN : 0;
     var tbodyInner = o.tbodyInnerHtml || "";
-    var title = o.title != null ? o.title : "Full event log";
+    if (!String(tbodyInner).trim()) {
+      tbodyInner = sumEvlogDataEmptyRowHtml();
+    }
+    var title = o.title != null ? o.title : "Scoped log";
     var titleRightHtml = o.titleRightHtml || "";
     var titleBlock = titleRightHtml
       ? '<div class="sum-conv-full-log-head sum-evlog__title-row">' +
@@ -442,6 +458,8 @@ globalThis.ChimeraLogs.Render.mountSumEvlog = function (ctx) {
       }
     }, 120);
   }
+  ctx.scopedEvlogTitle = scopedEvlogTitle;
+  ctx.sumEvlogDataEmptyRowHtml = sumEvlogDataEmptyRowHtml;
   ctx.sumEvlogRowTrHtml = sumEvlogRowTrHtml;
   ctx.sumEvlogPanelHtml = sumEvlogPanelHtml;
   ctx.sumEvlogBuildTbodyFromConvEvents = sumEvlogBuildTbodyFromConvEvents;

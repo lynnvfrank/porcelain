@@ -114,7 +114,7 @@ globalThis.ChimeraLogs.Render.Cards.mountGatewayUsage = function (ctx) {
     return (
       '<details class="sum-card" id="gw-usage-metrics">' +
       "<summary>" +
-      '<span class="sum-avatar sum-av-svc-gateway">GW</span>' +
+      '<span class="sum-avatar sum-av-svc-chimera-gateway">GW</span>' +
       '<span class="sum-main"><span class="sum-title">Model usage metrics</span>' +
       sub +
       "</span>" +

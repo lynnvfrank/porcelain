@@ -49,6 +49,22 @@ Summarized-only in current builds (`viewMode === "summarized"`). Panel: `#panel-
 | DOM clicks / admin forms | `app/wireHandlers.js` |
 | Card metrics (pure) | `derive/*` |
 
+### Summarized panel rebuild and interaction
+
+`refreshSummarizedPanel()` replaces `#panel-summarized` via `innerHTML`, then restores open `<details>` ids, panel scroll, and some nested scroll positions. It does **not** restore focus or in-progress form values unless guarded.
+
+**Deferred rebuild** (`summarizedPanelInteractionBlocksRebuild` in `summarizedFeed.js`): while true, `refreshSummarizedPanel` schedules `scheduleDeferredSummarizedRefresh` (300ms retry) instead of rebuilding. Rebuild is deferred when:
+
+- `Date.now() < ctx.sumEvlogPointerSuppressedUntil` (480ms after pointerdown on an evlog row or a `details.sum-card > summary` inside `#panel-summarized`)
+- Focus is inside `#panel-summarized` on an `input`, `textarea`, or `select`
+- Focus is on evlog search/filter controls or admin routing/fallback/router YAML fields (legacy ids)
+
+**Drafts** (`ctx` in `logs_app.js`, wired in `wireHandlers.js`, rendered in card modules): survive rebuild when deferral is not enough (e.g. poll returns new metrics while the field still has focus). Provider admin uses `adminProviderKeyDraft` (groq/gemini) and `adminOllamaUrlDraft`; routing uses `routingPolicyDraft`; new users use `adminUserDrafts`.
+
+**Poll-path card patches** (`patchAdminCardsFromPoll` in `summarizedFeed.js`): the 12s admin poll (`syncAdminStatePolling`) replaces individual cards via `replaceCardById` instead of assigning `#panel-summarized` `innerHTML`. Patched ids: `admin-users`, `admin-provider-{groq,gemini,ollama}`, `admin-routing-rules`, `admin-fallback-chain`, `admin-router-model` (routing trio skipped while their Configure/YAML edit mode is active). Missing cards schedule `scheduleStoryRebuild()` (debounced full rebuild). Gateway metrics/overview use the same helper from their own polls.
+
+See [`docs/plans/logs-ui-page-data-refreshing.md`](../../../../../../../../docs/plans/logs-ui-page-data-refreshing.md) for the phased plan (dirty-card flush, view model).
+
 ## If you change X, also check Y
 
 - `timeline_kind` slugs in Go → edit `internal/naming/gateway_logs.go` / `logs_ui.go`, run `make operator-contracts-generate`, then check `derive/gatewayCardModel.js` / conversation join

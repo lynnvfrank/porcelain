@@ -29,12 +29,20 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
   var sumEvlogBuildTbodyFromServiceEntries = ctx.sumEvlogBuildTbodyFromServiceEntries;
   var sumEvlogVisibleEntriesForService = ctx.sumEvlogVisibleEntriesForService;
   var sumEvlogCountWarnFailFromEntries = ctx.sumEvlogCountWarnFailFromEntries;
+  var scopedEvlogTitle = ctx.scopedEvlogTitle;
   var metricsPollTimer = null;
   var METRICS_POLL_MS = 12000;
   var gatewayOverviewPollTimer = null;
   var GATEWAY_OVERVIEW_POLL_MS = 12000;
   var adminStatePollTimer = null;
   var ADMIN_STATE_POLL_MS = 12000;
+  /** Provider cards patched on admin poll (must match adminWorkflows feed section). */
+  var ADMIN_PROVIDER_PATCH_SPECS = [
+    { id: "groq", title: "Groq", avatar: "Gq", subtitle: "LPU inference provider with key management." },
+    { id: "gemini", title: "Gemini", avatar: "Gm", subtitle: "Google Gemini provider with key management." },
+    { id: "ollama", title: "Ollama", avatar: "Ol", subtitle: "Local/remote Ollama endpoint for chat and embeddings." }
+  ];
+  var ADMIN_CARD_TABLE_SCROLL_SEL = ".sum-metrics-table-wrap, .sg-op-routing-table-scroll, .sg-op-fallback-table-scroll, .sg-op-router-table-scroll";
   var chimeraBrokerProviderPollTimer = null;
   var CHIMERA_BROKER_PROVIDER_POLL_MS = 30000;
   var CHIMERA_BROKER_PROVIDER_STALE_MS = 90000;
@@ -85,11 +93,13 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
     }
   }
 
-  function summarizedEvlogInteractionBlocksRebuild() {
+  function summarizedPanelInteractionBlocksRebuild() {
     if (Date.now() < ctx.sumEvlogPointerSuppressedUntil) return true;
     var a = document.activeElement;
     if (!a || !a.closest) return false;
     if (!a.closest("#panel-summarized")) return false;
+    var tag = String(a.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return true;
     if (a.classList && a.classList.contains("sum-evlog__search")) return true;
     if (a.matches && a.matches("[data-evlog-filter-status]")) return true;
     if (
@@ -105,7 +115,7 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
     if (ctx.sumEvlogUiDeferTimer) clearTimeout(ctx.sumEvlogUiDeferTimer);
     ctx.sumEvlogUiDeferTimer = setTimeout(function deferredSumEvlogRefresh() {
       ctx.sumEvlogUiDeferTimer = null;
-      if (summarizedEvlogInteractionBlocksRebuild()) {
+      if (summarizedPanelInteractionBlocksRebuild()) {
         ctx.sumEvlogUiDeferTimer = setTimeout(deferredSumEvlogRefresh, 300);
         return;
       }
@@ -116,7 +126,7 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
   function refreshSummarizedPanel() {
     var psu = document.getElementById("panel-summarized");
     if (getViewMode() !== "summarized" || !psu) return;
-    if (summarizedEvlogInteractionBlocksRebuild()) {
+    if (summarizedPanelInteractionBlocksRebuild()) {
       scheduleDeferredSummarizedRefresh();
       return;
     }
@@ -173,7 +183,8 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
 
     psu.innerHTML = renderSummarizedUnified();
 
-    hydrateIndexerServiceSummaryFromApi();
+    syncIndexerServiceSummaryDom();
+    scheduleIndexerServiceSummaryFetch(false);
 
     if (typeof globalThis.sumEvlogHydrateAllIn === "function") {
       try {
@@ -279,55 +290,59 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
     refreshSummarizedPanel();
   };
 
+  /**
+   * Replace a single summarized card by id without assigning #panel-summarized innerHTML.
+   * @returns {boolean} true when the card was found and replaced
+   */
+  function replaceCardById(cardId, buildHtml, opts) {
+    opts = opts || {};
+    if (getViewMode() !== "summarized") return false;
+    if (!document.getElementById("panel-summarized")) return false;
+    var oldEl = document.getElementById(cardId);
+    if (!oldEl) return false;
+    var preserveOpen = opts.preserveOpen !== false;
+    var keepOpen = preserveOpen && "open" in oldEl && !!oldEl.open;
+    var scrollSel = opts.preserveScrollSelectors;
+    var scrollSnaps = [];
+    if (scrollSel) {
+      var oldNodes = oldEl.querySelectorAll(scrollSel);
+      for (var si = 0; si < oldNodes.length; si++) {
+        scrollSnaps.push({ left: oldNodes[si].scrollLeft, top: oldNodes[si].scrollTop });
+      }
+    }
+    var wrap = document.createElement("div");
+    wrap.innerHTML = (typeof buildHtml === "function" ? buildHtml() : String(buildHtml || "")).trim();
+    var newEl = wrap.firstElementChild;
+    if (!newEl || newEl.id !== cardId) return false;
+    oldEl.parentNode.replaceChild(newEl, oldEl);
+    if (preserveOpen && "open" in newEl) newEl.open = keepOpen;
+    if (scrollSel && scrollSnaps.length) {
+      var newNodes = newEl.querySelectorAll(scrollSel);
+      for (var sj = 0; sj < newNodes.length && sj < scrollSnaps.length; sj++) {
+        newNodes[sj].scrollLeft = scrollSnaps[sj].left;
+        newNodes[sj].scrollTop = scrollSnaps[sj].top;
+      }
+    }
+    return true;
+  }
+
   /** Replace only the gateway metrics card so periodic /api/ui/metrics polls do not rebuild the whole feed. */
   function patchGatewayUsageMetricsCard() {
-    if (getViewMode() !== "summarized") return;
-    var psu = document.getElementById("panel-summarized");
-    if (!psu) return;
-    var oldEl = document.getElementById("gw-usage-metrics");
-    if (!oldEl) {
+    if (
+      !replaceCardById("gw-usage-metrics", buildGatewayUsageCardHtml, {
+        preserveOpen: true,
+        preserveScrollSelectors: ".sum-metrics-table-wrap"
+      })
+    ) {
       refreshSummarizedPanel();
-      return;
-    }
-    var keepMainOpen = !!oldEl.open;
-    var wrapsOld = oldEl.querySelectorAll(".sum-metrics-table-wrap");
-    var tableScroll = [];
-    for (var wi = 0; wi < wrapsOld.length; wi++) {
-      tableScroll.push({ left: wrapsOld[wi].scrollLeft, top: wrapsOld[wi].scrollTop });
-    }
-
-    var wrap = document.createElement("div");
-    wrap.innerHTML = buildGatewayUsageCardHtml().trim();
-    var newEl = wrap.firstElementChild;
-    if (!newEl || newEl.id !== "gw-usage-metrics") return;
-
-    oldEl.parentNode.replaceChild(newEl, oldEl);
-
-    newEl.open = keepMainOpen;
-    var wrapsNew = newEl.querySelectorAll(".sum-metrics-table-wrap");
-    for (var wj = 0; wj < wrapsNew.length && wj < tableScroll.length; wj++) {
-      wrapsNew[wj].scrollLeft = tableScroll[wj].left;
-      wrapsNew[wj].scrollTop = tableScroll[wj].top;
     }
   }
 
   /** Replace only the gateway overview card so /api/ui/state polls avoid full feed rebuilds. */
   function patchGatewayOverviewCard() {
-    if (getViewMode() !== "summarized") return;
-    var psu = document.getElementById("panel-summarized");
-    if (!psu) return;
-    var oldEl = document.getElementById("gw-overview");
-    if (!oldEl) {
+    if (!replaceCardById("gw-overview", buildGatewayOverviewCardHtml, { preserveOpen: true })) {
       refreshSummarizedPanel();
-      return;
     }
-    var keepOpen = !!oldEl.open;
-    var wrap = document.createElement("div");
-    wrap.innerHTML = buildGatewayOverviewCardHtml().trim();
-    var newEl = wrap.firstElementChild;
-    if (!newEl || newEl.id !== "gw-overview") return;
-    oldEl.parentNode.replaceChild(newEl, oldEl);
-    newEl.open = keepOpen;
   }
 
   function scheduleStoryRebuild() {
@@ -624,7 +639,7 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
             deriveNestedWorkspacesFromFlatRoots(j.roots)
           );
         }
-        hydrateIndexerServiceSummaryFromApi();
+        hydrateIndexerServiceSummaryFromApi(true);
         scheduleStoryRebuild();
       })
       .catch(function (err) {
@@ -742,6 +757,70 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
       });
   }
 
+  function patchAdminUsersCard() {
+    return replaceCardById("admin-users", buildAdminUsersCardHtml, { preserveOpen: false });
+  }
+
+  function patchAdminProviderCard(providerId) {
+    var spec = null;
+    for (var pi = 0; pi < ADMIN_PROVIDER_PATCH_SPECS.length; pi++) {
+      if (ADMIN_PROVIDER_PATCH_SPECS[pi].id === providerId) {
+        spec = ADMIN_PROVIDER_PATCH_SPECS[pi];
+        break;
+      }
+    }
+    if (!spec) return false;
+    return replaceCardById(
+      "admin-provider-" + providerId,
+      function () {
+        return buildAdminProviderCardHtml(spec.id, spec.title, spec.avatar, spec.subtitle);
+      },
+      { preserveOpen: true, preserveScrollSelectors: ADMIN_CARD_TABLE_SCROLL_SEL }
+    );
+  }
+
+  function patchAdminRoutingCard() {
+    return replaceCardById("admin-routing-rules", buildAdminRoutingRulesCardHtml, {
+      preserveOpen: true,
+      preserveScrollSelectors: ADMIN_CARD_TABLE_SCROLL_SEL
+    });
+  }
+
+  function patchAdminFallbackCard() {
+    return replaceCardById("admin-fallback-chain", buildAdminFallbackCardHtml, {
+      preserveOpen: true,
+      preserveScrollSelectors: ADMIN_CARD_TABLE_SCROLL_SEL
+    });
+  }
+
+  function patchAdminRouterModelsCard() {
+    return replaceCardById("admin-router-model", buildAdminRouterModelCardHtml, {
+      preserveOpen: true,
+      preserveScrollSelectors: ADMIN_CARD_TABLE_SCROLL_SEL
+    });
+  }
+
+  /** Targeted admin card updates after /api/ui/state + /api/ui/tokens poll (no full panel innerHTML). */
+  function patchAdminCardsFromPoll() {
+    if (getViewMode() !== "summarized") return;
+    if (summarizedPanelInteractionBlocksRebuild()) return;
+    var needRebuild = false;
+    if (!patchAdminUsersCard()) needRebuild = true;
+    for (var ai = 0; ai < ADMIN_PROVIDER_PATCH_SPECS.length; ai++) {
+      if (!patchAdminProviderCard(ADMIN_PROVIDER_PATCH_SPECS[ai].id)) needRebuild = true;
+    }
+    if (!ctx.adminRoutingEditing) {
+      if (!patchAdminRoutingCard()) needRebuild = true;
+    }
+    if (!ctx.adminFallbackEditing) {
+      if (!patchAdminFallbackCard()) needRebuild = true;
+    }
+    if (!ctx.adminRouterEditing) {
+      if (!patchAdminRouterModelsCard()) needRebuild = true;
+    }
+    if (needRebuild) scheduleStoryRebuild();
+  }
+
   function syncAdminStatePolling() {
     if (adminStatePollTimer) {
       try { clearInterval(adminStatePollTimer); } catch (_e) {}
@@ -750,14 +829,16 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
     if (ctx.uiUnauthorized || getViewMode() !== "summarized") return;
     Promise.all([fetchAdminState(), fetchAdminTokens()])
       .then(function () {
-        if (!ctx.uiUnauthorized && getViewMode() === "summarized") refreshSummarizedPanel();
+        if (!ctx.uiUnauthorized && getViewMode() === "summarized") patchAdminCardsFromPoll();
       })
       .catch(function (e) {
         if (!ctx.uiUnauthorized) adminSetMessage("err", e && e.message ? e.message : String(e));
       });
     adminStatePollTimer = setInterval(function () {
       Promise.all([fetchAdminState(), fetchAdminTokens()])
-        .then(function () { if (getViewMode() === "summarized") refreshSummarizedPanel(); })
+        .then(function () {
+          if (getViewMode() === "summarized") patchAdminCardsFromPoll();
+        })
         .catch(function () {});
     }, ADMIN_STATE_POLL_MS);
   }
@@ -803,6 +884,17 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
         if (getViewMode() === "summarized") scheduleStoryRebuild();
       })
       .catch(function () { });
+  }
+
+  /** Plain-text subject for scoped log panel titles (no HTML). */
+  function conversationScopedLogSubject(tenantId, convId) {
+    var tid = String(tenantId || "").trim();
+    if (!tid) tid = "(unknown principal)";
+    var lab = ctx.tokenLabelByTenant[tid];
+    var head = lab && lab !== tid ? lab + " (" + tid + ")" : tid;
+    var c = String(convId || "");
+    if (c.length > 48) c = c.slice(0, 48) + "\u2026";
+    return head + " - " + c;
   }
 
   /** Conversation card title: "label (tenant_id) - uuid" using token label when known. */
@@ -2713,7 +2805,10 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
         warnN: mc.warn,
         failN: mc.fail,
         tbodyInnerHtml: tbodyInner,
-        title: "Full event log",
+        title:
+          typeof scopedEvlogTitle === "function"
+            ? scopedEvlogTitle(conversationScopedLogSubject(g.pid, g.cid))
+            : "Scoped log",
         titleRightHtml: servicesStrip || ""
       }) +
       "</div>";
@@ -2791,17 +2886,18 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
     );
   }
 
-  /** Display label for a supervised YAML root (no directory path). */
+  /** Operator-store workspace label for summary links (USER:PROJECT[:FLAVOR], no row id). */
   function formatIndexerSupervisedRootLabel(row) {
     if (!row || typeof row !== "object") return "—";
-    var proj = row.project_id != null ? String(row.project_id).trim() : "";
-    var ws = row.workspace_id != null ? String(row.workspace_id).trim() : "";
-    var flav = row.flavor_id != null ? String(row.flavor_id).trim() : "";
-    var bits = [];
-    if (proj) bits.push(proj);
-    if (flav) bits.push(flav);
-    if (ws) bits.push(ws);
-    return bits.join(" · ") || "—";
+    var fv =
+      row.flavor_id != null && String(row.flavor_id).trim() !== ""
+        ? String(row.flavor_id).trim()
+        : "—";
+    return indexerCardTitleSortLabel({
+      userLabel: resolveLogsOperatorUserLabel(),
+      projectId: row.project_id != null ? String(row.project_id).trim() : "—",
+      flavorId: fv
+    });
   }
 
   function indexerCardDomIdFromMeta(meta, bucketId) {
@@ -2989,17 +3085,9 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
     return "—";
   }
 
-  /** Same title line as IX / stale / managed WS cards (em dash segments). */
+  /** Same title line as IX / stale / managed WS cards (USER:PROJECT[:FLAVOR]). */
   function workspaceCardTitleFromIndexerMeta(meta) {
-    var userLine =
-      meta.userLabel && meta.userLabel !== "—" ? String(meta.userLabel).trim() : "—";
-    var prLine =
-      meta.projectId && meta.projectId !== "—" ? String(meta.projectId).trim() : "—";
-    var flavLine =
-      meta.flavorId && meta.flavorId !== "—" ? String(meta.flavorId).trim() : "";
-    return flavLine !== ""
-      ? userLine + " — " + prLine + " — " + flavLine
-      : userLine + " — " + prLine;
+    return indexerCardTitleSortLabel(meta);
   }
 
   /** Same headline as buildIndexerOperatorWorkspaceCard — collapse duplicate DB rows. */
@@ -3158,15 +3246,72 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
     return parts.length ? parts.join(", ") : '<span class="muted">—</span>';
   }
 
+  function indexerOperatorWorkspacesFingerprint(nested) {
+    if (!nested || !nested.length) return "";
+    var ids = [];
+    var i;
+    for (i = 0; i < nested.length; i++) {
+      var w = nested[i];
+      if (!w || w.id == null) continue;
+      var k = canonicalWorkspaceRowIdKey(w.id);
+      if (k) ids.push(k);
+    }
+    ids.sort();
+    return ids.join(",");
+  }
+
+  function findIndexerBucketForOperatorWorkspace(ws, byRun, partitionRegistry) {
+    if (!ws || ws.id == null || !byRun || typeof byRun !== "object") return "";
+    var wkey = canonicalWorkspaceRowIdKey(ws.id);
+    var paths = operatorWorkspacePaths(ws);
+    var rowR = {
+      project_id: ws.project_id,
+      flavor_id: ws.flavor_id,
+      workspace_id: wkey,
+      workspace_row_id: wkey
+    };
+    if (paths.length) rowR.path = paths[0];
+    return findIndexerBucketIdForSupervisedRoot(rowR, byRun, partitionRegistry);
+  }
+
+  function hrefForOperatorWorkspaceSummary(ws, bucketId, byRun, partitionRegistry) {
+    if (bucketId) return indexerWorkspaceCardHrefFromBucket(bucketId, byRun, partitionRegistry);
+    var wkey = canonicalWorkspaceRowIdKey(ws.id);
+    return wkey ? indexerOperatorWorkspaceCardHrefByRowId(wkey) : "";
+  }
+
+  /** One summary link per operator-store workspace (not per watched path). */
+  function buildIndexerManagedWorkspaceSummaryRowsFromOperatorStore(workspaces, byRun, partitionRegistry) {
+    var rows = [];
+    if (!workspaces || !workspaces.length) return rows;
+    var seen = {};
+    var wi;
+    for (wi = 0; wi < workspaces.length; wi++) {
+      var ws = workspaces[wi];
+      if (!ws || ws.id == null) continue;
+      var wkey = canonicalWorkspaceRowIdKey(ws.id);
+      if (!wkey || seen[wkey]) continue;
+      seen[wkey] = true;
+      var lab = operatorManagedWorkspaceTitleText(ws);
+      if (!lab || lab === "—") continue;
+      var bidR = findIndexerBucketForOperatorWorkspace(ws, byRun, partitionRegistry);
+      rows.push({
+        label: lab,
+        bucketId: bidR,
+        href: hrefForOperatorWorkspaceSummary(ws, bidR, byRun, partitionRegistry)
+      });
+    }
+    sortIndexerManagedWorkspaceRows(rows);
+    return rows;
+  }
+
   /**
    * Distinct scopes from partitioned indexer runs with links to matching Workspaces cards (fallback before API).
    */
-  function aggregateIndexerManagedWorkspacesHtml(byRun, partitionRegistry) {
+  function buildIndexerManagedWorkspaceSummaryRowsFromLogs(byRun, partitionRegistry) {
     var seen = {};
     var rows = [];
-    if (!byRun || typeof byRun !== "object") {
-      return '<span class="muted">—</span>';
-    }
+    if (!byRun || typeof byRun !== "object") return rows;
     var keys = Object.keys(byRun);
     for (var i = 0; i < keys.length; i++) {
       var run = byRun[keys[i]];
@@ -3202,74 +3347,104 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
       });
     }
     sortIndexerManagedWorkspaceRows(rows);
+    return rows;
+  }
+
+  function aggregateIndexerManagedWorkspacesHtml(byRun, partitionRegistry) {
+    var rows = buildIndexerManagedWorkspaceSummaryRowsFromLogs(byRun, partitionRegistry);
+    if (!rows.length) return '<span class="muted">—</span>';
     return indexerManagedWorkspacesCommaLinksHtml(rows);
   }
 
-  /**
-   * Supersedes workspace list with supervised YAML roots when available; sets config path from gateway.
-   */
-  function hydrateIndexerServiceSummaryFromApi() {
+  function indexerServiceSummaryConfigPathHtml() {
+    var pth =
+      ctx.lastIndexerOperatorConfigPath != null ? String(ctx.lastIndexerOperatorConfigPath).trim() : "";
+    if (pth) return "<code>" + escapeHtml(pth) + "</code>";
+    if (ctx.indexerOperatorConfigUnavailable) {
+      return '<span class="muted">Not available (supervised indexer config path not set)</span>';
+    }
+    return '<span class="muted">—</span>';
+  }
+
+  function indexerServiceSummaryWorkspacesHtml(svcCtx) {
+    svcCtx = svcCtx || {};
+    var byRun = svcCtx.byRun;
+    var partitionRegistry = svcCtx.partitionRegistry;
+    var nested = ctx.lastIndexerOperatorWorkspacesNested;
+    if (nested && nested.length) {
+      var rows = buildIndexerManagedWorkspaceSummaryRowsFromOperatorStore(
+        dedupeOperatorWorkspacesNested(nested.slice()),
+        byRun,
+        partitionRegistry
+      );
+      if (rows.length) return indexerManagedWorkspacesCommaLinksHtml(rows);
+    }
+    return aggregateIndexerManagedWorkspacesHtml(byRun, partitionRegistry);
+  }
+
+  function syncIndexerServiceSummaryDom() {
     var wsEl = document.getElementById("svc-indexer-summary-workspaces");
     var cfgEl = document.getElementById("svc-indexer-summary-config-path");
-    if (!cfgEl && !wsEl) return;
-    fetch("/api/ui/indexer/config", { credentials: "same-origin" })
+    if (wsEl) {
+      wsEl.innerHTML = indexerServiceSummaryWorkspacesHtml({
+        byRun: ctx.lastIndexerSummarizeByRun,
+        partitionRegistry: ctx.lastIndexerSummarizePartitionRegistry
+      });
+    }
+    if (cfgEl) cfgEl.innerHTML = indexerServiceSummaryConfigPathHtml();
+  }
+
+  var indexerServiceSummaryFetchTimer = null;
+  function scheduleIndexerServiceSummaryFetch(force) {
+    if (ctx.indexerServiceSummaryFetchInFlight) {
+      ctx.indexerServiceSummaryFetchWanted = true;
+      return;
+    }
+    if (!force && ctx.indexerOperatorConfigHydratedOnce) return;
+    if (indexerServiceSummaryFetchTimer) return;
+    indexerServiceSummaryFetchTimer = window.setTimeout(function () {
+      indexerServiceSummaryFetchTimer = null;
+      hydrateIndexerServiceSummaryFromApi(!!force);
+    }, force ? 0 : 200);
+  }
+
+  /**
+   * Fetches operator indexer config; updates ctx and patches summary DOM only (no full panel rebuild).
+   */
+  function hydrateIndexerServiceSummaryFromApi(force) {
+    if (ctx.indexerServiceSummaryFetchInFlight) {
+      ctx.indexerServiceSummaryFetchWanted = true;
+      return Promise.resolve();
+    }
+    ctx.indexerServiceSummaryFetchInFlight = true;
+    return fetch("/api/ui/indexer/config", { credentials: "same-origin" })
       .then(function (res) {
-        if (!res.ok) throw new Error("bad status");
-        return res.json();
+        return res.json().then(function (d) {
+          if (!res.ok) throw new Error((d && d.error) || res.statusText || "config fetch failed");
+          return d;
+        });
       })
       .then(function (d) {
-        var prevRootsJ = ctx.lastIndexerOperatorRootsJson;
+        ctx.indexerOperatorConfigUnavailable = false;
+        var prevFp = ctx.lastIndexerOperatorWorkspacesFingerprint || "";
         syncIndexerOperatorPayloadFromConfigJson(d);
-        var nextRootsJ = ctx.lastIndexerOperatorRootsJson;
-        var nextRoots = ctx.lastIndexerOperatorRoots;
-        var prevHadRoots = prevRootsJ !== "" && prevRootsJ !== "[]";
-        if (
-          nextRootsJ !== prevRootsJ &&
-          getViewMode() === "summarized" &&
-          (nextRoots.length > 0 || prevHadRoots) &&
-          !indexerOperatorRootsRefreshQueued
-        ) {
-          indexerOperatorRootsRefreshQueued = true;
-          window.requestAnimationFrame(function () {
-            indexerOperatorRootsRefreshQueued = false;
-            refreshSummarizedPanel();
-          });
-        }
-        if (cfgEl) {
-          var pth = d.path != null ? String(d.path).trim() : "";
-          cfgEl.innerHTML = pth
-            ? "<code>" + escapeHtml(pth) + "</code>"
-            : '<span class="muted">—</span>';
-        }
-        if (wsEl && Array.isArray(d.roots) && d.roots.length > 0) {
-          var br = ctx.lastIndexerSummarizeByRun;
-          var preg = ctx.lastIndexerSummarizePartitionRegistry;
-          var rows = [];
-          for (var ri = 0; ri < d.roots.length; ri++) {
-            var rowR = d.roots[ri] || {};
-            var bidR = findIndexerBucketIdForSupervisedRoot(rowR, br, preg);
-            /** Operator-store shape: project · flavor · workspace row id (id last). Do not swap to log-card title (user · project · flavor) — that prepends user and drops the row id. */
-            var labR = formatIndexerSupervisedRootLabel(rowR);
-            var hrefR = bidR ? indexerWorkspaceCardHrefFromBucket(bidR, br, preg) : "";
-            if (!bidR) {
-              var rowWs =
-                rowR.workspace_row_id != null && String(rowR.workspace_row_id).trim() !== ""
-                  ? String(rowR.workspace_row_id).trim()
-                  : rowR.workspace_id != null && String(rowR.workspace_id).trim() !== ""
-                    ? String(rowR.workspace_id).trim()
-                    : "";
-              if (rowWs) hrefR = indexerOperatorWorkspaceCardHrefByRowId(rowWs);
-            }
-            rows.push({ label: labR, bucketId: bidR, href: hrefR });
-          }
-          sortIndexerManagedWorkspaceRows(rows);
-          wsEl.innerHTML = indexerManagedWorkspacesCommaLinksHtml(rows);
-        }
+        var nextFp = indexerOperatorWorkspacesFingerprint(ctx.lastIndexerOperatorWorkspacesNested);
+        ctx.lastIndexerOperatorWorkspacesFingerprint = nextFp;
+        ctx.lastIndexerOperatorConfigPath = d.path != null ? String(d.path).trim() : "";
+        ctx.indexerOperatorConfigHydratedOnce = true;
+        syncIndexerServiceSummaryDom();
+        if (nextFp !== prevFp && getViewMode() === "summarized") scheduleStoryRebuild();
       })
       .catch(function () {
-        if (cfgEl) {
-          cfgEl.innerHTML =
-            '<span class="muted">Not available (supervised indexer config path not set)</span>';
+        ctx.indexerOperatorConfigUnavailable = true;
+        ctx.lastIndexerOperatorConfigPath = "";
+        syncIndexerServiceSummaryDom();
+      })
+      .finally(function () {
+        ctx.indexerServiceSummaryFetchInFlight = false;
+        if (ctx.indexerServiceSummaryFetchWanted) {
+          ctx.indexerServiceSummaryFetchWanted = false;
+          return hydrateIndexerServiceSummaryFromApi(true);
         }
       });
   }
@@ -3319,8 +3494,10 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
         buildIndexerCardIntroHtml() +
         '<dl class="indexer-run-kv indexer-run-kv--service-aggregate">' +
         "<dt>Managed workspaces</dt><dd id=\"svc-indexer-summary-workspaces\">" +
-        aggregateIndexerManagedWorkspacesHtml(svcCtx.byRun, svcCtx.partitionRegistry) +
-        '</dd><dt>Indexer config file</dt><dd id="svc-indexer-summary-config-path"><span class="muted">Loading…</span></dd>' +
+        indexerServiceSummaryWorkspacesHtml(svcCtx) +
+        '</dd><dt>Indexer config file</dt><dd id="svc-indexer-summary-config-path">' +
+        indexerServiceSummaryConfigPathHtml() +
+        "</dd>" +
         "</dl>";
     }
     var mini;
@@ -3412,7 +3589,7 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
         warnN: mc.warn,
         failN: mc.fail,
         tbodyInnerHtml: tbodyInner,
-        title: "Full event log"
+        title: typeof scopedEvlogTitle === "function" ? scopedEvlogTitle(name) : "Scoped log"
       }) +
       "</div>";
     return (
@@ -3697,8 +3874,7 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
     var tbodyInner;
     var mc;
     if (!evsFull.length) {
-      tbodyInner =
-        '<tr class="sum-evlog__row"><td colspan="3" class="muted">No scope-specific lines in the loaded window (shared lines appear under Services → Indexer).</td></tr>';
+      tbodyInner = "";
       mc = { warn: 0, fail: 0 };
     } else {
       tbodyInner = sumEvlogBuildTbodyFromServiceEntries("indexer", evsFull, {
@@ -3708,6 +3884,10 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
       });
       mc = sumEvlogCountWarnFailFromEntries(evsFull);
     }
+    var ixLogTitle =
+      typeof scopedEvlogTitle === "function"
+        ? scopedEvlogTitle(indexerCardTitleSortLabel(meta))
+        : "Scoped log";
     var full =
       '<div class="sum-full-log sum-full-log--evlog">' +
       sumEvlogPanelHtml({
@@ -3715,7 +3895,7 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
         warnN: mc.warn,
         failN: mc.fail,
         tbodyInnerHtml: tbodyInner,
-        title: "Full event log"
+        title: ixLogTitle
       }) +
       "</div>";
     return (
@@ -3982,8 +4162,11 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
       snap.projectId && snap.projectId !== "—" ? String(snap.projectId).trim() : "—";
     var flavLine =
       snap.flavorId && snap.flavorId !== "—" ? String(snap.flavorId).trim() : "";
-    var titleText =
-      flavLine !== "" ? userLine + " — " + prLine + " — " + flavLine : userLine + " — " + prLine;
+    var titleText = indexerCardTitleSortLabel({
+      userLabel: userLine,
+      projectId: prLine,
+      flavorId: flavLine !== "" ? flavLine : "—"
+    });
     var pathsBlock =
       snap.paths && snap.paths.length
         ? "<pre class=\"indexer-paths-pre\">" +
@@ -4303,13 +4486,8 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
   }
 
   function refreshOperatorIndexerWorkspaceStateFromConfig() {
-    return fetch("/api/ui/indexer/config", { credentials: "same-origin" }).then(function (res) {
-      return res.json().then(function (d) {
-        if (!res.ok) throw new Error((d && d.error) || res.statusText || "config fetch failed");
-        syncIndexerOperatorPayloadFromConfigJson(d);
-        hydrateIndexerServiceSummaryFromApi();
-        scheduleStoryRebuild();
-      });
+    return hydrateIndexerServiceSummaryFromApi(true).then(function () {
+      scheduleStoryRebuild();
     });
   }
 
@@ -4456,9 +4634,8 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
       pathsBlockHtml = buildManagedWorkspacePathsEditHtml(wsNum, ctx.workspaceManagedStaging.paths);
     }
     var toolbar = buildManagedWorkspaceToolbarHtml(wsNum, isEdit);
-    var wsRowKey = canonicalWorkspaceRowIdKey(ws.id);
     var expanded = renderExpandedIndexer(syntheticRun, entryCache, meta, partitionRegistry, {
-      kvOpts: { omitFileCountIfZero: true, workspaceRowId: wsRowKey },
+      kvOpts: { omitFileCountIfZero: true },
       recentOpts: { omitWhenEmpty: true },
       pathsBlockHtml: pathsBlockHtml,
       extraAfterSummaryHtml: toolbar
@@ -5585,6 +5762,11 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
   var buildGatewayUsageCardHtml = ctx.buildGatewayUsageCardHtml;
   var buildGatewayOverviewFeedSection = ctx.buildGatewayOverviewFeedSection;
   var buildAdminWorkflowsFeedSection = ctx.buildAdminWorkflowsFeedSection;
+  var buildAdminUsersCardHtml = ctx.buildAdminUsersCardHtml;
+  var buildAdminProviderCardHtml = ctx.buildAdminProviderCardHtml;
+  var buildAdminRoutingRulesCardHtml = ctx.buildAdminRoutingRulesCardHtml;
+  var buildAdminFallbackCardHtml = ctx.buildAdminFallbackCardHtml;
+  var buildAdminRouterModelCardHtml = ctx.buildAdminRouterModelCardHtml;
   var buildWorkspaceDraftCardHtml = ctx.buildWorkspaceDraftCardHtml;
   var fallbackChainToYAML = ctx.fallbackChainToYAML;
   var parseFallbackChainInput = ctx.parseFallbackChainInput;
@@ -5593,11 +5775,19 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
   var formatMergedConversationSubtitle = ctx.formatMergedConversationSubtitle;
   ctx.refreshSummarizedPanel = refreshSummarizedPanel;
   ctx.scheduleDeferredSummarizedRefresh = scheduleDeferredSummarizedRefresh;
-  ctx.summarizedEvlogInteractionBlocksRebuild = summarizedEvlogInteractionBlocksRebuild;
+  ctx.summarizedPanelInteractionBlocksRebuild = summarizedPanelInteractionBlocksRebuild;
+  ctx.summarizedEvlogInteractionBlocksRebuild = summarizedPanelInteractionBlocksRebuild;
   ctx.scheduleStoryRebuild = scheduleStoryRebuild;
   ctx.renderSummarizedUnified = renderSummarizedUnified;
+  ctx.replaceCardById = replaceCardById;
   ctx.patchGatewayUsageMetricsCard = patchGatewayUsageMetricsCard;
   ctx.patchGatewayOverviewCard = patchGatewayOverviewCard;
+  ctx.patchAdminUsersCard = patchAdminUsersCard;
+  ctx.patchAdminProviderCard = patchAdminProviderCard;
+  ctx.patchAdminRoutingCard = patchAdminRoutingCard;
+  ctx.patchAdminFallbackCard = patchAdminFallbackCard;
+  ctx.patchAdminRouterModelsCard = patchAdminRouterModelsCard;
+  ctx.patchAdminCardsFromPoll = patchAdminCardsFromPoll;
   ctx.fetchTokenLabels = fetchTokenLabels;
   ctx.fetchGatewayMetrics = fetchGatewayMetrics;
   ctx.fetchGatewayOverview = fetchGatewayOverview;
@@ -5623,5 +5813,10 @@ globalThis.ChimeraLogs.App.mountSummarizedFeed = function (ctx) {
   ctx.deleteManagedWorkspace = deleteManagedWorkspace;
   ctx.markUiUnauthorized = markUiUnauthorized;
   ctx.stopSummarizedPolling = stopSummarizedPolling;
+  ctx.workspaceCardTitleFromIndexerMeta = workspaceCardTitleFromIndexerMeta;
+  ctx.indexerCardTitleSortLabel = indexerCardTitleSortLabel;
+  ctx.buildIndexerManagedWorkspaceSummaryRowsFromOperatorStore =
+    buildIndexerManagedWorkspaceSummaryRowsFromOperatorStore;
+  ctx.indexerServiceSummaryWorkspacesHtml = indexerServiceSummaryWorkspacesHtml;
 };
 

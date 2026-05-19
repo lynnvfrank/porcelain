@@ -128,7 +128,7 @@ globalThis.ChimeraLogs.Render.Cards.mountGatewayOverview = function (ctx) {
     return (
       '<details class="sum-card" id="gw-overview">' +
       "<summary>" +
-      '<span class="sum-avatar sum-av-svc-gateway">GW</span>' +
+      '<span class="sum-avatar sum-av-svc-chimera-gateway">GW</span>' +
       '<span class="sum-main"><span class="sum-title">Overview</span>' +
       sub +
       "</span>" +
