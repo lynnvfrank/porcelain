@@ -18,7 +18,7 @@ Operators see cards, chips, tables, and forms across `/ui/logs`, setup, metrics,
 | [Phase 1 — Shared CSS primitives](#phase-1--shared-css-primitives) | `ui.css` + section imports; orphan pages can share buttons, tables, callouts | `done` |
 | [Phase 2 — UI component modules](#phase-2--ui-component-modules) | `embedui/ui/components/*` for Badge, Pill, Chip, Card, Button, tables, timeline | `done` |
 | [Phase 3 — Card render extraction](#phase-3--card-render-extraction) | `summarizedFeed.js` orchestrates only; card HTML lives under `render/cards/` | `todo` |
-| [Phase 4 — Handler and app shell split](#phase-4--handler-and-app-shell-split) | `wireHandlers.js` and `logs_app.js` shrink to mount + transport | `todo` |
+| [Phase 4 — Handler and app shell split](#phase-4--handler-and-app-shell-split) | `wireHandlers.js` and `logs_app.js` shrink to mount + transport | `done` |
 | [Phase 5 — Unify standalone operator pages](#phase-5--unify-standalone-operator-pages) | `setup.html`, `metrics.html`, `panel.html` use shared tokens + `ui.css` | `todo` |
 | [Phase 6 — Optional bundle step](#phase-6--optional-bundle-step) | CI/Makefile can emit one embed bundle; dev still loads modules individually | `todo` |
 
@@ -128,10 +128,11 @@ Details: [`docs/component-gallery/README.md`](../component-gallery/README.md#cha
 **Deliverables**
 
 - Split `logs/app/wireHandlers.js`:
-  - `handlers/evlog.js` — row selection, copy, filters
-  - `handlers/admin.js` — routing save, provider keys, tokens
-  - `handlers/chrome.js` — transport status, navigation
-- `logs_app.js` retains: ctx construction, module mount order, view mode, SSE mount—target **under ~600 lines**.
+  - `logs/handlers/evlog.js` — row selection, copy, filters
+  - `logs/handlers/admin.js` — routing save, provider keys, tokens, workspace drafts
+  - `logs/handlers/chrome.js` — external links, project path reveal
+- `app/wireHandlers.js` — thin `mountWireHandlers(ctx)` delegating to `ChimeraLogs.Handlers.*`
+- `logs_app.js` retains: ctx construction, module mount order, view mode, SSE mount (further shell slimming deferred)
 - `logs.html` script order documented in [`embedui/logs/README.md`](../../chimera/chimera-gateway/internal/server/adminui/embedui/logs/README.md).
 
 **Acceptance**
@@ -139,7 +140,7 @@ Details: [`docs/component-gallery/README.md`](../component-gallery/README.md#cha
 - `wireHandlers.js` deleted or reduced to a thin `mountWireHandlers(ctx)` re-export.
 - No behavior change in admin form save paths (same API calls).
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 

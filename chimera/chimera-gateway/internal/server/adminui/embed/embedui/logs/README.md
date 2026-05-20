@@ -48,7 +48,7 @@ See the comment block in `logs.html`. Do not reorder without checking dependenci
 2. `util/*`, `parse/*`, `transport/streaming.js`
 3. `derive/*` (broker, vectorstore, gateway, indexer, conversation)
 4. `components/*`, `render/sumEvlog.js`
-5. `summarized/hash.js`, `summarized/model.js`, `summarized/renderHtml.js`, `summarized/patch.js`, `app/summarizedDirtyRouting.js`, `app/summarizedFeed.js`, `app/wireHandlers.js`
+5. `summarized/hash.js`, `summarized/model.js`, `summarized/renderHtml.js`, `summarized/patch.js`, `app/summarizedDirtyRouting.js`, `app/summarizedFeed.js`, `handlers/evlog.js`, `handlers/chrome.js`, `handlers/admin.js`, `app/wireHandlers.js`
 6. `main.js` (`logs_app.js`), `logs.js` (`logs_entry.js`)
 
 ## HTTP APIs (operator)
@@ -73,7 +73,7 @@ Summarized-only in current builds (`viewMode === "summarized"`). Panel: `#panel-
 | SSE / tail / backfill | `transport/streaming.js` |
 | Summarized feed rebuild | `app/summarizedFeed.js` |
 | Event-log rows in cards | `render/sumEvlog.js` |
-| DOM clicks / admin forms | `app/wireHandlers.js` |
+| DOM clicks / admin forms | `handlers/evlog.js`, `handlers/chrome.js`, `handlers/admin.js` (mounted via `app/wireHandlers.js`) |
 | Card metrics (pure) | `derive/*` |
 
 ### Summarized panel rebuild and interaction
