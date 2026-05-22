@@ -127,3 +127,30 @@ func TestNormalizePayloadSupervisorSecondPass(t *testing.T) {
 		t.Fatalf("http_status=%v", m["http_status"])
 	}
 }
+
+func TestNormalizePayloadHTTPAccessModelsPollDebug(t *testing.T) {
+	raw := `{"level":"info","http.method":"GET","http.target":"/v1/models","http.status_code":200,"time":"t","message":"request completed"}`
+	b := NormalizePayload(raw)
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["msg"] != "broker.http.access" {
+		t.Fatalf("msg=%v", m["msg"])
+	}
+	if m["level"] != "DEBUG" {
+		t.Fatalf("level=%v want DEBUG", m["level"])
+	}
+}
+
+func TestNormalizePayloadHTTPAccessModelsPollDebugFullURL(t *testing.T) {
+	raw := `{"level":"info","http.method":"GET","http.target":"http://127.0.0.1:8080/v1/models","http.status_code":200,"time":"t","message":"request completed"}`
+	b := NormalizePayload(raw)
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["level"] != "DEBUG" {
+		t.Fatalf("level=%v want DEBUG", m["level"])
+	}
+}

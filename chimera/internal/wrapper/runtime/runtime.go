@@ -185,7 +185,7 @@ func (r *Runtime) runBackendLoop(ctx context.Context) error {
 		capture := &upstreamCaptureWriter{
 			log:       r.log,
 			ring:      r.ring,
-			debugEmit: r.cfg.ForwardUpstreamInDebug || logfmt.SupervisedMode(),
+			debugEmit: r.cfg.ForwardUpstreamInDebug && !logfmt.SupervisedMode(),
 			component: r.cfg.Component,
 			lineMsg:   r.cfg.UpstreamLineMessage,
 			lineWrap:  r.cfg.UpstreamLineWrapper,

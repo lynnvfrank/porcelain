@@ -1,0 +1,14 @@
+/* Embed UI — operator settings stylesheet (composition entry; served at /ui/assets/settings.css) */
+@import url("styles/tokens.css");
+@import url("ui.css");
+@import url("styles/chrome.css");
+@import url("styles/tables.css");
+@import url("styles/typography.css");
+@import url("styles/pills.css");
+@import url("styles/card.css");
+@import url("styles/design-01.css");
+@import url("styles/admin-forms.css");
+@import url("styles/evlog.css");
+@import url("styles/settings-content.css");
+@import url("styles/timeline.css");
+@import url("styles/card-workspace.css");

@@ -22,16 +22,23 @@ import (
 	"github.com/lynn/porcelain/internal/naming"
 )
 
-func startGatewayChild(cfg svconfig.Config, path, controlBaseURL string, logStore *servicelogs.Store, log *slog.Logger, controlState *control.State, gatewayProc **exec.Cmd, gatewayWaitErr *chan error, gatewayReadyzURL string, stopChildrenFast func()) error {
-	gatewayArgs := WrapperArgs([]string{
+func startGatewayChild(cfg svconfig.Config, path, controlBaseURL string, logStore *servicelogs.Store, logLevel slog.Level, log *slog.Logger, controlState *control.State, gatewayProc **exec.Cmd, gatewayWaitErr *chan error, gatewayReadyzURL string, stopChildrenFast func()) error {
+	gatewayArgs := []string{
 		"-config", path,
 		"-listen", strings.TrimSpace(cfg.GatewayListen),
 		"-broker-override", fmt.Sprintf("http://%s", strings.TrimSpace(cfg.BrokerEndpoint)),
-	})
+	}
+	if cfg.WaitGateway > 0 {
+		gatewayArgs = append(gatewayArgs, "-startup-timeout", cfg.WaitGateway.String())
+	}
+	if res, err := gwconfig.LoadGatewayYAML(path, nil); err == nil && res != nil {
+		gatewayArgs = append(gatewayArgs, "-gateway-listen", res.ListenAddr())
+	}
+	gatewayArgs = WrapperArgs(gatewayArgs)
 	cmd := exec.Command(strings.TrimSpace(cfg.GatewayBin), gatewayArgs...)
 	cmd.Env = mergeEnv(ChildEnv(controlBaseURL))
 	proc.ApplyNoConsoleWindow(cmd)
-	gatewayChildSink := LogSink(logStore.Writer(servicelogs.SourceChimeraGateway), gatewayline.NewWriter)
+	gatewayChildSink := LogSink(logStore.Writer(servicelogs.SourceChimeraGateway), gatewayline.NewWriter, logLevel)
 	cmd.Stdout = gatewayChildSink
 	cmd.Stderr = gatewayChildSink
 	if gerr := cmd.Start(); gerr != nil {
@@ -60,18 +67,22 @@ func startGatewayChild(cfg svconfig.Config, path, controlBaseURL string, logStor
 	return nil
 }
 
-func startVectorstoreChild(cfg svconfig.Config, controlBaseURL string, logStore *servicelogs.Store, log *slog.Logger, controlState *control.State, vectorstoreWrapperBin string, vectorstoreProc **exec.Cmd, vectorstoreWait *chan error, vectorstoreReadyzURL string, stopChildrenFast func()) error {
+func startVectorstoreChild(cfg svconfig.Config, res *gwconfig.Resolved, controlBaseURL string, logStore *servicelogs.Store, logLevel slog.Level, log *slog.Logger, controlState *control.State, vectorstoreWrapperBin string, vectorstoreProc **exec.Cmd, vectorstoreWait *chan error, vectorstoreReadyzURL string, stopChildrenFast func()) error {
 	vectorstoreBackendBin := svconfig.DefaultQdrantBin()
-	vectorstoreArgs := WrapperArgs([]string{
+	vectorstoreLogLevel := ""
+	if res != nil {
+		vectorstoreLogLevel = res.RAG.QdrantLogLevel
+	}
+	vectorstoreArgs := appendBackendLogLevel(WrapperArgs([]string{
 		"-listen", strings.TrimSpace(cfg.VectorstoreListen),
 		"-bin", vectorstoreBackendBin,
 		"-endpoint", strings.TrimSpace(cfg.VectorstoreEndpoint),
 		"-data-path", strings.TrimSpace(cfg.VectorstoreDataPath),
-	})
+	}), vectorstoreLogLevel)
 	cmd := exec.Command(strings.TrimSpace(vectorstoreWrapperBin), vectorstoreArgs...)
 	cmd.Env = mergeEnv(ChildEnv(controlBaseURL))
 	proc.ApplyNoConsoleWindow(cmd)
-	vectorstoreChildSink := LogSink(logStore.Writer(servicelogs.SourceChimeraVectorstore), vectorstoreadapter.ChildLogWriter)
+	vectorstoreChildSink := LogSink(logStore.Writer(servicelogs.SourceChimeraVectorstore), vectorstoreadapter.ChildLogWriter, logLevel)
 	cmd.Stdout = vectorstoreChildSink
 	cmd.Stderr = vectorstoreChildSink
 	if vectorstoreErr := cmd.Start(); vectorstoreErr != nil {
@@ -100,18 +111,22 @@ func startVectorstoreChild(cfg svconfig.Config, controlBaseURL string, logStore 
 	return nil
 }
 
-func startBrokerChild(cfg svconfig.Config, controlBaseURL string, logStore *servicelogs.Store, log *slog.Logger, controlState *control.State, brokerProc **exec.Cmd, brokerWaitErr *chan error, brokerReadyzURL string, vectorstoreWait chan error, stopChildrenFast func()) error {
+func startBrokerChild(cfg svconfig.Config, res *gwconfig.Resolved, controlBaseURL string, logStore *servicelogs.Store, logLevel slog.Level, log *slog.Logger, controlState *control.State, brokerProc **exec.Cmd, brokerWaitErr *chan error, brokerReadyzURL string, vectorstoreWait chan error, stopChildrenFast func()) error {
 	brokerBackendBin := svconfig.DefaultBifrostBin()
-	brokerArgs := WrapperArgs([]string{
+	brokerLogLevel := ""
+	if res != nil {
+		brokerLogLevel = res.BrokerLogLevel
+	}
+	brokerArgs := appendBackendLogLevel(WrapperArgs([]string{
 		"-listen", strings.TrimSpace(cfg.BrokerListen),
 		"-bin", brokerBackendBin,
 		"-endpoint", strings.TrimSpace(cfg.BrokerEndpoint),
 		"-data-path", strings.TrimSpace(cfg.BrokerDataDir),
-	})
+	}), brokerLogLevel)
 	cmd := exec.Command(strings.TrimSpace(cfg.BrokerBin), brokerArgs...)
 	cmd.Env = mergeEnv(ChildEnv(controlBaseURL))
 	proc.ApplyNoConsoleWindow(cmd)
-	brokerChildSink := LogSink(logStore.Writer(servicelogs.SourceChimeraBroker), brokeradapter.ChildLogWriter)
+	brokerChildSink := LogSink(logStore.Writer(servicelogs.SourceChimeraBroker), brokeradapter.ChildLogWriter, logLevel)
 	cmd.Stdout = brokerChildSink
 	cmd.Stderr = brokerChildSink
 	if berr := cmd.Start(); berr != nil {
@@ -149,9 +164,15 @@ func startBrokerChild(cfg svconfig.Config, controlBaseURL string, logStore *serv
 	return nil
 }
 
-func startIndexerChild(res *gwconfig.Resolved, cfg svconfig.Config, path, controlBaseURL string, logStore *servicelogs.Store, log *slog.Logger, indexerCtx context.Context, indexerProc **exec.Cmd, indexerWait *chan error) {
+func startIndexerChild(res *gwconfig.Resolved, cfg svconfig.Config, path, controlBaseURL string, logStore *servicelogs.Store, logLevel slog.Level, log *slog.Logger, indexerCtx context.Context, indexerProc **exec.Cmd, indexerWait *chan error) {
 	idxScope := res.IndexerSupervisedEnabled && (res.RAG.Enabled || res.IndexerSupervisedStartWhenRAGDisabled)
 	if !idxScope {
+		if log != nil {
+			log.Info("indexer supervised disabled", "msg", "chimera-supervisor.indexer.skipped",
+				"supervised_enabled", res.IndexerSupervisedEnabled,
+				"rag_enabled", res.RAG.Enabled,
+				"start_when_rag_disabled", res.IndexerSupervisedStartWhenRAGDisabled)
+		}
 		return
 	}
 	idxBin := strings.TrimSpace(res.IndexerSupervisedBin)
@@ -162,15 +183,26 @@ func startIndexerChild(res *gwconfig.Resolved, cfg svconfig.Config, path, contro
 	if werr != nil {
 		return
 	}
-	idxSink := LogSink(logStore.Writer(servicelogs.SourceChimeraIndexer), indexeradapter.ChildLogWriter)
+	idxSink := LogSink(logStore.Writer(servicelogs.SourceChimeraIndexer), indexeradapter.ChildLogWriter, logLevel)
 	gwLocal := gatewayPublicURLFromResolved(res)
 	gwToken := resolveIndexerGatewayToken(res.TokensPath)
+	if gwToken == "" && log != nil {
+		log.Warn("indexer gateway token missing", "msg", "chimera-supervisor.indexer.token_missing",
+			"hint", "set CHIMERA_GATEWAY_TOKEN or add api-keys.yaml rows")
+	}
 	idxLogJSON := res.IndexerSupervisedLogJSON || cfg.LogJSON
+	childEnv := ChildEnv(controlBaseURL)
+	if gwToken != "" {
+		childEnv[naming.EnvGatewayTokenTarget] = gwToken
+	}
 	cmd, ierr := StartIndexer(indexerCtx, IndexerConfig{
 		Bin: idxBin, ConfigPath: res.IndexerSupervisedConfigPath, WorkDir: wd, GatewayURL: gwLocal, GatewayToken: gwToken,
-		LogJSON: idxLogJSON, Stdout: idxSink, Stderr: idxSink, Env: ChildEnv(controlBaseURL),
+		LogJSON: idxLogJSON, Stdout: idxSink, Stderr: idxSink, Env: childEnv,
 	}, log)
 	if ierr != nil {
+		if log != nil {
+			log.Warn("indexer supervised start skipped", "msg", "chimera-supervisor.indexer.start_failed", "err", ierr)
+		}
 		return
 	}
 	*indexerProc = cmd

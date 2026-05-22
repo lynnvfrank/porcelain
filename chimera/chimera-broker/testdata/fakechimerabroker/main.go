@@ -45,7 +45,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/models", func(w http.ResponseWriter, r *http.Request) {
+	readyHandler := func(w http.ResponseWriter, r *http.Request) {
 		if atomic.LoadUint32(&ready) == 1 {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"ok":true}`))
@@ -53,7 +53,9 @@ func main() {
 		}
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_, _ = w.Write([]byte(`{"ok":false}`))
-	})
+	}
+	mux.HandleFunc("/health", readyHandler)
+	mux.HandleFunc("/models", readyHandler)
 	mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		_, _ = w.Write([]byte("# HELP req_total requests\n# TYPE req_total counter\nreq_total{code=\"200\"} 1\nchimera_wrapper_up 42\n"))

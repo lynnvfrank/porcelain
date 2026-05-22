@@ -445,7 +445,7 @@ body.logs-summarized #panel-summarized {
 }
 .sum-card:not([open]) .sum-chev::before { content: "›"; font-size: 1.1rem; line-height: 1; }
 .sum-card[open] .sum-chev::before { content: "⌄"; font-size: 0.85rem; }
-.sum-body { padding: 0.65rem 0.85rem 0.85rem; font-size: 0.78rem; }
+.sum-body { padding: 0.65rem 0.85rem 0.85rem; font-size: 0.78rem; position: relative; }
 /* Expanded body: light tint from summary avatar hue; keep body text dark */
 .sum-card[open] > .sum-body {
   color: var(--embed-text-strong);
@@ -466,6 +466,49 @@ body.logs-summarized #panel-summarized {
 .sum-card[open] > .sum-body .sum-mini-card strong { color: var(--embed-text-stronger); }
 .sum-card[open] > .sum-body .indexer-run-kv dt { color: var(--embed-text-secondary); }
 .sum-card[open] > .sum-body .indexer-run-kv dd { color: var(--embed-text-strong); }
+.sum-card[open] > .sum-body .configure-button {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  width: 36px; /* Size of the square */
+  height: 36px; /* Size of the square */
+  background-color: white; /* White background for the gear */
+  border-bottom-left-radius: 12px; /* Curves into the card */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer; 
+  box-shadow: -2px 2px 5px rgba(0, 0, 0, 0.05); /* Subtle shadow for depth */
+  z-index: 10;
+}
+.sum-card[open] > .sum-body .configure-button .sum-icon-gear {
+  font-size: 1.1rem;
+  color: var(--embed-text-secondary);
+  user-select: none;
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-weight: bold;
+}
+
+.sum-card[open] > .sum-body .configure-button:hover .sum-icon-gear {
+  transform: rotate(20deg) scale(0.95);
+}
+
+.sum-card[open] > .sum-body .configure-button:hover .sum-icon-gear {
+  color: var(--embed-text-primary);
+}
+
+.sum-card[open] > .sum-body .configure-button:active .sum-icon-gear {
+  transform: rotate(40deg);
+}
+
+.configure-button:hover .sum-icon-gear {
+  transform: rotate(20deg);
+}
+.sum-card[open] > .sum-body .configure-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 a.sum-proj-path {
   text-decoration: none;
 }
@@ -652,7 +695,15 @@ a.sum-ext-link {
   margin-top: 0;
 }
 
-.sum-section-label { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; color: var(--embed-text-muted); margin: 0.5rem 0 0.35rem 0; text-transform: uppercase; }
+.sum-section-label { 
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--embed-text-muted);
+  margin: 0.5rem 0 0.35rem 0;
+  text-transform: uppercase;
+  text-align: left;
+}
 .sum-section-label:first-child { margin-top: 0; }
 .sum-feed-section { margin-bottom: 1.15rem; }
 .sum-feed-section:last-child { margin-bottom: 0; }

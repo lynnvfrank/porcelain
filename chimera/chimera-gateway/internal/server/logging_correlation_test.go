@@ -18,10 +18,20 @@ func TestHTTPAccessLogLevel_probesAndErrors(t *testing.T) {
 		want   slog.Level
 	}{
 		{"/health", 200, slog.LevelDebug},
+		{"/healthz", 200, slog.LevelDebug},
+		{"/readyz", 200, slog.LevelDebug},
 		{"/status", 204, slog.LevelDebug},
 		{"/api/ui/logs", 200, slog.LevelDebug},
 		{"/api/ui/logs/stream", 200, slog.LevelDebug},
+		{"/ui/assets/theme-tokens.css", 200, slog.LevelDebug},
+		{"/ui/assets/settings/main.js", 200, slog.LevelDebug},
+		{"/assets/icon.png", 200, slog.LevelDebug},
+		{"/ui/login", 200, slog.LevelInfo},
+		{"/v1/indexer/workspaces", 200, slog.LevelDebug},
+		{"/v1/indexer/workspaces", 503, slog.LevelInfo},
 		{"/health", 503, slog.LevelInfo},
+		{"/healthz", 503, slog.LevelInfo},
+		{"/readyz", 503, slog.LevelInfo},
 		{"/v1/chat/completions", 200, slog.LevelInfo},
 		{"/v1/chat/completions", 500, slog.LevelInfo},
 	}

@@ -125,6 +125,12 @@ func SummarizeProviderKeys(providerName string, body []byte) ([]KeyEntrySummary,
 	return out, nil
 }
 
+// KeyValueConfigured reports whether a provider key "value" field is configured (inline or env-backed).
+func KeyValueConfigured(raw any) bool {
+	_, configured := summarizeKeyValueField(raw)
+	return configured
+}
+
 func summarizeKeyValueField(raw any) (hint string, configured bool) {
 	if raw == nil {
 		return "not set", false

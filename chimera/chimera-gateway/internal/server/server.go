@@ -181,6 +181,10 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if ui != nil {
+			http.Redirect(w, r, "/ui", http.StatusFound)
+			return
+		}
 		rt.Sync()
 		res, tokStore, _ := rt.Snapshot()
 		ctx := r.Context()
@@ -287,6 +291,17 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_ = gatewayIndexTmpl.Execute(w, data)
+	})
+
+	// /healthz is process liveness only (HTTP up). The chimera-gateway wrapper uses it for
+	// startup readiness; /health remains the dependency check (broker + vectorstore).
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok"})
 	})
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -918,14 +933,20 @@ func chatTimeout(res *config.Resolved) time.Duration {
 }
 
 // httpAccessLogLevel picks the slog level for access-style "http response" lines.
-// Successful probe and UI polling routes are DEBUG so default INFO logs stay readable.
+// Successful probe, UI polling, and static asset routes are DEBUG so default INFO logs stay readable.
 func httpAccessLogLevel(path string, status int) slog.Level {
 	if status < 200 || status >= 300 {
 		return slog.LevelInfo
 	}
+	if strings.HasPrefix(path, "/ui/assets/") || strings.HasPrefix(path, "/assets/") {
+		return slog.LevelDebug
+	}
+	if path == "/v1/indexer/workspaces" {
+		return slog.LevelDebug
+	}
 	switch path {
-	case "/health", "/status", "/api/ui/logs", "/api/ui/logs/stream",
-		"/ui/logs", "/api/ui/metrics":
+	case "/health", "/healthz", "/readyz", "/status", "/api/ui/logs", "/api/ui/logs/stream",
+		"/ui/settings", "/api/ui/metrics":
 		return slog.LevelDebug
 	default:
 		return slog.LevelInfo

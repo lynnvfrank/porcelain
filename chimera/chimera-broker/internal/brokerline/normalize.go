@@ -1,5 +1,5 @@
 // Package brokerline normalizes raw chimera-broker process output into JSON lines with stable
-// broker.* msg slugs and structured fields for the operator logs UI.
+// broker.* msg slugs and structured fields for the operator settings UI (/ui/settings).
 //
 // Operator-facing copy for these slugs lives in internal/operatorcopy/messages.yaml
 // (legacy alias chimera-broker.* until 2026-08-01). Do not add prose here.
@@ -22,7 +22,7 @@ var (
 	addedProviderRE = regexp.MustCompile(`(?i)added provider:\s*(\S+)`)
 	logRetentionRE  = regexp.MustCompile(`(?i)log retention cleaner initialized with\s+(\d+)\s*days retention`)
 	retentionDaysRE = regexp.MustCompile(`(?i)log retention days:\s*(\d+)`)
-	// Catalog lines that include a numeric model count for the logs UI "Available models" card.
+	// Catalog lines that include a numeric model count for the settings UI "Available models" card.
 	catalogModelsAddedRE   = regexp.MustCompile(`(?i)(\d+)\s+models?\s+added\s+to\s+(?:the\s+)?catalog`)
 	catalogModelsRegRE     = regexp.MustCompile(`(?i)\b(\d+)\s+models?\s+registered\b`)
 	catalogListingModelsRE = regexp.MustCompile(`(?i)listing\s+(\d+)\s+models?\b`)
@@ -256,6 +256,25 @@ func providerIDFromUpdateMessage(s string) string {
 	return strings.TrimSpace(last[2])
 }
 
+func httpTargetPath(target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return ""
+	}
+	if i := strings.Index(target, "://"); i >= 0 {
+		target = target[i+3:]
+		if j := strings.IndexByte(target, '/'); j >= 0 {
+			target = target[j:]
+		} else {
+			return ""
+		}
+	}
+	if i := strings.IndexByte(target, '?'); i >= 0 {
+		target = target[:i]
+	}
+	return target
+}
+
 func classifyHTTPAccess(out *normalized, fields map[string]json.RawMessage, message string) (string, bool) {
 	if strings.TrimSpace(message) != "request completed" {
 		return "", false
@@ -272,6 +291,10 @@ func classifyHTTPAccess(out *normalized, fields map[string]json.RawMessage, mess
 	out.HTTPStatus = status
 	out.HTTPDurationMS = dur
 	out.TraceID = wline.JSONString(fields, "trace_id")
+
+	if status >= 200 && status < 300 && method == "GET" && httpTargetPath(target) == "/v1/models" {
+		out.Level = "DEBUG"
+	}
 
 	if status == 429 {
 		return "broker.rate_limit", true

@@ -11,11 +11,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/brokeradmin"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui"
 	"github.com/lynn/porcelain/internal/naming"
 )
 
 func TestUIBrokerProviderHealth_endToEnd(t *testing.T) {
+	brokeradmin.InvalidateProviderConfigIndex()
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +108,7 @@ func TestUIBrokerProviderHealth_endToEnd(t *testing.T) {
 }
 
 func TestUIChimeraBrokerProviderHealth_chimeraBrokerDown(t *testing.T) {
+	brokeradmin.InvalidateProviderConfigIndex()
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 
 	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
@@ -166,6 +169,7 @@ func TestUIChimeraBrokerProviderHealth_chimeraBrokerDown(t *testing.T) {
 }
 
 func TestUIBrokerProviderHealth_requiresAuth(t *testing.T) {
+	brokeradmin.InvalidateProviderConfigIndex()
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 	chimeraBroker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)

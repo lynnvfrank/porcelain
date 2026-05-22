@@ -33,7 +33,7 @@ func TestUILoginGET_autoLoginFromEnvToken(t *testing.T) {
 	if res.StatusCode != http.StatusFound {
 		t.Fatalf("want redirect, got %d", res.StatusCode)
 	}
-	if loc := res.Header.Get("Location"); loc != "/ui/logs" {
+	if loc := res.Header.Get("Location"); loc != "/ui" {
 		t.Fatalf("Location: %q", loc)
 	}
 	if c := res.Header.Values("Set-Cookie"); len(c) == 0 || !strings.Contains(strings.Join(c, ";"), "chimera_ui_session=") {
@@ -56,7 +56,7 @@ func TestUILoginGET_autoLoginRespectsNextQuery(t *testing.T) {
 	client := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}}
-	res, err := client.Get(front.URL + "/ui/login?next=/ui/desktop")
+	res, err := client.Get(front.URL + "/ui/login?next=/ui")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,12 +64,12 @@ func TestUILoginGET_autoLoginRespectsNextQuery(t *testing.T) {
 	if res.StatusCode != http.StatusFound {
 		t.Fatalf("want redirect, got %d", res.StatusCode)
 	}
-	if loc := res.Header.Get("Location"); loc != "/ui/desktop" {
+	if loc := res.Header.Get("Location"); loc != "/ui" {
 		t.Fatalf("Location: %q", loc)
 	}
 }
 
-func TestUIDesktopRouteExistsWhenLogStoreDisabled(t *testing.T) {
+func TestUIShellRouteExistsWhenLogStoreDisabled(t *testing.T) {
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 	t.Setenv(naming.EnvGatewayTokenTarget, "gw-ui-secret")
 	up := chimeraBrokerStubForUILogs(t)
@@ -81,30 +81,30 @@ func TestUIDesktopRouteExistsWhenLogStoreDisabled(t *testing.T) {
 	front := httptest.NewServer(NewMux(rt, testLog(), nil, ui))
 	t.Cleanup(front.Close)
 
-	client := &http.Client{
+	noFollow := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
-	res, err := client.Get(front.URL + "/ui/login?next=/ui/desktop")
+	res, err := noFollow.Get(front.URL + "/ui/login?next=/ui")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	res.Body.Close()
 	if res.StatusCode != http.StatusFound {
 		t.Fatalf("want redirect, got %d", res.StatusCode)
 	}
-	if loc := res.Header.Get("Location"); loc != "/ui/desktop" {
+	if loc := res.Header.Get("Location"); loc != "/ui" {
 		t.Fatalf("Location: %q", loc)
 	}
 
-	res2, err := client.Get(front.URL + "/ui/desktop")
+	res2, err := noFollow.Get(front.URL + "/ui")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res2.Body.Close()
+	res2.Body.Close()
 	if res2.StatusCode != http.StatusFound {
-		t.Fatalf("want auth redirect from desktop route, got %d", res2.StatusCode)
+		t.Fatalf("want auth redirect from shell route, got %d", res2.StatusCode)
 	}
 	if loc := res2.Header.Get("Location"); !strings.Contains(loc, "/ui/login") {
 		t.Fatalf("Location: %q expected login redirect", loc)
@@ -168,7 +168,7 @@ func TestUILoginGET_openRedirectQuerySanitized(t *testing.T) {
 	if res.StatusCode != http.StatusFound {
 		t.Fatalf("want redirect, got %d", res.StatusCode)
 	}
-	if loc := res.Header.Get("Location"); loc != "/ui/logs" {
+	if loc := res.Header.Get("Location"); loc != "/ui" {
 		t.Fatalf("Location: %q", loc)
 	}
 }

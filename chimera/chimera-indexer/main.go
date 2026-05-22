@@ -109,7 +109,7 @@ func drainReloadSignals(ch <-chan struct{}) {
 func runOneShot(parentCtx context.Context, cfg indexer.Resolved, logJSON bool, baseLog *slog.Logger) error {
 	materializeSupervisedRoots(parentCtx, baseLog, &cfg)
 	if cfg.SupervisedLayer && len(cfg.Roots) == 0 {
-		return fmt.Errorf("supervised indexer: no workspace directories from gateway (GET /v1/indexer/workspaces); add paths in the logs UI workspaces list")
+		return fmt.Errorf("supervised indexer: no workspace directories from gateway (GET /v1/indexer/workspaces); add paths in /ui/settings workspaces")
 	}
 	runID := uuid.NewString()
 	log := attachSessionLogger(logJSON, baseLog, runID)
@@ -410,7 +410,7 @@ func runWatchWithHotReload(ctx context.Context, wd string, absSupervisedCfg stri
 		wsFpMu.Unlock()
 
 		if len(cfg.Roots) == 0 {
-			baseLog.Info(
+			baseLog.Debug(
 				"supervised indexer waiting for at least one workspace path from the gateway (GET /v1/indexer/workspaces)",
 				"msg", "indexer.supervised.wait_roots",
 				"type", "indexer.supervised.wait_roots",

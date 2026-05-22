@@ -1,10 +1,10 @@
 /*
  * Canonical design tokens for the gateway embed UI (summarized logs, tables, chips).
- * Default theme matches the current neutral palette in logs.css.
- * Optional html[data-theme="porcelain"] overrides for alternate iteration (see temp/theme/sample.html).
+ * Default theme matches the current neutral palette in settings.css.
+ * Product default: html[data-theme="design-01"] (set by embed-theme.js). Alternates: porcelain, legacy (:root).
  *
- * Naming: --embed-* keeps tokens grep-friendly and distinct from third-party --sum-* sizing vars in logs.css.
- * Phase 3: logs.css @imports this file and replaces literals with var(--embed-*).
+ * Naming: --embed-* keeps tokens grep-friendly and distinct from third-party --sum-* sizing vars in settings.css.
+ * settings.css @imports this file and replaces literals with var(--embed-*).
  */
 
 :root {
@@ -85,7 +85,7 @@
   --embed-shape-badge-fg: #3949ab;
   --embed-path-em-bg: #f0f4ff;
 
-  /* --- Phase 3: logs.css (status, lifecycle, links, misc) — defaults match pre-token literals --- */
+  /* --- settings.css (status, lifecycle, links, misc) — defaults match pre-token literals --- */
   --embed-text-on-inverse: #fff;
   --embed-text-strong: #111;
   --embed-text-stronger: #000;
@@ -186,7 +186,7 @@
   --embed-toolbar-input-accent: #42a5f5;
 }
 
-/* Alternate palette for theme iteration (not yet wired into logs.css). */
+/* Alternate palette for theme iteration (wired via html[data-theme="porcelain"]). */
 html[data-theme="porcelain"] {
   --embed-surface-page: #f8f7f5;
   --embed-surface-muted: #f5f7fa;
@@ -257,4 +257,122 @@ html[data-theme="porcelain"] {
 
   --embed-shape-badge-fg: #2f4da0;
   --embed-path-em-bg: #f5f7fa;
+}
+
+/*
+ * Design 01 (temp/design-01-main.html M3 palette). Gallery-first; opt-in via data-theme="design-01".
+ */
+html[data-theme="design-01"] {
+  /* --- Surfaces --- */
+  --embed-surface-page: #ffffff;
+  --embed-surface-muted: #faf9f6;
+  --embed-surface-muted-2: #f4f3f0;
+  --embed-surface-elevated: #ffffff;
+  --embed-surface-row-alt: #efeeeb;
+  --embed-surface-row-hover: #e9e8e5;
+  --embed-surface-toolbar: rgba(250, 249, 246, 0.8);
+  --embed-surface-toolbar-border: rgba(115, 120, 125, 0.1);
+  --embed-surface-chip: rgba(202, 230, 255, 0.3);
+  --embed-surface-chip-border: rgba(202, 230, 255, 0.55);
+  --embed-surface-table-header: #e3e2e0;
+  --embed-surface-table-header-alt: #efeeeb;
+  --embed-surface-prop-name: #f4f3f0;
+  --embed-surface-shape-badge: #ffdad2;
+  --embed-surface-timeline-track: #e3e2e0;
+  --embed-surface-container: #efeeeb;
+  --embed-surface-container-high: #e9e8e5;
+  --embed-surface-container-low: #f4f3f0;
+  --embed-surface-inset-well: #f4f3f0;
+
+  /* --- Text --- */
+  --embed-text-primary: #1a1c1a;
+  --embed-text-secondary: #42474c;
+  --embed-text-tertiary: #42474c;
+  --embed-text-heading: #1a1c1a;
+  --embed-text-muted: #73787d;
+  --embed-text-faint: #42474c;
+  --embed-text-link: #415f76;
+  --embed-text-mono-dt: #2b4a60;
+  --embed-text-toolbar-title: #73787d;
+  --embed-text-timeline-legend: #42474c;
+  --embed-text-on-primary: #ffffff;
+  --embed-text-on-tertiary-fixed: #673b31;
+
+  /* --- Brand / semantic M3 --- */
+  --embed-color-primary: #415f76;
+  --embed-color-primary-container: #5a7890;
+  --embed-color-primary-fixed: #cae6ff;
+  --embed-color-primary-fixed-dim: #abcae5;
+  --embed-color-secondary: #4a654e;
+  --embed-color-secondary-container: #c9e8cb;
+  --embed-color-tertiary: #804f44;
+  --embed-color-tertiary-fixed: #ffdad2;
+  --embed-color-tertiary-fixed-dim: #f7b7a9;
+  --embed-color-outline: #73787d;
+  --embed-color-outline-variant: #c2c7cd;
+  --embed-color-error: #ba1a1a;
+
+  /* --- Borders --- */
+  --embed-border-default: rgba(115, 120, 125, 0.08);
+  --embed-border-medium: #e3e2e0;
+  --embed-border-strong: #c2c7cd;
+  --embed-border-heavy: #c2c7cd;
+  --embed-border-subtle: #efeeeb;
+  --embed-border-table-head: #c2c7cd;
+  --embed-focus-ring: #5a7890;
+
+  /* --- Semantic --- */
+  --embed-semantic-success-bg: #cceace;
+  --embed-semantic-success-fg: #07200f;
+  --embed-semantic-warn-bg: #fff8e1;
+  --embed-semantic-warn-fg: #b45309;
+  --embed-semantic-error-bg: #ffdad6;
+  --embed-semantic-error-fg: #93000a;
+  --embed-semantic-error-strong: #ba1a1a;
+  --embed-semantic-info-bg: #cae6ff;
+  --embed-semantic-info-fg: #2b4a60;
+  --embed-semantic-neutral-bg: #f4f3f0;
+  --embed-semantic-neutral-fg: #42474c;
+
+  /* --- Cards / layout (design-01) --- */
+  --embed-sum-card-border: rgba(115, 120, 125, 0.08);
+  --embed-sum-card-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  --embed-sum-card-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.05);
+  --embed-sum-card-radius: 12px;
+  --embed-sum-card-accent: #5a7890;
+  --embed-border-summary-open: #e3e2e0;
+  --embed-space-section: 1.5rem;
+  --embed-space-card-pad-y: 1.25rem;
+  --embed-space-card-pad-x: 1.25rem;
+  --embed-space-gutter: 1.5rem;
+  --embed-container-max: 80rem;
+  --embed-font-ui: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --embed-chip-bg: rgba(202, 230, 255, 0.3);
+  --embed-chip-fg: #415f76;
+  --embed-chip-strip-bg: #f4f3f0;
+  --embed-chip-strip-fg: #42474c;
+  --embed-chip-strip-border: #c2c7cd;
+  --embed-btn-primary: #415f76;
+  --embed-btn-primary-hover: #2b4a60;
+  --embed-link-accent: #415f76;
+
+  --embed-avatar-svc-gw-bg: #abcae5;
+  --embed-avatar-svc-gw-fg: #001e2f;
+  --embed-avatar-svc-bf-bg: #5a7890;
+  --embed-avatar-svc-qd-bg: #cceace;
+  --embed-avatar-svc-ix-bg: #f7b7a9;
+  --embed-svc-upstream-filled-bg: #5a7890;
+  --embed-svc-upstream-filled-fg: #ffffff;
+  --embed-body-tint-svc-gw: #faf9f6;
+  --embed-body-tint-svc-bf: #e8f0f6;
+  --embed-body-tint-svc-qd: #cceace;
+  --embed-body-tint-svc-ix: #ffdad2;
+  --embed-chev-hover-svc-gw: #415f76;
+  --embed-strip-up: #4a654e;
+  --embed-strip-down: #ba1a1a;
+  --embed-strip-unknown: #c2c7cd;
+  --embed-status-complete-bg: #cceace;
+  --embed-status-monitor-bg: #efeeeb;
+  --embed-status-monitor-fg: #42474c;
 }

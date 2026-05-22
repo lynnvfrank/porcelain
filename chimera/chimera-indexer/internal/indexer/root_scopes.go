@@ -7,7 +7,7 @@ import (
 )
 
 // RootScopeJSON is one roots[] row after merging default scope + gateway defaults,
-// for operator logs (/ui/logs) and multi-target partitioning.
+// for the operator settings feed (/ui/settings) and multi-target partitioning.
 type RootScopeJSON struct {
 	RootID           string `json:"root_id"`
 	Path             string `json:"path"`

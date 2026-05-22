@@ -39,30 +39,9 @@
   justify-content: flex-end;
   align-items: center;
 }
-.ws-draft-btn {
-  padding: 0.28rem 0.65rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 6px;
-  border: 1px solid #bbb;
-  background: #f5f5f5;
-  font-family: inherit;
-}
-.ws-draft-btn-save {
-  border-color: #0b57d0;
-  background: #0b57d0;
-  color: #fff;
-}
-.ws-draft-btn-save:hover {
-  background: #0842a0;
-  border-color: #0842a0;
-}
-.ws-draft-btn-cancel:hover {
-  border-color: #888;
-  background: #eee;
-}
-.ws-draft-btn:disabled {
+/* Draft / managed workspace actions use .sg-op-btn (legacy ws-draft-btn-* classes kept for handlers). */
+.ws-draft-actions .sg-op-btn:disabled,
+.ws-managed-actions .sg-op-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }

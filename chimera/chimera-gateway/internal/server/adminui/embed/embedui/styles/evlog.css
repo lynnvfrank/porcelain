@@ -350,7 +350,7 @@
   color: var(--embed-text-faint);
   font-weight: 600;
 }
-/* HTTP overlaps with pill-2xx / pill-4xx / pill-5xx from logs.css */
+/* HTTP overlaps with pill-2xx / pill-4xx / pill-5xx from settings.css */
 .sum-evlog__footer {
   margin: 0;
   padding: 0.15rem 0.32rem;
@@ -377,19 +377,27 @@
 .sum-evlog__footer-row {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem 1rem;
   margin: 0;
   padding: 0.15rem 0.32rem;
   box-sizing: border-box;
+  min-height: 1.65rem;
 }
 .sum-evlog__footer-left {
   flex: 1 1 0;
   min-width: 0;
+  display: flex;
+  align-items: center;
 }
 .sum-evlog__footer-row .sum-evlog__footer {
+  display: flex;
+  align-items: center;
+  min-height: 1.35rem;
+  line-height: 1.35;
   padding: 0;
+  margin: 0;
 }
 .sum-evlog__footer-rel {
   color: var(--embed-text-secondary);
@@ -441,13 +449,42 @@
   padding: 0;
   max-width: min(100%, 48%);
   text-align: right;
-  align-self: flex-start;
+  align-self: center;
   white-space: normal;
   word-break: break-word;
 }
 .sum-evlog__footer-row .sum-evlog__toast:empty {
   display: none;
 }
+
+.sum-evlog__footer-right {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem 0.5rem;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.sum-evlog__footer-right .sum-evlog__toast.sum-gallery-evlog__toast-align {
+  margin-left: 0;
+  max-width: min(100%, 36rem);
+}
+
+.sum-evlog__footer-row .sum-evlog__copy-btn,
+.sum-evlog__footer-row .sum-evlog__copy-btn--footer {
+  flex: 0 0 auto;
+  padding: 0.14rem 0.28rem;
+  border-radius: 5px;
+}
+
+.sum-evlog__footer-row .sum-evlog__copy-icon {
+  width: 1.22rem;
+  height: 1.22rem;
+}
+
 .sum-evlog__section-cell {
   font-size: 0.68rem;
   font-weight: 700;

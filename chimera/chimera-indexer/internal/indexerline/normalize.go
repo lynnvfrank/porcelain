@@ -1,5 +1,5 @@
 // Package indexerline normalizes raw chimera-indexer process output into JSON lines with stable
-// indexer.* msg slugs and structured fields for the operator logs UI.
+// indexer.* msg slugs and structured fields for the operator settings UI (/ui/settings).
 package indexerline
 
 import (

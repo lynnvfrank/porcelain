@@ -58,6 +58,7 @@ func saveAppendProviderKey(h *handler.Handler, provider string) http.HandlerFunc
 			apijson.WriteError(w, http.StatusBadGateway, fmt.Sprintf("chimera-broker PUT %d", pst), apijson.TruncateErrMsg(string(pbody)))
 			return
 		}
+		brokeradmin.InvalidateProviderProbeCacheFor(provider)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 	}
@@ -108,6 +109,7 @@ func saveRemoveProviderKey(h *handler.Handler, provider string) http.HandlerFunc
 			apijson.WriteError(w, http.StatusBadGateway, fmt.Sprintf("chimera-broker PUT %d", pst), apijson.TruncateErrMsg(string(pbody)))
 			return
 		}
+		brokeradmin.InvalidateProviderProbeCacheFor(provider)
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 	}
@@ -162,6 +164,7 @@ func saveOllamaBaseURL(h *handler.Handler, w http.ResponseWriter, r *http.Reques
 		apijson.WriteError(w, http.StatusBadGateway, fmt.Sprintf("chimera-broker PUT %d", pst), apijson.TruncateErrMsg(string(pbody)))
 		return
 	}
+	brokeradmin.InvalidateProviderProbeCacheFor("ollama")
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 }

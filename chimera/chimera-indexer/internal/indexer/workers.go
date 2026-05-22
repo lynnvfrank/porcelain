@@ -25,7 +25,7 @@ func (ix *Indexer) RunWorkers(ctx context.Context) {
 	defer tickCancel()
 	go func() {
 		// time.Ticker does not fire until the first interval elapses; emit once
-		// immediately so operators (and /ui/logs) prove the drain loop is live.
+		// immediately so operators (and /ui/settings) prove the drain loop is live.
 		ix.LogQueueSnapshot("worker_drain_tick")
 		t := time.NewTicker(workerDrainHeartbeatEvery)
 		defer t.Stop()

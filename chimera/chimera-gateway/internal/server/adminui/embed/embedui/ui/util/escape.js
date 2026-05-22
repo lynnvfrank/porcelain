@@ -1,5 +1,5 @@
 /**
- * HTML escaping for embed UI (canonical; also mirrored on ChimeraLogs).
+ * HTML escaping for embed UI (canonical; also mirrored on ChimeraSettings).
  * @param {any} s
  * @returns {string}
  */
@@ -26,6 +26,6 @@ globalThis.ChimeraUI = globalThis.ChimeraUI || {};
 globalThis.ChimeraUI.escapeHtml = escapeHtml;
 globalThis.ChimeraUI.escapeAttr = escapeAttr;
 
-globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};
-globalThis.ChimeraLogs.escapeHtml = escapeHtml;
-globalThis.ChimeraLogs.escapeAttr = escapeAttr;
+globalThis.ChimeraSettings = globalThis.ChimeraSettings || {};
+globalThis.ChimeraSettings.escapeHtml = escapeHtml;
+globalThis.ChimeraSettings.escapeAttr = escapeAttr;

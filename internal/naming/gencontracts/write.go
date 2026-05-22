@@ -9,19 +9,19 @@ import (
 	"github.com/lynn/porcelain/internal/naming"
 )
 
-// DefaultContractsJSPath is the embed path for operator logs contracts (repo-relative).
-const DefaultContractsJSPath = "chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/contracts.js"
+// DefaultContractsJSPath is the embed path for operator settings contracts (repo-relative).
+const DefaultContractsJSPath = "chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/contracts.js"
 
 // WriteContractsJS emits adminui embed contracts.js from internal/naming metadata.
 func WriteContractsJS(w io.Writer) error {
 	var b strings.Builder
 	b.WriteString("/**\n")
-	b.WriteString(" * Operator logs UI constants — generated from internal/naming (gateway_logs.go, contracts.go, logs_ui.go).\n")
+	b.WriteString(" * Operator settings UI constants — generated from internal/naming (gateway_logs.go, contracts.go, logs_ui.go).\n")
 	b.WriteString(" * DO NOT EDIT; run: make operator-contracts-generate\n")
 	b.WriteString(" */\n")
 	b.WriteString("(function () {\n")
-	b.WriteString("  globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};\n")
-	b.WriteString("  globalThis.ChimeraLogs.Contracts = {\n")
+	b.WriteString("  globalThis.ChimeraSettings = globalThis.ChimeraSettings || {};\n")
+	b.WriteString("  globalThis.ChimeraSettings.Contracts = {\n")
 
 	writeConsts := func(items []naming.LogsUIStringConst) {
 		for _, c := range items {
@@ -35,7 +35,7 @@ func WriteContractsJS(w io.Writer) error {
 	b.WriteString("\n")
 	writeConsts(naming.LogsUITimelineKinds)
 	b.WriteString("\n")
-	writeConsts(naming.LogsUIPrefs)
+	writeConsts(naming.SettingsUIPrefs)
 
 	b.WriteString("\n    /** Request-timeline bar keys (product display names). */\n")
 	b.WriteString("    TimelineBarKinds: [\n")

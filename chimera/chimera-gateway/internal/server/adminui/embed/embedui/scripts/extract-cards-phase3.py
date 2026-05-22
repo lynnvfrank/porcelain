@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Extract card render functions from summarizedFeed.js into logs/render/cards/*.js"""
+"""Extract card render functions from summarizedFeed.js into settings/render/cards/*.js"""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FEED = ROOT / "logs" / "app" / "summarizedFeed.js"
-CARDS = ROOT / "logs" / "render" / "cards"
+FEED = ROOT / "settings" / "app" / "summarizedFeed.js"
+CARDS = ROOT / "settings" / "render" / "cards"
 CARDS.mkdir(parents=True, exist_ok=True)
 
 lines = FEED.read_text(encoding="utf-8").splitlines(keepends=True)
@@ -51,11 +51,11 @@ FILES = {
 
 HEADER = """/**
  * Summarized feed card render (Phase 3 extraction).
- * Registers builders on ctx during ChimeraLogs.Render.Cards.mount*.
+ * Registers builders on ctx during ChimeraSettings.Render.Cards.mount*.
  */
-globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};
-globalThis.ChimeraLogs.Render = globalThis.ChimeraLogs.Render || {};
-globalThis.ChimeraLogs.Render.Cards = globalThis.ChimeraLogs.Render.Cards || {};
+globalThis.ChimeraSettings = globalThis.ChimeraSettings || {};
+globalThis.ChimeraSettings.Render = globalThis.ChimeraSettings.Render || {};
+globalThis.ChimeraSettings.Render.Cards = globalThis.ChimeraSettings.Render.Cards || {};
 
 """
 
@@ -113,7 +113,7 @@ def slice_lines(ranges):
 def build_mount_file(fname, ranges):
     mount = MOUNT_NAMES[fname]
     body = slice_lines(ranges)
-    out = HEADER + f"globalThis.ChimeraLogs.Render.Cards.{mount} = function (ctx) {{\n"
+    out = HEADER + f"globalThis.ChimeraSettings.Render.Cards.{mount} = function (ctx) {{\n"
     for chunk in body:
         # functions already have 2-space indent from feed
         out += chunk
@@ -145,8 +145,8 @@ for i, ln in enumerate(new_lines):
         break
 
 mount_block = """
-  if (globalThis.ChimeraLogs.Render && globalThis.ChimeraLogs.Render.Cards) {
-    var Cards = globalThis.ChimeraLogs.Render.Cards;
+  if (globalThis.ChimeraSettings.Render && globalThis.ChimeraSettings.Render.Cards) {
+    var Cards = globalThis.ChimeraSettings.Render.Cards;
     if (typeof Cards.mountSharedFormat === "function") Cards.mountSharedFormat(ctx);
     if (typeof Cards.mountGatewayOverview === "function") Cards.mountGatewayOverview(ctx);
     if (typeof Cards.mountGatewayUsage === "function") Cards.mountGatewayUsage(ctx);

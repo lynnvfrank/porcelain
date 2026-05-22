@@ -31,9 +31,10 @@ func serverTestdataPath(t *testing.T, rel ...string) string {
 	return filepath.Join(append([]string{base}, rel...)...)
 }
 
-func logsUIPath(t *testing.T, rel ...string) string {
+// settingsUIPath resolves modules under embedui/settings/ (operator settings + log feed UI).
+func settingsUIPath(t *testing.T, rel ...string) string {
 	t.Helper()
-	base := filepath.Join(embeduiRoot(t), "logs")
+	base := filepath.Join(embeduiRoot(t), "settings")
 	return filepath.Join(append([]string{base}, rel...)...)
 }
 
@@ -45,7 +46,7 @@ func uiEmbedPath(t *testing.T, rel ...string) string {
 
 func cardsUIPath(t *testing.T, rel ...string) string {
 	t.Helper()
-	return logsUIPath(t, append([]string{"render", "cards"}, rel...)...)
+	return settingsUIPath(t, append([]string{"render", "cards"}, rel...)...)
 }
 
 func mustReadFile(t *testing.T, path string) string {
@@ -67,27 +68,27 @@ func evalJS(t *testing.T, vm *goja.Runtime, path string) {
 
 func getFn(t *testing.T, vm *goja.Runtime, name string) goja.Callable {
 	t.Helper()
-	obj := vm.Get("ChimeraLogs").ToObject(vm)
+	obj := vm.Get("ChimeraSettings").ToObject(vm)
 	fn, ok := goja.AssertFunction(obj.Get(name))
 	if !ok {
-		t.Fatalf("missing ChimeraLogs.%s", name)
+		t.Fatalf("missing ChimeraSettings.%s", name)
 	}
 	return fn
 }
 
 func loadChimeraUIBase(t *testing.T, vm *goja.Runtime) {
 	t.Helper()
-	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
+	evalJS(t, vm, settingsUIPath(t, "testing", "loader.js"))
 	evalJS(t, vm, uiEmbedPath(t, "util", "escape.js"))
 }
 
 func loadCardTestCtx(t *testing.T, vm *goja.Runtime) {
 	t.Helper()
-	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
+	evalJS(t, vm, settingsUIPath(t, "testing", "loader.js"))
 	evalJS(t, vm, uiEmbedPath(t, "util", "escape.js"))
-	evalJS(t, vm, logsUIPath(t, "util", "escape.js"))
-	evalJS(t, vm, logsUIPath(t, "util", "hash.js"))
-	evalJS(t, vm, logsUIPath(t, "render", "sumEvlog.js"))
+	evalJS(t, vm, settingsUIPath(t, "util", "escape.js"))
+	evalJS(t, vm, settingsUIPath(t, "util", "hash.js"))
+	evalJS(t, vm, settingsUIPath(t, "render", "sumEvlog.js"))
 	for _, f := range []string{
 		"sharedFormat.js", "convCard.js", "serviceCard.js", "gatewayOverview.js", "gatewayUsage.js",
 		"adminShared.js", "adminUsers.js", "adminProvider.js", "adminRouting.js", "adminFallback.js",
@@ -98,16 +99,13 @@ func loadCardTestCtx(t *testing.T, vm *goja.Runtime) {
 
 	_, err := vm.RunString(`
 		var ctx = {
-			escapeHtml: ChimeraLogs.escapeHtml,
+			escapeHtml: ChimeraSettings.escapeHtml,
 			getFlat: function (p) { return (p && p.rawFlat) || {}; },
 			entryCache: [],
-			strHash: ChimeraLogs.strHash,
+			strHash: ChimeraSettings.strHash,
 			entryInstant: function () { return null; },
 			logSummaryHtml: function () { return ""; },
 			tbody: null,
-			focusPrincipal: "",
-			focusConv: "",
-			focusSeq: "",
 			sumEvlogRowTrHtml: function () { return ""; },
 			sumEvlogPanelHtml: function (o) { return o.title || ""; },
 			inferServiceBadge: function () { return "svc"; },
@@ -137,8 +135,8 @@ func loadCardTestCtx(t *testing.T, vm *goja.Runtime) {
 			tokenLabelByTenant: { "tenant-a": "Alice" },
 			adminCreatedTokenByTenant: {}
 		};
-		ChimeraLogs.Render.mountSumEvlog(ctx);
-		ChimeraLogs.Render.Cards.mountAll(ctx);
+		ChimeraSettings.Render.mountSumEvlog(ctx);
+		ChimeraSettings.Render.Cards.mountAll(ctx);
 	`)
 	if err != nil {
 		t.Fatalf("mount card ctx: %v", err)

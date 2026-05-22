@@ -44,6 +44,36 @@ func TestNormalizePayloadLoadingCollection(t *testing.T) {
 	}
 }
 
+func TestNormalizePayloadHTTPReadinessProbeDebug(t *testing.T) {
+	raw := `{"timestamp":"t","level":"INFO","fields":{"message":"127.0.0.1 \"GET /collections HTTP/1.1\" 200 42 \"-\" \"Go-http-client/1.1\" 0.001"},"target":"actix_web::middleware::logger"}`
+	b := NormalizePayload(raw)
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["msg"] != "vectorstore.http.access_other" {
+		t.Fatalf("msg=%v", m["msg"])
+	}
+	if m["level"] != "DEBUG" {
+		t.Fatalf("level=%v want DEBUG", m["level"])
+	}
+	if int(m["http_status"].(float64)) != 200 {
+		t.Fatal(m["http_status"])
+	}
+}
+
+func TestNormalizePayloadHTTPReadinessProbeFailureStaysInfo(t *testing.T) {
+	raw := `{"timestamp":"t","level":"INFO","fields":{"message":"127.0.0.1 \"GET /collections HTTP/1.1\" 503 12 \"-\" \"Go-http-client/1.1\" 0.001"},"target":"actix_web::middleware::logger"}`
+	b := NormalizePayload(raw)
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["level"] != "INFO" {
+		t.Fatalf("level=%v want INFO", m["level"])
+	}
+}
+
 func TestNormalizePayloadHTTPUpsertOK(t *testing.T) {
 	raw := `{"timestamp":"t","level":"INFO","fields":{"message":"127.0.0.1 \"PUT /collections/coll-a/points?wait=true HTTP/1.1\" 200 92 \"-\" \"Go-http-client/1.1\" 0.001"},"target":"actix_web::middleware::logger"}`
 	b := NormalizePayload(raw)

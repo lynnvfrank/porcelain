@@ -25,35 +25,10 @@ func NormalizePayload(raw string) []byte {
 }
 
 func normalizeJSON(raw string) []byte {
-	var fields map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(raw), &fields); err != nil {
-		return fallbackUnknown(raw, "", "")
+	if b, ok := wline.NormalizeSlogLine([]byte(raw), serviceName); ok {
+		return b
 	}
-	out := normalized{
-		Service:     serviceName,
-		ChimeraNorm: 1,
-	}
-	out.Timestamp = wline.NormalizeTimestampUTC(wline.JSONString(fields, "time"))
-	if out.Timestamp == "" {
-		out.Timestamp = wline.NormalizeTimestampUTC(wline.JSONString(fields, "timestamp"))
-	}
-	out.Level = strings.ToUpper(strings.TrimSpace(wline.JSONString(fields, "level")))
-	msg := strings.TrimSpace(wline.JSONString(fields, "msg"))
-	if msg == "" {
-		msg = strings.TrimSpace(wline.JSONString(fields, "message"))
-	}
-	if msg == "" {
-		msg = "chimera-supervisor.log.text"
-	}
-	out.Msg = msg
-	if out.Level == "" {
-		out.Level = "INFO"
-	}
-	b, err := json.Marshal(out)
-	if err != nil {
-		return fallbackUnknown(raw, out.Level, msg)
-	}
-	return b
+	return fallbackUnknown(raw, "", "")
 }
 
 func normalizePlain(raw string) []byte {

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/lynn/porcelain/internal/locus"
 )
 
 func TestBaseURL_Default(t *testing.T) {
@@ -94,11 +96,17 @@ func TestWaitReady_Timeout(t *testing.T) {
 
 func TestEntryURL_Default(t *testing.T) {
 	got := EntryURL("http://127.0.0.1:7710")
+	if !strings.HasPrefix(got, locus.DefaultOperatorUIBaseURL) {
+		t.Fatalf("expected gateway operator UI base, got %s", got)
+	}
 	if !strings.Contains(got, "/ui/login") {
 		t.Fatalf("expected login route, got %s", got)
 	}
-	if !strings.Contains(got, "focus=admin") {
-		t.Fatalf("expected admin logs focus, got %s", got)
+	if !strings.Contains(got, "next=%2Fui") && !strings.Contains(got, "next=/ui") {
+		t.Fatalf("expected default /ui next path, got %s", got)
+	}
+	if strings.Contains(got, ":7710") {
+		t.Fatalf("must not use supervisor listen URL for operator UI, got %s", got)
 	}
 }
 

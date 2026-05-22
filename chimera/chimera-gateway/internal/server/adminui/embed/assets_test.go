@@ -32,12 +32,12 @@ func resetAssetsCache(t *testing.T) {
 func TestReadFile_embeddedDefault(t *testing.T) {
 	resetAssetsCache(t)
 	t.Setenv(naming.EnvAdminUIRoot, "")
-	b, err := ReadFile("embedui/logs.html")
+	b, err := ReadFile("embedui/settings.html")
 	if err != nil {
 		t.Fatalf("ReadFile: %v", err)
 	}
 	if len(b) == 0 {
-		t.Fatal("expected non-empty logs.html")
+		t.Fatal("expected non-empty settings.html")
 	}
 	if AssetsFromDisk() {
 		t.Fatal("expected embedded assets by default")
@@ -125,15 +125,15 @@ func TestServeAsset_fromDisk(t *testing.T) {
 	SetGatewayListenAddr("127.0.0.1:3000")
 	t.Setenv(naming.EnvAdminUIRoot, root)
 
-	marker := filepath.Join(root, "embedui", "logs", ".dev_mode_serve_marker")
+	marker := filepath.Join(root, "embedui", "settings", ".dev_mode_serve_marker")
 	if err := os.WriteFile(marker, []byte("serve-ok"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Remove(marker) })
 
-	req := httptest.NewRequest(http.MethodGet, "/ui/assets/logs/.dev_mode_serve_marker", nil)
+	req := httptest.NewRequest(http.MethodGet, "/ui/assets/settings/.dev_mode_serve_marker", nil)
 	rec := httptest.NewRecorder()
-	ServePathPrefix("embedui/logs/", "/ui/assets/logs/", "application/javascript; charset=utf-8")(rec, req)
+	ServePathPrefix("embedui/settings/", "/ui/assets/settings/", "application/javascript; charset=utf-8")(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}

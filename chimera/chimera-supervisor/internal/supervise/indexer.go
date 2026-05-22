@@ -139,7 +139,17 @@ func StartIndexer(ctx context.Context, cfg IndexerConfig, log *slog.Logger) (*ex
 		return nil, fmt.Errorf("indexer start: %w", err)
 	}
 	if log != nil {
-		log.Info("indexer supervised", "msg", "chimera-supervisor.indexer.starting", "bin", bin, "config", cfgPath, "workdir", workDir, "log_json", cfg.LogJSON)
+		args := []any{
+			"msg", "chimera-supervisor.indexer.starting",
+			"bin", bin,
+			"config", cfgPath,
+			"workdir", workDir,
+			"log_json", cfg.LogJSON,
+		}
+		if u := strings.TrimSpace(cfg.GatewayURL); u != "" {
+			args = append(args, "gateway_url", strings.TrimSuffix(u, "/"))
+		}
+		log.Info("indexer supervised", args...)
 	}
 	return cmd, nil
 }

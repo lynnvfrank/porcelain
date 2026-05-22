@@ -12,9 +12,9 @@ import (
 )
 
 // DefaultOperatorCopyJSPath is the embed path for generated operator copy (full registry).
-const DefaultOperatorCopyJSPath = "chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/operator_copy.js"
+const DefaultOperatorCopyJSPath = "chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/operator_copy.js"
 
-// WriteOperatorCopyJS emits ChimeraLogs.OperatorCopy from the full messages.yaml catalog.
+// WriteOperatorCopyJS emits ChimeraSettings.OperatorCopy from the full messages.yaml catalog.
 func WriteOperatorCopyJS(w io.Writer, reg *operatorcopy.Registry) error {
 	if reg == nil {
 		return fmt.Errorf("genoperatorcopy: nil registry")
@@ -27,7 +27,7 @@ func WriteOperatorCopyJS(w io.Writer, reg *operatorcopy.Registry) error {
 	b.WriteString(" * DO NOT EDIT; run: make operator-copy-generate\n")
 	b.WriteString(" */\n")
 	b.WriteString("(function () {\n")
-	b.WriteString("  globalThis.ChimeraLogs = globalThis.ChimeraLogs || {};\n")
+	b.WriteString("  globalThis.ChimeraSettings = globalThis.ChimeraSettings || {};\n")
 	b.WriteString("  function fieldPresent(flat, field) {\n")
 	b.WriteString("    if (!flat || typeof flat !== \"object\") return false;\n")
 	b.WriteString("    if (!Object.prototype.hasOwnProperty.call(flat, field)) return false;\n")
@@ -204,7 +204,7 @@ func WriteOperatorCopyJS(w io.Writer, reg *operatorcopy.Registry) error {
 		b.WriteString("\n")
 	}
 	b.WriteString("  };\n")
-	b.WriteString("  ChimeraLogs.OperatorCopy = {\n")
+	b.WriteString("  ChimeraSettings.OperatorCopy = {\n")
 	b.WriteString("    Slug: Slug,\n")
 	b.WriteString("    aliasToCanonical: aliasToCanonical,\n")
 	b.WriteString("    bySlug: bySlug,\n")
@@ -241,13 +241,13 @@ func WriteOperatorCopyJS(w io.Writer, reg *operatorcopy.Registry) error {
 	b.WriteString("        if (source === \"chimera-vectorstore\" || source === \"chimera-broker\" || source === \"chimera-indexer\") return \"service.\" + source;\n")
 	b.WriteString("        return \"\";\n")
 	b.WriteString("      }\n")
-	b.WriteString("      var slug = ChimeraLogs.OperatorCopy.resolveFlat(flat);\n")
+	b.WriteString("      var slug = ChimeraSettings.OperatorCopy.resolveFlat(flat);\n")
 	b.WriteString("      if (slug && Object.prototype.hasOwnProperty.call(bySlug, slug) && bySlug[slug].shape) return bySlug[slug].shape;\n")
 	b.WriteString("      return \"\";\n")
 	b.WriteString("    },\n")
 	b.WriteString("    metricsCounterForFlat: function (flat) {\n")
 	b.WriteString("      if (!flat || typeof flat !== \"object\") return \"\";\n")
-	b.WriteString("      var slug = ChimeraLogs.OperatorCopy.resolveFlat(flat);\n")
+	b.WriteString("      var slug = ChimeraSettings.OperatorCopy.resolveFlat(flat);\n")
 	b.WriteString("      if (slug && Object.prototype.hasOwnProperty.call(bySlug, slug) && bySlug[slug].metricsCounter) return bySlug[slug].metricsCounter;\n")
 	b.WriteString("      return \"\";\n")
 	b.WriteString("    }\n")

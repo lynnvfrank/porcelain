@@ -14,7 +14,7 @@ func TestInitialBinaryReadinessProbes_locked(t *testing.T) {
 		}
 		if p.Component == ComponentGateway {
 			foundGateway = true
-			if p.Path != "/health" || p.WantStatus != 200 || p.Method != "GET" {
+			if p.Path != "/healthz" || p.WantStatus != 200 || p.Method != "GET" {
 				t.Fatalf("gateway probe mismatch: %+v", p)
 			}
 		}

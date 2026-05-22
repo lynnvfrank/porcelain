@@ -125,7 +125,7 @@ func (ix *Indexer) FetchAndLogConfig(ctx context.Context) (*IndexerConfig, error
 		withArgs = append(withArgs, "user_label", ul)
 	}
 	// Single-ingest-scope processes get a stable log.With indexer_key. Multi-scope
-	// configs (distinct project/flavor pairs across roots) omit it so /ui/logs can
+	// configs (distinct project/flavor pairs across roots) omit it so /ui/settings can
 	// partition by indexer_target_key from indexer.run.start root_scopes and job rows.
 	if len(targetKeys) == 1 {
 		withArgs = append(withArgs, "indexer_key", targetKeys[0])

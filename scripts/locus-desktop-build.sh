@@ -10,7 +10,7 @@ msys2_prepend_gcc_path || true
 bin="${1:?locus-desktop-build.sh: missing output binary name (e.g. ${LOCUS_DESKTOP_BIN_BASE} or ${LOCUS_DESKTOP_BIN_BASE}.exe)}"
 cd "$root"
 export CGO_ENABLED=1
-# Windows: GUI subsystem so double-click / Explorer launch does not open a console host (logs → /ui/logs).
+# Windows: GUI subsystem so double-click / Explorer launch does not open a console host.
 target_os="${GOOS:-$(go env GOOS)}"
 # Flags before package args only (-ldflags after ./cmd/... is parsed as a package path).
 args=("-tags" "desktop")

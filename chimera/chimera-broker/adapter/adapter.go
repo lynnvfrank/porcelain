@@ -38,7 +38,7 @@ func (a *ChimeraBroker) Start(ctx context.Context, capture io.Writer, log *slog.
 }
 
 func (a *ChimeraBroker) ReadyURL() string {
-	return fmt.Sprintf("http://%s:%d/models", strings.TrimSpace(a.Host), a.Port)
+	return fmt.Sprintf("http://%s:%d/health", strings.TrimSpace(a.Host), a.Port)
 }
 
 func (a *ChimeraBroker) MetricsURL() string {

@@ -17,7 +17,7 @@ Canonical structured-log slugs, legacy aliases, and English operator copy for th
 ## Commands
 
 ```bash
-go generate ./internal/operatorcopy/...   # validate messages.yaml + write logs/operator_copy.js
+go generate ./internal/operatorcopy/...   # validate messages.yaml + write embedui/settings/operator_copy.js
 go test ./internal/operatorcopy/...
 go run ./internal/operatorcopy/cmd/bootstrap   # rewrite messages.yaml from bootstrap_registry.go
 make contracts-generate   # bootstrap + generate (Phase 2+)

@@ -13,7 +13,7 @@ import (
 	"github.com/lynn/porcelain/internal/naming"
 )
 
-//go:embed embedui/login.html embedui/logs.html embedui/logs.css embedui/ui.css embedui/theme-tokens.css embedui/styles/* embedui/ui/* embedui/ui/*/* embedui/logs_app.js embedui/logs_entry.js embedui/logs/* embedui/logs/*/* embedui/shell.html embedui/pwa.html embedui/reload.svg embedui/setup.html
+//go:embed embedui/login.html embedui/settings.html embedui/settings.css embedui/ui.css embedui/theme-tokens.css embedui/embed-theme.js embedui/styles/* embedui/ui/* embedui/ui/*/* embedui/settings_app.js embedui/settings_entry.js embedui/settings/* embedui/settings/*/* embedui/index.html embedui/pwa.html embedui/setup.html embedui/settings/gallery.html embedui/gallery/*
 var embeddedFS embed.FS
 
 type assetState struct {
@@ -109,7 +109,7 @@ func resolveAdminUIRoot(raw string) (string, bool) {
 }
 
 func adminUIRootCandidate(root string) (string, bool) {
-	st, err := os.Stat(filepath.Join(root, "embedui", "logs.html"))
+	st, err := os.Stat(filepath.Join(root, "embedui", "settings.html"))
 	if err != nil || st.IsDir() {
 		return "", false
 	}

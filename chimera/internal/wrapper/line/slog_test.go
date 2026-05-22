@@ -6,6 +6,30 @@ import (
 	"testing"
 )
 
+func TestNormalizeSlogLinePreservesShutdownAttrs(t *testing.T) {
+	raw := []byte(`{"time":"2026-05-21T22:33:52Z","level":"WARN","msg":"chimera-supervisor.shutdown.child_force_kill","child":"gateway","pid":1234,"timeout":"15s"}`)
+	b, ok := NormalizeSlogLine(raw, "chimera-supervisor")
+	if !ok {
+		t.Fatal("expected normalize")
+	}
+	var m map[string]any
+	if err := json.Unmarshal(b, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["child"] != "gateway" {
+		t.Fatalf("child=%v", m["child"])
+	}
+	if m["pid"] != "1234" {
+		t.Fatalf("pid=%v", m["pid"])
+	}
+	if m["timeout"] != "15s" {
+		t.Fatalf("timeout=%v", m["timeout"])
+	}
+	if m["service"] != "chimera-supervisor" {
+		t.Fatalf("service=%v", m["service"])
+	}
+}
+
 func TestPassthroughSlogJSONKeyOrder(t *testing.T) {
 	raw := []byte(`{"time":"2026-05-16T12:00:00Z","level":"INFO","msg":"wrapper.backend.starting","component":"chimera-broker"}`)
 	b, ok := PassthroughSlogJSON(raw, "broker")

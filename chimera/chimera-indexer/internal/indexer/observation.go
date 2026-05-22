@@ -8,7 +8,7 @@ import (
 
 // RunObservationLoop periodically pulls GET /v1/indexer/storage/stats once per
 // distinct effective ingest scope (deduped watched roots) and emits indexer.state
-// snapshots for operators and /ui/logs.
+// snapshots for operators and /ui/settings.
 func (ix *Indexer) RunObservationLoop(ctx context.Context, watchMode bool) {
 	if ix.cfg.StorageStatsPoll <= 0 {
 		return

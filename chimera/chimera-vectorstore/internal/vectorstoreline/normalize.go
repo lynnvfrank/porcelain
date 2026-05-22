@@ -1,5 +1,5 @@
 // Package vectorstoreline normalizes raw Qdrant process output into JSON lines with stable
-// vectorstore.* msg slugs and structured fields for the operator logs UI.
+// vectorstore.* msg slugs and structured fields for the operator settings UI (/ui/settings).
 //
 // Operator-facing copy for these slugs lives in internal/operatorcopy/messages.yaml
 // (legacy alias qdrant.* until 2026-08-01). Do not add prose here.
@@ -297,9 +297,41 @@ func normalizeAccessJSON(_ rustTracingLine, msg string, base normalized) []byte 
 	default:
 		base.Msg = "vectorstore.http.access_other"
 	}
+	applyVectorstoreHTTPAccessLevel(&base, method, path)
 	ensureVectorstoreTimestamp(&base)
 	b, _ := json.Marshal(base)
 	return b
+}
+
+// vectorstoreHTTPAccessLevel returns DEBUG for successful wrapper readiness / health
+// probes so default INFO streams (supervisor mirror, settings UI) stay readable.
+func vectorstoreHTTPAccessLevel(method, path string, status int) string {
+	if status < 200 || status >= 300 {
+		return ""
+	}
+	method = strings.ToUpper(strings.TrimSpace(method))
+	path = strings.TrimSpace(path)
+	if i := strings.Index(path, "?"); i >= 0 {
+		path = path[:i]
+	}
+	if len(path) > 1 && strings.HasSuffix(path, "/") {
+		path = strings.TrimRight(path, "/")
+	}
+	lowPath := strings.ToLower(path)
+	switch {
+	case method == "GET" && lowPath == "/collections":
+		return "DEBUG"
+	case method == "GET" && (lowPath == "/health" || lowPath == "/healthz" || lowPath == "/readyz" || lowPath == "/livez"):
+		return "DEBUG"
+	default:
+		return ""
+	}
+}
+
+func applyVectorstoreHTTPAccessLevel(out *normalized, method, path string) {
+	if lvl := vectorstoreHTTPAccessLevel(method, path, out.HTTPStatus); lvl != "" {
+		out.Level = lvl
+	}
 }
 
 // classifyOperatorSignals maps high-signal backend log messages that are not tied to a single

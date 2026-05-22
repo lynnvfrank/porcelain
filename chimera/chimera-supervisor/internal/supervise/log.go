@@ -4,39 +4,33 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"strings"
 
 	gwconfig "github.com/lynn/porcelain/chimera/internal/config"
 	"github.com/lynn/porcelain/chimera/internal/logfmt"
+	wline "github.com/lynn/porcelain/chimera/internal/wrapper/line"
 )
 
-// LogSink normalizes child stdout/stderr to JSON lines and records them in the ring buffer.
-func LogSink(storeWriter io.Writer, normalize func(io.Writer) io.Writer) io.Writer {
-	return normalize(io.MultiWriter(storeWriter, os.Stdout))
+// LogSink normalizes child stdout/stderr to JSON lines, applies minLevel, and records
+// them in the ring buffer and process stdout.
+func LogSink(storeWriter io.Writer, normalize func(io.Writer) io.Writer, minLevel slog.Level) io.Writer {
+	sink := io.MultiWriter(
+		wline.NewLevelFilterWriter(storeWriter, minLevel),
+		wline.NewLevelFilterWriter(os.Stdout, minLevel),
+	)
+	return normalize(sink)
 }
 
-func buildLogger(w io.Writer, gatewayPath string, json bool) *slog.Logger {
-	lvl := slog.LevelInfo
+func resolveLogLevel(gatewayPath string) slog.Level {
 	if e := os.Getenv("LOG_LEVEL"); e != "" {
-		lvl = parseLogLevel(e)
-	} else {
-		res, err := gwconfig.LoadGatewayYAML(gatewayPath, nil)
-		if err == nil {
-			lvl = parseLogLevel(res.LogLevel)
-		}
+		return wline.ParseLogLevel(e)
 	}
-	return logfmt.NewLogger(w, json, lvl)
+	res, err := gwconfig.LoadGatewayYAML(gatewayPath, nil)
+	if err == nil {
+		return wline.ParseLogLevel(res.LogLevel)
+	}
+	return slog.LevelInfo
 }
 
-func parseLogLevel(v string) slog.Level {
-	switch strings.ToLower(strings.TrimSpace(v)) {
-	case "debug":
-		return slog.LevelDebug
-	case "warn", "warning":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
+func buildLogger(w io.Writer, level slog.Level, json bool) *slog.Logger {
+	return logfmt.NewLogger(w, json, level)
 }

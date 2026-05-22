@@ -45,7 +45,7 @@ const (
 	// chimera-broker wrapper defaults.
 	DefaultBrokerListen     = "127.0.0.1:7730"
 	DefaultBrokerEndpoint   = "127.0.0.1:8080"
-	DefaultBrokerDataPath   = "data/chimera-broker"
+	DefaultBrokerDataPath   = "data/broker"
 	DefaultBrokerConfigPath = "config/chimera-broker.config.json"
 	DefaultBrokerLogLevel   = "info"
 	DefaultBrokerLogStyle   = "json"
@@ -64,7 +64,7 @@ const (
 	// chimera-vectorstore wrapper defaults.
 	DefaultVectorstoreListen   = "127.0.0.1:7740"
 	DefaultVectorstoreEndpoint = "127.0.0.1:6333"
-	DefaultVectorstoreDataPath = "data/qdrant"
+	DefaultVectorstoreDataPath = "data/vectorstore"
 	DefaultVectorstoreLogLevel = "info"
 	DefaultVectorstoreGRPCPort = 6334
 

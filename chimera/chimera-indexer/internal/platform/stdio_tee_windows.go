@@ -21,7 +21,7 @@ func hasConsoleAttached() bool {
 
 // StdoutTee writes to w always; also to os.Stdout only when a console exists.
 // Linking with -H=windowsgui and teeing to os.Stdout without a console can block child
-// processes and break the HTTP stack; logs still go to w (e.g. servicelogs for /ui/logs).
+// processes and break the HTTP stack; logs still go to w (e.g. servicelogs for /api/ui/logs).
 func StdoutTee(w io.Writer) io.Writer {
 	if hasConsoleAttached() {
 		return io.MultiWriter(os.Stdout, w)

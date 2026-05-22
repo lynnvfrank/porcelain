@@ -8,17 +8,17 @@ import (
 
 func loadOperatorMessageCtx(t *testing.T, vm *goja.Runtime) {
 	t.Helper()
-	evalJS(t, vm, logsUIPath(t, "testing", "loader.js"))
-	evalJS(t, vm, logsUIPath(t, "operator_copy.js"))
-	evalJS(t, vm, logsUIPath(t, "render", "operatorMessage.js"))
-	evalJS(t, vm, logsUIPath(t, "render", "operatorMessageServices.js"))
-	evalJS(t, vm, logsUIPath(t, "render", "operatorMessageIndexer.js"))
+	evalJS(t, vm, settingsUIPath(t, "testing", "loader.js"))
+	evalJS(t, vm, settingsUIPath(t, "operator_copy.js"))
+	evalJS(t, vm, settingsUIPath(t, "render", "operatorMessage.js"))
+	evalJS(t, vm, settingsUIPath(t, "render", "operatorMessageServices.js"))
+	evalJS(t, vm, settingsUIPath(t, "render", "operatorMessageIndexer.js"))
 }
 
 func TestOperatorCopy_inferShapeForFlat_registry(t *testing.T) {
 	vm := goja.New()
 	loadOperatorMessageCtx(t, vm)
-	oc := vm.Get("ChimeraLogs").ToObject(vm).Get("OperatorCopy").ToObject(vm)
+	oc := vm.Get("ChimeraSettings").ToObject(vm).Get("OperatorCopy").ToObject(vm)
 	fn, ok := goja.AssertFunction(oc.Get("inferShapeForFlat"))
 	if !ok {
 		t.Fatal("missing inferShapeForFlat")
@@ -46,7 +46,7 @@ func TestOperatorCopy_inferShapeForFlat_registry(t *testing.T) {
 func TestOperatorCopy_metricsCounterForFlat_gatewayCard(t *testing.T) {
 	vm := goja.New()
 	loadOperatorMessageCtx(t, vm)
-	oc := vm.Get("ChimeraLogs").ToObject(vm).Get("OperatorCopy").ToObject(vm)
+	oc := vm.Get("ChimeraSettings").ToObject(vm).Get("OperatorCopy").ToObject(vm)
 	mcFn, ok := goja.AssertFunction(oc.Get("metricsCounterForFlat"))
 	if !ok {
 		t.Fatal("missing metricsCounterForFlat")
@@ -63,7 +63,7 @@ func TestOperatorCopy_metricsCounterForFlat_gatewayCard(t *testing.T) {
 func TestOperatorMessage_resolveCanonicalSlug_aliases(t *testing.T) {
 	vm := goja.New()
 	loadOperatorMessageCtx(t, vm)
-	fn, ok := goja.AssertFunction(vm.Get("ChimeraLogs").ToObject(vm).Get("Render").ToObject(vm).Get("resolveCanonicalSlug"))
+	fn, ok := goja.AssertFunction(vm.Get("ChimeraSettings").ToObject(vm).Get("Render").ToObject(vm).Get("resolveCanonicalSlug"))
 	if !ok {
 		t.Fatal("missing resolveCanonicalSlug")
 	}
@@ -128,7 +128,7 @@ func TestOperatorMessage_gatewaySlugs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			vm := goja.New()
 			loadOperatorMessageCtx(t, vm)
-			fn, ok := goja.AssertFunction(vm.Get("ChimeraLogs").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
+			fn, ok := goja.AssertFunction(vm.Get("ChimeraSettings").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
 			if !ok {
 				t.Fatal("missing operatorMessage")
 			}
@@ -146,7 +146,7 @@ func TestOperatorMessage_gatewaySlugs(t *testing.T) {
 func TestOperatorMessage_broker_ready_canonicalSlug(t *testing.T) {
 	vm := goja.New()
 	loadOperatorMessageCtx(t, vm)
-	fn, ok := goja.AssertFunction(vm.Get("ChimeraLogs").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
+	fn, ok := goja.AssertFunction(vm.Get("ChimeraSettings").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
 	if !ok {
 		t.Fatal("missing operatorMessage")
 	}
@@ -167,7 +167,7 @@ func TestOperatorMessage_broker_ready_canonicalSlug(t *testing.T) {
 func TestOperatorMessage_vectorstore_version_canonicalSlug(t *testing.T) {
 	vm := goja.New()
 	loadOperatorMessageCtx(t, vm)
-	fn, ok := goja.AssertFunction(vm.Get("ChimeraLogs").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
+	fn, ok := goja.AssertFunction(vm.Get("ChimeraSettings").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
 	if !ok {
 		t.Fatal("missing operatorMessage")
 	}
@@ -188,7 +188,7 @@ func TestOperatorMessage_vectorstore_version_canonicalSlug(t *testing.T) {
 func TestOperatorMessage_indexer_state_humanTitle(t *testing.T) {
 	vm := goja.New()
 	loadOperatorMessageCtx(t, vm)
-	fn, ok := goja.AssertFunction(vm.Get("ChimeraLogs").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
+	fn, ok := goja.AssertFunction(vm.Get("ChimeraSettings").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
 	if !ok {
 		t.Fatal("missing operatorMessage")
 	}
@@ -207,7 +207,7 @@ func TestOperatorMessage_indexer_state_humanTitle(t *testing.T) {
 func TestOperatorMessage_indexer_job_failed_shortErr(t *testing.T) {
 	vm := goja.New()
 	loadOperatorMessageCtx(t, vm)
-	fn, ok := goja.AssertFunction(vm.Get("ChimeraLogs").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
+	fn, ok := goja.AssertFunction(vm.Get("ChimeraSettings").ToObject(vm).Get("Render").ToObject(vm).Get("operatorMessage"))
 	if !ok {
 		t.Fatal("missing operatorMessage")
 	}
@@ -254,7 +254,7 @@ func containsAll(s string, parts ...string) bool {
 func TestOperatorMessage_operatorFriendlyGatewayMsg_compat(t *testing.T) {
 	vm := goja.New()
 	loadOperatorMessageCtx(t, vm)
-	fn, ok := goja.AssertFunction(vm.Get("ChimeraLogs").ToObject(vm).Get("Render").ToObject(vm).Get("operatorFriendlyGatewayMsg"))
+	fn, ok := goja.AssertFunction(vm.Get("ChimeraSettings").ToObject(vm).Get("Render").ToObject(vm).Get("operatorFriendlyGatewayMsg"))
 	if !ok {
 		t.Fatal("missing operatorFriendlyGatewayMsg")
 	}

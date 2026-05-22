@@ -17,10 +17,6 @@ func NewBootstrapMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay) http
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
 		http.Redirect(w, r, "/ui/setup", http.StatusFound)
 	})
 
@@ -48,6 +44,15 @@ func NewBootstrapMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay) http
 			return
 		}
 		http.Redirect(w, r, "/ui/setup", http.StatusFound)
+	})
+
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "bootstrap": true})
 	})
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {

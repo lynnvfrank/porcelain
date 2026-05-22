@@ -38,10 +38,10 @@ chimera_clean_run_confirm_msg() {
 		echo "chimera-supervisor-clean-run: removes run/, logs/, chimera/run/ and supervisor pid/log — stop the stack first; re-run with CONFIRM=1"
 		;;
 	broker)
-		echo "chimera-broker-clean-run: removes data/chimera-broker/, data/bifrost/ — stop the stack first; re-run with CONFIRM=1"
+		echo "chimera-broker-clean-run: removes data/broker/ — stop the stack first; re-run with CONFIRM=1"
 		;;
 	vectorstore)
-		echo "chimera-vectorstore-clean-run: removes data/qdrant/ — stop the stack first; re-run with CONFIRM=1"
+		echo "chimera-vectorstore-clean-run: removes data/vectorstore/ — stop the stack first; re-run with CONFIRM=1"
 		;;
 	indexer)
 		echo "chimera-indexer-clean-run: removes data/gateway/indexer.* — stop the stack first; re-run with CONFIRM=1"
@@ -178,7 +178,7 @@ broker)
 		: # chimera-broker.config.json is committed; no generated broker config
 	fi
 	if want run; then
-		rm_paths "data/chimera-broker" "data/bifrost"
+		rm_paths "data/broker"
 	fi
 	;;
 vectorstore)
@@ -199,7 +199,7 @@ vectorstore)
 		: # there is no configuration that is generated for vectorstore
 	fi
 	if want run; then
-		rm_paths "data/qdrant"
+		rm_paths "data/vectorstore"
 	fi
 	;;
 indexer)

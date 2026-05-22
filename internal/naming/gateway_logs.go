@@ -8,7 +8,7 @@ package naming
 // chimera/internal/servicelogs/sources.go — import servicelogs when wiring buffers;
 // use LogSource* here for gateway UI, tests, and codegen that should not depend on chimera/.
 //
-// JS mirror: adminui/embed/embedui/logs/contracts.js (go generate ./internal/naming — see logs_ui.go).
+// JS mirror: adminui/embed/embedui/settings/contracts.js (go generate ./internal/naming — see logs_ui.go).
 const (
 	LogSourceChimeraGateway     = "chimera-gateway"
 	LogSourceChimeraBroker      = "chimera-broker"
@@ -36,11 +36,11 @@ const (
 	LogMsgPrefixIndexer     = "indexer."
 )
 
-// Logs UI localStorage keys (operator prefs — do not rename without a migration note).
+// Settings UI localStorage keys (operator prefs).
 const (
-	LogsUIPrefViewMode          = "chimera_logs_view_mode"
-	LogsUIPrefFilterApp         = "chimera_logs_flt_app"
-	LogsUIPrefFilterLevel       = "chimera_logs_flt_level"
-	LogsUIPrefIndexerWatchRoots = "chimera.indexer.watchRoots.v2"
-	LogsUIPrefGatewayShowProbes = "chimera.logs.gateway.showProbes"
+	SettingsUIPrefViewMode          = "chimera_settings_view_mode"
+	SettingsUIPrefFilterApp         = "chimera_settings_flt_app"
+	SettingsUIPrefFilterLevel       = "chimera_settings_flt_level"
+	SettingsUIPrefIndexerWatchRoots = "chimera.indexer.watchRoots.v2"
+	SettingsUIPrefGatewayShowProbes = "chimera.settings.gateway.showProbes"
 )

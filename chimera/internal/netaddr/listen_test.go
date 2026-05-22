@@ -18,3 +18,28 @@ func TestListenAddrOverride(t *testing.T) {
 		t.Fatal()
 	}
 }
+
+func TestLoopbackProbeHost(t *testing.T) {
+	cases := map[string]string{
+		"":          "127.0.0.1",
+		"0.0.0.0":   "127.0.0.1",
+		"::":        "::1",
+		"[::]":      "::1",
+		"127.0.0.1": "127.0.0.1",
+		"10.0.0.1":  "10.0.0.1",
+	}
+	for in, want := range cases {
+		if got := LoopbackProbeHost(in); got != want {
+			t.Fatalf("LoopbackProbeHost(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestProbeListenAddr(t *testing.T) {
+	if got := ProbeListenAddr("0.0.0.0:3000"); got != "127.0.0.1:3000" {
+		t.Fatalf("got %q", got)
+	}
+	if got := ProbeListenAddr("[::]:6333"); got != "[::1]:6333" {
+		t.Fatalf("got %q", got)
+	}
+}

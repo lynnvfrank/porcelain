@@ -19,11 +19,19 @@ func ChildEnv(controlBaseURL string) map[string]string {
 	return out
 }
 
-// WrapperArgs are appended to chimera-gateway, chimera-broker, and chimera-vectorstore.
+// WrapperArgs returns a copy of base args for chimera-gateway, chimera-broker, and chimera-vectorstore.
+// Upstream debug slog forwarding is disabled under CHIMERA_SUPERVISED; stdout is the log transport.
 func WrapperArgs(base []string) []string {
-	out := append([]string(nil), base...)
-	out = append(out, "-debug-forward-upstream")
-	return out
+	return append([]string(nil), base...)
+}
+
+// appendBackendLogLevel adds -log-level when gateway.yaml supplies a non-empty backend level.
+func appendBackendLogLevel(args []string, level string) []string {
+	level = strings.TrimSpace(level)
+	if level == "" {
+		return args
+	}
+	return append(args, "-log-level", level)
 }
 
 func mergeEnv(overrides map[string]string) []string {

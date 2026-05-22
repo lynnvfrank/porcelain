@@ -84,7 +84,7 @@ func TestMetricsAPI_returnsJSONWhenAuthed(t *testing.T) {
 	}
 }
 
-func TestMetricsPage_redirectsToLogsMetricsWhenAuthed(t *testing.T) {
+func TestMetricsPageRoute_removed(t *testing.T) {
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 	up := chimeraBrokerStubForUILogs(t)
 	t.Cleanup(up.Close)
@@ -95,56 +95,13 @@ func TestMetricsPage_redirectsToLogsMetricsWhenAuthed(t *testing.T) {
 	front := httptest.NewServer(NewMux(rt, testLog(), nil, ui))
 	t.Cleanup(front.Close)
 
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	client := &http.Client{
-		Jar: jar,
-		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	if _, err := client.Post(front.URL+"/api/ui/login", "application/json", strings.NewReader(`{"token":"gw-ui-secret"}`)); err != nil {
-		t.Fatal(err)
-	}
-	res, err := client.Get(front.URL + "/ui/metrics")
+	res, err := http.Get(front.URL + "/ui/metrics")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusFound {
-		t.Fatalf("status %d want %d", res.StatusCode, http.StatusFound)
-	}
-	if loc := res.Header.Get("Location"); loc != "/ui/logs?focus=metrics" {
-		t.Fatalf("Location %q want %q", loc, "/ui/logs?focus=metrics")
-	}
-}
-
-func TestMetricsPage_redirectsToLoginWithoutSession(t *testing.T) {
-	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
-	up := chimeraBrokerStubForUILogs(t)
-	t.Cleanup(up.Close)
-
-	rt := runtimeForUILogs(t, up.URL)
-	ui := NewUIOptions()
-	front := httptest.NewServer(NewMux(rt, testLog(), nil, ui))
-	t.Cleanup(front.Close)
-
-	client := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		return http.ErrUseLastResponse
-	}}
-	res, err := client.Get(front.URL + "/ui/metrics")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusFound {
-		t.Fatalf("status %d", res.StatusCode)
-	}
-	loc := res.Header.Get("Location")
-	if !strings.Contains(loc, "/ui/login") {
-		t.Fatalf("location %q", loc)
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("status %d want 404", res.StatusCode)
 	}
 }
 

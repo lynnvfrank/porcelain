@@ -160,7 +160,8 @@ func readyFromStatus(client *http.Client, baseURL string) (bool, string) {
 func EntryURL(supervisorBase string) string {
 	uiBase, bootstrap := operatorUIFromStatus(supervisorBase)
 	if uiBase == "" {
-		uiBase = strings.TrimRight(strings.TrimSpace(supervisorBase), "/")
+		// Operator UI is served by chimera-gateway, not the supervisor control plane.
+		uiBase = locus.DefaultOperatorUIBaseURL
 	}
 	if bootstrap {
 		return uiBase + "/ui/setup"

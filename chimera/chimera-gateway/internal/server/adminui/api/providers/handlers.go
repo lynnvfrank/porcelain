@@ -1,7 +1,7 @@
 // GET /api/ui/chimera-broker/providers — live provider/key snapshot for the chimera-broker
 // service card "Provider health" strip in the logs UI. Pulls per-provider config from the
 // broker management API (GET /api/providers/{name}) via internal/brokeradmin and classifies
-// each entry for adminui/embedui/logs_app.js regardless of subprocess log slugs in a given build.
+// each entry for adminui/embedui/settings_app.js regardless of subprocess log slugs in a given build.
 package providers
 
 import (
@@ -127,23 +127,24 @@ func fetchChimeraBrokerProviderHealth(ctx context.Context, client *brokeradmin.C
 	}
 	anySuccess := false
 	for _, name := range names {
-		body, status, err := client.GetProvider(ctx, name)
+		body, status, err, httpProbed := brokeradmin.GetProviderForProbe(ctx, client, name)
 		entry := ClassifyBrokerProviderResult(name, body, status, err, liveSnapshot)
 		if snapshotFresh {
 			entry.ModelIDs = catalogModelIDsForProvider(liveSnapshot, name)
 		}
-		if err == nil {
+		if httpProbed && err == nil {
 			anySuccess = true
 		}
 		out.Providers = append(out.Providers, entry)
 	}
 	out.BrokerUp = anySuccess
 	if !anySuccess {
-		// All probes failed at the transport level — annotate the response so the strip
-		// caption can explain the empty state instead of looking like "no providers".
+		// All live HTTP probes failed — annotate the response so the strip caption can explain
+		// the empty state instead of looking like "no providers".
 		out.Error = "chimera-broker-http unreachable"
 		for i := range out.Providers {
-			if out.Providers[i].State == "" || out.Providers[i].State == "unknown" {
+			switch out.Providers[i].State {
+			case "", "unknown", "key_missing":
 				out.Providers[i].State = "down"
 			}
 		}

@@ -39,7 +39,7 @@ var InitialBinaryReadinessProbes = []ReadinessProbe{
 		Component:  ComponentGateway,
 		Backend:    "custom",
 		Method:     "GET",
-		Path:       "/health",
+		Path:       "/healthz",
 		WantStatus: 200,
 	},
 	{

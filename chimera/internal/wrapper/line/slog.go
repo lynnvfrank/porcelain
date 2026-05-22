@@ -5,6 +5,44 @@ import (
 	"strings"
 )
 
+// NormalizeSlogLine converts log/slog JSON into chimera-normalized JSON while preserving
+// structured attributes such as child, pid, timeout, forced, and exit_code.
+func NormalizeSlogLine(raw []byte, defaultService string) ([]byte, bool) {
+	if b, ok := ReorderNormalizedJSON(raw); ok {
+		return b, true
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &fields); err != nil {
+		return nil, false
+	}
+	msg := strings.TrimSpace(JSONString(fields, "msg"))
+	if msg == "" {
+		msg = strings.TrimSpace(JSONString(fields, "message"))
+	}
+	if msg == "" {
+		return nil, false
+	}
+	rec := orderedLogFromFields(fields)
+	rec.Msg = msg
+	if rec.Service == "" {
+		rec.Service = defaultService
+	}
+	if rec.Timestamp != "" {
+		rec.Timestamp = NormalizeTimestampUTC(rec.Timestamp)
+	}
+	if rec.Level == "" {
+		rec.Level = "INFO"
+	} else {
+		rec.Level = strings.ToUpper(rec.Level)
+	}
+	rec.ChimeraNorm = ChimeraNormValue
+	b, err := marshalLosslessNormalized(rec, fields)
+	if err != nil {
+		return nil, false
+	}
+	return b, true
+}
+
 // PassthroughSlogJSON converts log/slog JSON lines (msg + level/time) into chimera-normalized JSON.
 func PassthroughSlogJSON(raw []byte, defaultService string) ([]byte, bool) {
 	if b, ok := ReorderNormalizedJSON(raw); ok {

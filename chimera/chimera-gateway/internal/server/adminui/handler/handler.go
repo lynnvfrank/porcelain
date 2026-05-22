@@ -108,7 +108,7 @@ func EnvLoginToken() string {
 func SanitizeLoginNext(next string) string {
 	next = strings.TrimSpace(next)
 	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || !strings.HasPrefix(next, "/ui/") {
-		return "/ui/logs"
+		return "/ui"
 	}
 	return next
 }

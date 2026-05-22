@@ -426,7 +426,7 @@ func Resolve(fc FileConfig, env func(string) string, ov Overrides) (Resolved, er
 
 	var rootEntries []RootYAML
 	if supervised {
-		// Phase 2: supervised --config uses gateway workspaces API only (no YAML roots, no --root).
+		// Supervised --config uses gateway workspaces API only (no YAML roots, no --root).
 		rootEntries = nil
 	} else if ov.Roots != nil {
 		for _, p := range ov.Roots {

@@ -73,6 +73,25 @@ func TestParseConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestReadyURLUsesLoopbackProbe(t *testing.T) {
+	t.Parallel()
+	a := &gatewayAdapter{cfg: gatewayConfig{GatewayListen: "0.0.0.0:3000"}}
+	if got := a.ReadyURL(); got != "http://127.0.0.1:3000/healthz" {
+		t.Fatalf("ReadyURL() = %q", got)
+	}
+}
+
+func TestReadyURLEmbeddedBackendUsesHealthz(t *testing.T) {
+	t.Parallel()
+	a := &gatewayAdapter{cfg: gatewayConfig{
+		GatewayListen: "127.0.0.1:3000",
+		Bin:           "chimera-gateway",
+	}}
+	if got := a.ReadyURL(); got != "http://127.0.0.1:3000/healthz" {
+		t.Fatalf("ReadyURL() = %q, want /healthz not site root", got)
+	}
+}
+
 func TestEnvDurationFallback(t *testing.T) {
 	t.Setenv("GW_TEST_DURATION", "2s")
 	if d := envDuration("GW_TEST_DURATION", time.Second); d != 2*time.Second {

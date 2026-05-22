@@ -441,14 +441,16 @@ func main() {
 		_, _ = os.Stdout.WriteString(s + "\n")
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	healthHandler := func(w http.ResponseWriter, r *http.Request) {
 		if atomic.LoadUint32(&ready) == 1 {
 			_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok"})
 			return
 		}
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_ = json.NewEncoder(w).Encode(map[string]any{"status": "degraded"})
-	})
+	}
+	mux.HandleFunc("/health", healthHandler)
+	mux.HandleFunc("/healthz", healthHandler)
 	mux.HandleFunc("/v1/models", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"object": "list",

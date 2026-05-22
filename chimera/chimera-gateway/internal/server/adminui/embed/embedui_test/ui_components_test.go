@@ -209,7 +209,7 @@ func TestUIComponents_LogsShim_reexportsBadge(t *testing.T) {
 	vm := goja.New()
 	loadChimeraUIBase(t, vm)
 	evalJS(t, vm, uiEmbedPath(t, "components", "Badge.js"))
-	evalJS(t, vm, logsUIPath(t, "components", "Badge.js"))
+	evalJS(t, vm, settingsUIPath(t, "components", "Badge.js"))
 
 	fn := getFn(t, vm, "Badge")
 	v, err := fn(goja.Undefined(), vm.ToValue(map[string]any{"text": "x", "variant": "svc-chimera-broker"}))

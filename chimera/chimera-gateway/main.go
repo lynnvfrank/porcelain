@@ -237,20 +237,18 @@ func (a *gatewayAdapter) Start(ctx context.Context, capture io.Writer, log *slog
 func (a *gatewayAdapter) ReadyURL() string {
 	path := strings.TrimSpace(a.cfg.ConfigPath)
 	if path == "" {
-		return "http://127.0.0.1:3000/health"
+		return "http://127.0.0.1:3000/healthz"
 	}
 	res, err := config.LoadGatewayYAML(path, nil)
 	if err != nil {
-		return "http://127.0.0.1:3000/health"
+		return "http://127.0.0.1:3000/healthz"
 	}
 	listen := strings.TrimSpace(a.cfg.GatewayListen)
 	if listen == "" {
 		listen = res.ListenAddr()
 	}
-	if useEmbeddedBackend(a.cfg.Bin) {
-		return "http://" + listen + "/"
-	}
-	return "http://" + listen + "/health"
+	listen = netaddr.ProbeListenAddr(listen)
+	return "http://" + listen + "/healthz"
 }
 
 func (a *gatewayAdapter) MetricsURL() string {
@@ -269,7 +267,7 @@ func (a *gatewayAdapter) MetricsURL() string {
 	if listen == "" {
 		listen = res.ListenAddr()
 	}
-	return "http://" + listen + "/metrics"
+	return "http://" + netaddr.ProbeListenAddr(listen) + "/metrics"
 }
 
 func (a *gatewayAdapter) BackendName() string {

@@ -8,7 +8,7 @@ import (
 
 // IndexerKey returns a compact stable fingerprint of the authenticated user
 // (tenant) plus the default RAG ingest scope **project_id** and **flavor_id**.
-// Workspace is deliberately excluded so /ui/logs groups indexers by the same
+// Workspace is deliberately excluded so /ui/settings groups indexers by the same
 // identity triple operators use when scoping ingestion, not indexer YAML nesting.
 //
 // All arguments should already be trimmed / resolved (e.g. effective project after

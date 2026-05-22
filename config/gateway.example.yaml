@@ -7,15 +7,13 @@
 
 # chimera-gateway: client-facing API, operator UI, routing, and RAG orchestration.
 #
-# Binds HTTP (listen_host / listen_port), defines the virtual model id (Chimera-<semver>),
-# and controls this process's own logs (/ui/logs ring). Does not configure broker or vectorstore.
+# Binds HTTP (listen_host / listen_port) and defines the virtual model id (Chimera-<semver>).
 gateway:
   # Semantic version for the virtual model id (Chimera-<semver>).
   semver: "0.2.0"
   # HTTP listen address for chimera-gateway.
-  listen_host: "0.0.0.0"
+  listen_host: "127.0.0.1"
   listen_port: 3000
-  # chimera-gateway process log level (text slog → stdout and /ui/logs ring).
   # Levels: trace | debug | info | warn | error. Empty or unknown → info.
   # LOG_LEVEL in the environment overrides this value.
   log_level: "info"
@@ -54,13 +52,13 @@ vectorstore:
 
 # Timeouts and background checks against chimera-broker and related probes.
 #
-# Used for GET /health, catalog polling in /ui/logs, and upstream chat completion deadlines.
+# Used for GET /health, catalog polling, and upstream chat completion deadlines.
 health:
   # Timeout (ms) for chimera-broker health and GET /v1/models catalog fetch.
   timeout_ms: 5000
   # Timeout (ms) per chimera-broker POST /v1/chat/completions attempt.
-  chat_timeout_ms: 300000
-  # Period (ms) for chimera-broker GET /v1/models (Provider strip in /ui/logs). 0 = disable polling.
+  chat_timeout_ms: 30000
+  # Period (ms) for chimera-broker GET /v1/models. 0 = disable polling.
   available_models_poll_ms: 30000
   # Optional explicit health probe URL (default: {broker.base_url}/health).
   # upstream_url: "http://127.0.0.1:8080/health"
@@ -161,9 +159,14 @@ indexer:
   supervised:
     # Start chimera-indexer after chimera-broker is healthy (needs CHIMERA_GATEWAY_TOKEN for ingest).
     enabled: true
-    # JSON logs on stderr are always enabled (source "indexer" in /ui/logs). Set log_json: false to opt out.
+    # By default, JSON logs on stderr are enabled. Set log_json: false to opt out.
+    # log_json: false
+    # The gateway can run the indexer provided at the given path.
     # bin: ""
-    # config_path: "../data/gateway/indexer.supervised.yaml"
+    # When the gateway runs the indexer, it writes and reads its configuration from this file.
+    # config_path: "../data/indexer.supervised.yaml"
+    # When the gateway disables RAG it also disables the indexer.
+    # With rag disabled, to run the indexer set this to true.
     # start_when_rag_disabled: false
 
 # Retrieval-augmented generation ("RAG"): gateway behavior for knowledge-backed chat.

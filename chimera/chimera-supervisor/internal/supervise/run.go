@@ -36,8 +36,9 @@ func Run(ctx context.Context, cfg svconfig.Config, version, commit string) error
 	}
 
 	logStore := servicelogs.New(servicelogs.DefaultMaxLines)
-	supSink := LogSink(logStore.Writer(servicelogs.SourceChimeraSupervisor), supervisorline.NewWriter)
-	log := buildLogger(supSink, path, cfg.LogJSON)
+	logLevel := resolveLogLevel(path)
+	supSink := LogSink(logStore.Writer(servicelogs.SourceChimeraSupervisor), supervisorline.NewWriter, logLevel)
+	log := buildLogger(supSink, logLevel, cfg.LogJSON)
 	if cfg.LogJSON {
 		_ = os.Setenv(logfmt.EnvLogJSON, "1")
 	}
@@ -125,18 +126,21 @@ func Run(ctx context.Context, cfg svconfig.Config, version, commit string) error
 	}
 
 	if !bootstrap {
-		if err := startGatewayChild(cfg, path, controlBaseURL, logStore, log, controlState, &gatewayProc, &gatewayWaitErr, gatewayReadyzURL, stopChildrenFast); err != nil {
-			return err
-		}
+		// Start vectorstore and broker before the gateway wrapper: the inner gateway
+		// /health probe requires upstream broker (and vectorstore when RAG is on), so
+		// gateway readiness cannot succeed until those backends are up.
 		if vectorstoreWrapperBin != "" {
-			if err := startVectorstoreChild(cfg, controlBaseURL, logStore, log, controlState, vectorstoreWrapperBin, &vectorstoreProc, &vectorstoreWait, vectorstoreReadyzURL, stopChildrenFast); err != nil {
+			if err := startVectorstoreChild(cfg, res, controlBaseURL, logStore, logLevel, log, controlState, vectorstoreWrapperBin, &vectorstoreProc, &vectorstoreWait, vectorstoreReadyzURL, stopChildrenFast); err != nil {
 				return err
 			}
 		}
-		if err := startBrokerChild(cfg, controlBaseURL, logStore, log, controlState, &brokerProc, &brokerWaitErr, brokerReadyzURL, vectorstoreWait, stopChildrenFast); err != nil {
+		if err := startBrokerChild(cfg, res, controlBaseURL, logStore, logLevel, log, controlState, &brokerProc, &brokerWaitErr, brokerReadyzURL, vectorstoreWait, stopChildrenFast); err != nil {
 			return err
 		}
-		startIndexerChild(res, cfg, path, controlBaseURL, logStore, log, indexerCtx, &indexerProc, &indexerWait)
+		if err := startGatewayChild(cfg, path, controlBaseURL, logStore, logLevel, log, controlState, &gatewayProc, &gatewayWaitErr, gatewayReadyzURL, stopChildrenFast); err != nil {
+			return err
+		}
+		startIndexerChild(res, cfg, path, controlBaseURL, logStore, logLevel, log, indexerCtx, &indexerProc, &indexerWait)
 	}
 
 	go func() {

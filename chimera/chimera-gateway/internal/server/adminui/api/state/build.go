@@ -143,7 +143,7 @@ func BuildResponse(ctx context.Context, r *http.Request, res *config.Resolved, r
 
 func probeStateProvider(ctx context.Context, client *brokeradmin.Client, name string) operatorapi.StateProviderEntry {
 	entry := operatorapi.StateProviderEntry{Provider: name}
-	b, st, err := client.GetProvider(ctx, name)
+	b, st, err, _ := brokeradmin.GetProviderForProbe(ctx, client, name)
 	if err != nil {
 		entry.OK = false
 		entry.Error = err.Error()

@@ -1,4 +1,4 @@
-// Command genjs writes adminui/logs/operator_copy.js from internal/operatorcopy/messages.yaml.
+// Command genjs writes adminui/embed/embedui/settings/operator_copy.js from internal/operatorcopy/messages.yaml.
 package main
 
 import (

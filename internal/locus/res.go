@@ -59,9 +59,10 @@ const (
 
 // Network and UI defaults.
 const (
-	DefaultSupervisorListen = "127.0.0.1:7710"
-	DefaultLoginNextPath    = "/ui/logs?focus=admin"
-	WindowTitle             = "Locus"
+	DefaultSupervisorListen  = "127.0.0.1:7710"
+	DefaultOperatorUIBaseURL = "http://127.0.0.1:3000" // chimera-gateway operator UI (see gateway.listen_port)
+	DefaultLoginNextPath     = "/ui"
+	WindowTitle              = "Locus"
 )
 
 // LogPrefix is prepended to locus-desktop stderr lines.

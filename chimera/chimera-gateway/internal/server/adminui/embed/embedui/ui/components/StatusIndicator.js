@@ -74,14 +74,14 @@ function evlogHeaderMetrics(counts) {
   var failN = counts.fail != null ? counts.fail : 0;
   var e = esc();
   return (
-    '<span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN sum-evlog-metric-num" data-sum-evlog-metric-warn title="Lines with WARN or HTTP 429 in this card">' +
+    '<span class="sum-evlog-metric-group sum-evlog-status__lvl--WARN" data-sum-evlog-metric-warn title="Warnings in this view">' +
+    '<span class="sum-evlog-metric-num">' +
     e(String(warnN)) +
-    "</span>" +
-    '<span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN sum-evlog__metric-icon" aria-hidden="true">⚠</span>' +
-    '<span class="sum-evlog-status__pill sum-evlog-status__lvl--ERROR sum-evlog-metric-num" data-sum-evlog-metric-fail title="Lines with ERROR or HTTP non-2xx in this card">' +
+    '</span><span class="material-symbols-outlined sum-evlog-metric-icon" aria-hidden="true">warning</span></span>' +
+    '<span class="sum-evlog-metric-group sum-evlog-status__lvl--ERROR" data-sum-evlog-metric-fail title="Errors in this view">' +
+    '<span class="sum-evlog-metric-num">' +
     e(String(failN)) +
-    "</span>" +
-    '<span class="sum-evlog-status__pill sum-evlog-status__lvl--ERROR sum-evlog__metric-icon" aria-hidden="true">✖</span>'
+    '</span><span class="material-symbols-outlined sum-evlog-metric-icon" aria-hidden="true">error</span></span>'
   );
 }
 

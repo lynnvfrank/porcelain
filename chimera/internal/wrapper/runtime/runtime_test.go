@@ -105,7 +105,47 @@ func TestRunLogsIncludeUniformFields(t *testing.T) {
 	}
 }
 
+func TestUpstreamLineNotEmittedInSupervisedMode(t *testing.T) {
+	t.Setenv("CHIMERA_SUPERVISED", "1")
+	buf := &bytes.Buffer{}
+	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	a := &fakeAdapterOutput{
+		output: "line one\n",
+	}
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		cancel()
+	}()
+	_ = Run(ctx, Config{
+		Component:              "chimera-vectorstore",
+		ComponentLabel:         "chimera-vectorstore",
+		BackendLabel:           "qdrant",
+		ModeLabel:              "binary",
+		BackendMode:            "binary",
+		Listen:                 "127.0.0.1:0",
+		StartupTimeout:         500 * time.Millisecond,
+		ShutdownTimeout:        500 * time.Millisecond,
+		TerminateWait:          10 * time.Millisecond,
+		BackoffInitial:         10 * time.Millisecond,
+		BackoffMultiplier:      2,
+		BackoffMax:             20 * time.Millisecond,
+		BackoffResetAfter:      30 * time.Millisecond,
+		ForwardUpstreamInDebug: true,
+		WrapperVersion:         "test",
+		ReadyMessage:           "vectorstore.ready",
+		UpstreamLineMessage:    "vectorstore.upstream.line",
+		HTTPServerErrorMessage: "vectorstore.http.server_error",
+	}, a, logger)
+	out := buf.String()
+	if strings.Contains(out, "vectorstore.upstream.line") {
+		t.Fatalf("supervised mode must not emit upstream debug slog; got: %s", out)
+	}
+}
+
 func TestUpstreamLineWrapperAppliesBeforeDebugEmitAndRing(t *testing.T) {
+	t.Setenv("CHIMERA_SUPERVISED", "0")
 	buf := &bytes.Buffer{}
 	logger := slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	ctx, cancel := context.WithCancel(context.Background())

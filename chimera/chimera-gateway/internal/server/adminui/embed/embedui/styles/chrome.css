@@ -37,11 +37,10 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0;
   color: var(--embed-text-muted);
   user-select: none;
 }
-html.logs-embedded .logs-chrome__shell,
-html.logs-embedded .logs-chrome__sep--shell {
+html.logs-embedded .logs-chrome__nav {
   display: none;
 }
-/* Desktop shell (/ui/desktop): iframe viewport must use % height, not vh — 100vh inside an iframe
+/* App shell (/ui): iframe viewport must use % height, not vh — 100vh inside an iframe
    can match the outer window and overflow the iframe, breaking hit-testing on the parent tab bar (WebView). */
 html.logs-embedded,
 html.logs-embedded body {
