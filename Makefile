@@ -76,8 +76,16 @@ else
 endif
 
 # Linux/macOS: use bash for recipes; unquoted () in @echo are subshell syntax in sh/bash.
+# Windows cmd echo prints literal quote characters — use skip_desktop_msg for SKIP lines.
 ifneq ($(OS),Windows_NT)
 SHELL := /bin/bash
+define skip_desktop_msg
+	@echo '[SKIP] $(1) (SKIP_DESKTOP=1)'
+endef
+else
+define skip_desktop_msg
+	@echo [SKIP] $(1) (SKIP_DESKTOP=1)
+endef
 endif
 
 .PHONY: help bash up configure install chimera-install chimera-test chimera-run \
@@ -148,28 +156,28 @@ vet-desktop:
 
 locus-vet-if-enabled:
 ifeq ($(SKIP_DESKTOP),1)
-	@echo [SKIP] locus-vet (SKIP_DESKTOP=1)
+	$(call skip_desktop_msg,locus-vet)
 else
 	@$(MAKE) --no-print-directory locus-vet
 endif
 
 locus-test-if-enabled:
 ifeq ($(SKIP_DESKTOP),1)
-	@echo [SKIP] locus-test (SKIP_DESKTOP=1)
+	$(call skip_desktop_msg,locus-test)
 else
 	@$(MAKE) --no-print-directory locus-test
 endif
 
 locus-test-unit-if-enabled:
 ifeq ($(SKIP_DESKTOP),1)
-	@echo [SKIP] locus-test-unit (SKIP_DESKTOP=1)
+	$(call skip_desktop_msg,locus-test-unit)
 else
 	@$(MAKE) --no-print-directory locus-test-unit
 endif
 
 locus-test-e2e-if-enabled:
 ifeq ($(SKIP_DESKTOP),1)
-	@echo '[SKIP] locus-test-e2e (SKIP_DESKTOP=1)'
+	$(call skip_desktop_msg,locus-test-e2e)
 else
 	@$(MAKE) --no-print-directory locus-test-e2e
 endif
