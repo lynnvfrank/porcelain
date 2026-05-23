@@ -76,17 +76,14 @@ else
 endif
 
 # Linux/macOS: use bash for recipes; unquoted () in @echo are subshell syntax in sh/bash.
-# Windows cmd echo prints literal quote characters — use skip_desktop_msg for SKIP lines.
+# Windows cmd echo prints literal quote characters — route SKIP lines through GITBASH (see help target).
 ifneq ($(OS),Windows_NT)
 SHELL := /bin/bash
-define skip_desktop_msg
-	@echo '[SKIP] $(1) (SKIP_DESKTOP=1)'
-endef
-else
-define skip_desktop_msg
-	@echo [SKIP] $(1) (SKIP_DESKTOP=1)
-endef
 endif
+
+define skip_desktop_msg
+	@$(GITBASH) -c "echo '[SKIP] $(1) (SKIP_DESKTOP=1)'"
+endef
 
 .PHONY: help bash up configure install chimera-install chimera-test chimera-run \
 	clean clean-install clean-build clean-configure clean-data clean-run clean-all \
