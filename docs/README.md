@@ -6,6 +6,8 @@
 
 Current release line: **v0.2.x** — RAG, ingest, workspace indexer (`chimera-indexer`), supervised-stack option, operator `/ui/*`, desktop webview. Shipped patches (v0.2.0–v0.2.2): [version-v0.2.md — Shipped releases](version-v0.2.md#shipped-releases-v020-through-v022).
 
+**Operator UI:** after login, the app shell is at `/ui`; configuration and the live log feed are at **`/ui/settings`** (component gallery: `/ui/settings/gallery`). Legacy routes such as `/ui/logs` and `/ui/desktop` are not registered. JSON/SSE APIs remain under `/api/ui/*` (e.g. `/api/ui/logs`).
+
 ## Operator docs (`docs/`)
 
 | Document | Description |

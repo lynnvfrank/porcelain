@@ -138,7 +138,7 @@ This produces the `./chimera` executable in the repo root (or use `go build -o c
 
 ## Operator UI development (filesystem assets)
 
-For day-to-day work on the summarized logs UI (`embedui/`), you can serve static assets from the repo tree instead of rebuilding `chimera-gateway` after every JavaScript or CSS change.
+For day-to-day work on the operator settings UI (`embedui/`), you can serve static assets from the repo tree instead of rebuilding `chimera-gateway` after every JavaScript or CSS change.
 
 1. Copy [`env.example`](../env.example) to `.env` (or export the variable in your shell).
 2. Uncomment **`CHIMERA_ADMINUI_ROOT`** so it points at `chimera/chimera-gateway/internal/server/adminui/embed` (the directory that contains `embedui/`).
@@ -161,11 +161,11 @@ $env:CHIMERA_ADMINUI_ROOT = "$PWD\chimera\chimera-gateway\internal\server\adminu
 make locus-desktop-run
 ```
 
-Edit files under `embedui/`, then refresh `/ui/logs` in the browser or desktop webview. The gateway only enables disk mode when **`CHIMERA_ADMINUI_ROOT` is valid** and the gateway **listen address is loopback** (see `gateway.yaml` `listen_host`).
+Edit files under `embedui/`, then refresh `/ui/settings` in the browser or desktop webview. The gateway only enables disk mode when **`CHIMERA_ADMINUI_ROOT` is valid** and the gateway **listen address is loopback** (see `gateway.yaml` `listen_host`).
 
 You still need `make chimera-gateway-build` when changing Go handlers or running `make operator-contracts-generate` after `internal/naming` edits.
 
-Details: [`plans/adminui-filesystem-dev-mode.md`](plans/adminui-filesystem-dev-mode.md) and [`embedui/logs/README.md`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/README.md).
+Details: [`plans/adminui-filesystem-dev-mode.md`](plans/adminui-filesystem-dev-mode.md) and [`embedui/settings/README.md`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/README.md).
 
 ## Next steps
 

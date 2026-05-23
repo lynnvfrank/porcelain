@@ -76,12 +76,12 @@ Reload: change file and **save** (mtime update). On reload, if token or policy *
 
 ### Supervised file indexer (`indexer.supervised`)
 
-Used by `chimera serve` and `locus-desktop`: optional supervision of `chimera-indexer` as a child process after BiFrost is healthy. The child gets `CHIMERA_GATEWAY_URL` and a single merged `--config` file; set `CHIMERA_GATEWAY_TOKEN` in the environment for `POST /v1/ingest`. Operator UI: `/ui/indexer` (GET/PUT config, append roots). Behavior and log slugs: **[indexer.md](indexer.md)** (supervised mode); process tree: **[supervisor.md](supervisor.md)**.
+Used by `chimera serve` and `locus-desktop`: optional supervision of `chimera-indexer` as a child process after BiFrost is healthy. The child gets `CHIMERA_GATEWAY_URL` and a single merged `--config` file; set `CHIMERA_GATEWAY_TOKEN` in the environment for `POST /v1/ingest`. Operator UI: `/ui/settings` Workspaces section (GET/PUT config, append roots). Behavior and log slugs: **[indexer.md](indexer.md)** (supervised mode); process tree: **[supervisor.md](supervisor.md)**.
 
 | Field | Description |
 |-------|-------------|
 | `indexer.supervised.enabled` | **true** → start `chimera-indexer` beside the gateway binary (or `indexer.supervised.bin` / `PATH`). Ignored unless `rag.enabled` is **true** or `start_when_rag_disabled` is **true**. |
-| `indexer.supervised.log_json` | Default **true** (omitted = JSON). Passes `--log-json` so the indexer writes structured logs on stderr (filter `/ui/logs` by source `indexer`). Set **false** to opt out. |
+| `indexer.supervised.log_json` | Default **true** (omitted = JSON). Passes `--log-json` so the indexer writes structured logs on stderr (filter `/ui/settings` by source `indexer`). Set **false** to opt out. |
 | `indexer.supervised.bin` | Optional explicit path to the `chimera-indexer` executable. Empty → resolve next to the gateway binary or `PATH`. |
 | `indexer.supervised.config_path` | Path to the single merged config passed as `--config` (default `../data/gateway/indexer.supervised.yaml` relative to `gateway.yaml`’s directory). |
 | `indexer.supervised.start_when_rag_disabled` | **true** → allow starting the supervised indexer when `rag.enabled` is **false** (default **false**). |

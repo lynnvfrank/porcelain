@@ -11,7 +11,7 @@
 
 ## At a glance
 
-Developers editing the summarized logs UI today must rebuild `chimera-gateway` (and often restart the supervised stack) to see JavaScript or CSS changes. This plan adds an optional **filesystem asset root** so the gateway serves `embedui/` from disk while production builds keep compile-time `//go:embed`. Set one environment variable, run `locus-desktop` or `chimera-supervisor` as usual, edit files under `adminui/embed/embedui/`, and refresh the browser—no gateway rebuild for static asset changes.
+Developers editing the operator settings UI today must rebuild `chimera-gateway` (and often restart the supervised stack) to see JavaScript or CSS changes. This plan adds an optional **filesystem asset root** so the gateway serves `embedui/` from disk while production builds keep compile-time `//go:embed`. Set one environment variable, run `locus-desktop` or `chimera-supervisor` as usual, edit files under `adminui/embed/embedui/`, and refresh the browser—no gateway rebuild for static asset changes.
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
@@ -23,11 +23,11 @@ Developers editing the summarized logs UI today must rebuild `chimera-gateway` (
 
 ## Background
 
-Operator UI assets live under `chimera/chimera-gateway/internal/server/adminui/embed/embedui/` and are registered in `embed/routes.go` with paths like `embedui/logs.html` and `/ui/assets/logs/`. The component gallery under `docs/component-gallery/` already loads production CSS from disk for visual iteration but does not exercise auth, `/api/ui/*`, or supervisor log streaming.
+Operator UI assets live under `chimera/chimera-gateway/internal/server/adminui/embed/embedui/` and are registered in `embed/routes.go` with paths like `embedui/settings.html` and `/ui/assets/settings/`. The component gallery under `docs/component-gallery/` already loads production CSS from disk for visual iteration but does not exercise auth, `/api/ui/*`, or supervisor log streaming.
 
 Supervisor and desktop already forward the parent process environment to the gateway child (`mergeEnv` in `chimera-supervisor/internal/supervise/env.go`), so a single env var on the developer shell is enough—no new supervisor flags required for the first cut.
 
-**Related docs:** [`embedui/logs/README.md`](../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/README.md), [`version-v0.3.md`](../version-v0.3.md), [`embedui-component-gallery.md`](embedui-component-gallery.md), [`locus-desktop-supervisor-contract.md`](locus-desktop-supervisor-contract.md).
+**Related docs:** [`embedui/settings/README.md`](../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/README.md), [`version-v0.3.md`](../version-v0.3.md), [`embedui-component-gallery.md`](embedui-component-gallery.md), [`locus-desktop-supervisor-contract.md`](locus-desktop-supervisor-contract.md).
 
 ---
 
@@ -38,13 +38,13 @@ Supervisor and desktop already forward the parent process environment to the gat
 **Deliverables**
 
 - `CHIMERA_ADMINUI_ROOT` constant in [`internal/naming/contracts.go`](../../internal/naming/contracts.go).
-- `embed` package: resolve root (directory containing `embedui/logs.html`), `os.DirFS` backend, fallback to embedded FS on missing/invalid path.
+- `embed` package: resolve root (directory containing `embedui/settings.html`), `os.DirFS` backend, fallback to embedded FS on missing/invalid path.
 - Unit tests: embedded default; disk mode serves a known file from the repo tree.
 - Existing path traversal rules preserved in `ServePathPrefix`.
 
 **Acceptance**
 
-- With env set to `.../adminui/embed`, `GET /ui/assets/logs/main.js` returns on-disk bytes after a file edit and browser refresh (no gateway rebuild).
+- With env set to `.../adminui/embed`, `GET /ui/assets/settings/main.js` returns on-disk bytes after a file edit and browser refresh (no gateway rebuild).
 - With env unset, release behavior unchanged.
 - `go test ./chimera/chimera-gateway/internal/server/adminui/embed/...` passes.
 
@@ -58,7 +58,7 @@ Supervisor and desktop already forward the parent process environment to the gat
 
 **Deliverables**
 
-- Dev workflow section in [`embedui/logs/README.md`](../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/README.md).
+- Dev workflow section in [`embedui/settings/README.md`](../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/README.md).
 - Row and section in [`version-v0.3.md`](../version-v0.3.md).
 - Entry in **Related plans** table in `version-v0.3.md`.
 

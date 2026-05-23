@@ -27,7 +27,7 @@ ingest can authenticate.
   only** (timeouts, workers, ignores, and so on). **Watch directories** are
   **not** read from YAML `roots:` in supervised mode; they come from the
   gateway **`GET /v1/indexer/workspaces`** (operator SQLite), managed in the
-  logs UI. When the supervised file changes on disk, the supervised
+  settings UI (`/ui/settings`). When the supervised file changes on disk, the supervised
   **`chimera-indexer` process detects the edit** (debounced), stops the
   current watcher session, and **starts a new session**—**no full desktop
   restart**. If the indexer binary is stale, or other gateway settings
@@ -35,17 +35,17 @@ ingest can authenticate.
 - **Standalone `chimera-indexer`** (no `--config`): unchanged—roots come from
   merged YAML and optional `--root` as before.
 - **Logs:** stderr/stdout are teed into the same ring buffer as BiFrost/Qdrant;
-  open `/ui/logs` and filter source `indexer`.
+  open `/ui/settings` and filter source `indexer`.
 - **Structured stderr:** supervised indexer passes `--log-json` by default (JSON **slog** on stderr). Set `indexer.supervised.log_json: false` to opt out.
 
 ### Structured operator logs (`--log-json`)
 
-After a successful `GET /v1/indexer/config`, the logger adds `tenant_id`, `principal_id` (same as tenant), and `user_label` to **all** structured lines via `log.With`, plus `indexer_key` when **every watched root resolves to the same** ingest `indexer_target_key`; if roots map to **multiple** projects/flavors, `indexer_multi_target` is set instead (**no** single `indexer_key`) so `/ui/logs` can split cards using `root_scopes` / job lines. Every line carries `index_run_id` and `service":"indexer"`. Stable slug `msg` for grouping: see [`plans/log-presentation-layer.plan.md`](plans/log-presentation-layer.plan.md).
+After a successful `GET /v1/indexer/config`, the logger adds `tenant_id`, `principal_id` (same as tenant), and `user_label` to **all** structured lines via `log.With`, plus `indexer_key` when **every watched root resolves to the same** ingest `indexer_target_key`; if roots map to **multiple** projects/flavors, `indexer_multi_target` is set instead (**no** single `indexer_key`) so `/ui/settings` can split cards using `root_scopes` / job lines. Every line carries `index_run_id` and `service":"indexer"`. Stable slug `msg` for grouping: see [`plans/log-presentation-layer.plan.md`](plans/log-presentation-layer.plan.md).
 
 | `msg` slug | When | Notable fields |
 |------------|------|----------------|
-| `indexer.run.start` | Process start (after config fetch when possible) | `roots`, `root_ids`, `watch_root_paths`, `root_scopes` (JSON array per root: `path`, `ingest_project`, `flavor_id`, `indexer_target_key`, workspace); legacy top-level `ingest_project` / scope fields mirror **YAML default scope** only (`defaults:` null → often empty — use `root_scopes` in `/ui/logs`) |
-| `gateway.indexer.config` | After successful `GET /v1/indexer/config` | `gateway_version`, `embedding_model`, `chunk_size`, …; optional `ingest_project` / `flavor_id` from request headers; `defaults_project_id` / `defaults_flavor_id` from gateway `defaults` (helps `/ui/logs` when YAML scope is empty) |
+| `indexer.run.start` | Process start (after config fetch when possible) | `roots`, `root_ids`, `watch_root_paths`, `root_scopes` (JSON array per root: `path`, `ingest_project`, `flavor_id`, `indexer_target_key`, workspace); legacy top-level `ingest_project` / scope fields mirror **YAML default scope** only (`defaults:` null → often empty — use `root_scopes` in `/ui/settings`) |
+| `gateway.indexer.config` | After successful `GET /v1/indexer/config` | `gateway_version`, `embedding_model`, `chunk_size`, …; optional `ingest_project` / `flavor_id` from request headers; `defaults_project_id` / `defaults_flavor_id` from gateway `defaults` (helps `/ui/settings` when YAML scope is empty) |
 | `indexer.storage.stats` | Periodic or one-shot (`GET /v1/indexer/storage/stats`) | `collection`, `qdrant_points`, `vector_dim`, `available`, optional `detail` / `err` |
 | `indexer.state` | Same cadence as storage stats polling (watch mode) or one-shot at exit | `state` (`watch_idle`, `backlog`, `uploading`, `recovery`, `initial_scanning`, `idle`), `queue_depth`, `ingest_inflight`, `initial_scan_complete`, `watch_mode`, `recovery`, `qdrant_points_reported` |
 | `indexer.reconcile.summary` | Corpus inventory loaded | `phase`=`inventory_loaded`, `remote_source_paths` |
@@ -106,7 +106,7 @@ unset after merge: **`true` → info**, **`false` → debug** (matching the old 
 where absent meant verbose INFO lines).
 
 - **Desktop folder picker:** the native shell binds `window.chimeraPickFolder`
-  (WebView + `dlgs` folder dialog); the Indexer tab calls it from `/ui/indexer`
+  (WebView + `dlgs` folder dialog); the Workspaces section on `/ui/settings` calls it
   (iframe uses `window.top.chimeraPickFolder`).
 
 **Binary:** place `chimera-indexer` next to the **same executable** that runs

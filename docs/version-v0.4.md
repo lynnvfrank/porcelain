@@ -135,7 +135,7 @@ For **`model: Chimera-<gateway_semver>`**, the gateway continues to own **routin
 
 - **Inputs (conceptual)** — A **directory tree summary**, **effective ignore sets** (`.chimeraignore`, `.gitignore`, built-ins), and **current indexer / workspace config** (roots, project/flavor scope)—**no** raw file bodies required for the recommendation call unless a later design explicitly adds a bounded sample.
 - **Output** — Actionable recommendations: suggested **globs**, **priority** hints, or **exclusion** patterns operators can **apply** to YAML or workspace settings (exact schema **TBD**).
-- **Call path** — Prefer a **gateway** HTTP surface (authenticated like ingest/indexer REST) so policy, logging, and model routing stay in Chimera; a companion CLI or `/ui/logs` action may invoke the same API.
+- **Call path** — Prefer a **gateway** HTTP surface (authenticated like ingest/indexer REST) so policy, logging, and model routing stay in Chimera; a companion CLI or `/ui/settings` action may invoke the same API.
 - **Non-goals** — **Automatic** application of model output without operator confirm; **replacing** Phase 2–6 ingest, watch, or reconciliation; **local** embedding or vector writes from the indexer binary.
 - **Dependencies** — Stable workspace/indexer identity (tenant, project, flavor) and operator surfaces from prior gateway trains; may reuse virtual-model or tool-router infrastructure where it reduces duplicate LLM wiring—document the chosen path when implemented.
 

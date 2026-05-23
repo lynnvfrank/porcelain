@@ -13,7 +13,7 @@
 
 ## At a glance
 
-Make the gateway easier to set up, friendlier to share between operators, and clearer about what it is. This plan’s **sections follow a single narrative**: **rename** (Porcelain · Chimera · Locus), **credential file naming** (`api-keys` / `secret`), **internal embedding** exploration, **operator-managed virtual models** (per-model routing from `/ui/logs`), **workspace embedding scope** (**user + project + flavor**, base corpus + unions), then **first-run token handoff** and the **setup wizard** (including **VS Code Cline** integration instead of Continue-oriented samples), and finally **peer backends** for cross-host upstream routing. Multiple operators can call each other's models.
+Make the gateway easier to set up, friendlier to share between operators, and clearer about what it is. This plan’s **sections follow a single narrative**: **rename** (Porcelain · Chimera · Locus), **credential file naming** (`api-keys` / `secret`), **internal embedding** exploration, **operator-managed virtual models** (per-model routing from `/ui/settings`), **workspace embedding scope** (**user + project + flavor**, base corpus + unions), then **first-run token handoff** and the **setup wizard** (including **VS Code Cline** integration instead of Continue-oriented samples), and finally **peer backends** for cross-host upstream routing. Multiple operators can call each other's models.
 
 
 | Theme                                                                                      | Outcome                                                                                                                                  | Status        |
@@ -38,7 +38,7 @@ Make the gateway easier to set up, friendlier to share between operators, and cl
 | [plans/embedui-dynamic-provider-cards.md](plans/embedui-dynamic-provider-cards.md)           | Settings provider cards: catalog, Add provider picker, hide usage/log until configured                                                 | `draft`       |
 | [Internal embedding provider (exploration)](#internal-embedding-provider-exploration)      | Optional in-repo or first-install embedding runtime to reduce reliance on Ollama for `/embeddings`                                       | `exploration` |
 | [Logs UI page data refreshing](#logs-ui-page-data-refreshing)                              | Interaction-safe summarized feed; per-card patches and view model (phased)                                                               | `done`        |
-| [Operator-managed virtual models](#operator-managed-virtual-models)                        | Create virtual models from `/ui/logs`; per-model fallback, routing rules, and tool-router; operator SQLite + scoped routing logs         | `todo`        |
+| [Operator-managed virtual models](#operator-managed-virtual-models)                        | Create virtual models from `/ui/settings`; per-model fallback, routing rules, and tool-router; operator SQLite + scoped routing logs         | `todo`        |
 | [Workspace embedding scope (project + flavor)](#workspace-embedding-scope-project--flavor) | Ingestion keys `(user, project, flavor)`; project-only = base corpus; flavored queries union base + flavor; multi-workspace request pool | `todo`        |
 | [First-run token handoff](#first-run-token-handoff)                                        | Show, copy, and optionally save the gateway token; restart-friendly                                                                      | `todo`        |
 | [Setup wizard](#setup-wizard)                                                              | Guided keys -> local server -> test chat -> indexing -> integration                                                                      | `todo`        |
@@ -178,12 +178,12 @@ In `gateway.yaml`, the path that points at this file should use `paths.api_keys`
 
 - **`CHIMERA_ADMINUI_ROOT`** — Absolute or relative path to the gateway embed package directory (the folder that contains `embedui/`, typically `chimera/chimera-gateway/internal/server/adminui/embed`). Inherited by supervisor → gateway child; set in the shell, `.env` (`env.example`), or via `make locus-desktop-dev-ui` / `make chimera-supervisor-dev-ui`.
 - **Loopback only** — Disk mode is refused when the gateway HTTP listen address is not loopback.
-- **Same URLs** — `/ui/logs`, `/ui/assets/logs/**`, etc. unchanged; only the asset backend switches from embedded bytes to disk.
+- **Same URLs** — `/ui/settings`, `/ui/assets/settings/**`, etc. unchanged; only the asset backend switches from embedded bytes to disk.
 - **Still requires rebuild** when changing Go handlers, `internal/naming` → `contracts.js` (`make operator-contracts-generate`), or `operator_copy.js` generation.
 
 **Acceptance**
 
-- With `CHIMERA_ADMINUI_ROOT` set, editing a file under `embedui/logs/` and refreshing `/ui/logs` shows the change without `make chimera-gateway-build`.
+- With `CHIMERA_ADMINUI_ROOT` set, editing a file under `embedui/settings/` and refreshing `/ui/settings` shows the change without `make chimera-gateway-build`.
 - With the env var unset, behavior matches pre-change embedded serving.
 
 **Status:** `done`
@@ -324,16 +324,16 @@ Aim for **~4–6 GB RAM** total, **quantized** execution, **sub‑300 ms** per h
 
 ## Logs UI page data refreshing
 
-**Execution plan:** [`plans/logs-ui-page-data-refreshing.md`](plans/logs-ui-page-data-refreshing.md) — phased fix for `/ui/logs` summarized feed flicker, double-click card expansion, and admin form focus loss during SSE and admin poll rebuilds.
+**Execution plan:** [`plans/logs-ui-page-data-refreshing.md`](plans/logs-ui-page-data-refreshing.md) — phased fix for `/ui/settings` summarized feed flicker, double-click card expansion, and admin form focus loss during SSE and admin poll rebuilds.
 
-**Goal:** Operators on `/ui/logs` open cards on the first click, edit provider API keys without losing focus, and see live log updates without the whole panel flashing. Today `refreshSummarizedPanel()` assigns `innerHTML` on almost every log line and on the 12s admin poll; later phases add per-card patches and a testable view model.
+**Goal:** Operators on `/ui/settings` open cards on the first click, edit provider API keys without losing focus, and see live log updates without the whole panel flashing. Today `refreshSummarizedPanel()` assigns `innerHTML` on almost every log line and on the 12s admin poll; later phases add per-card patches and a testable view model.
 
 ### Phase 1 — Interaction-safe rebuilds (shipped)
 
 - `summarizedPanelInteractionBlocksRebuild()` defers rebuild when focus is in any `#panel-summarized` `input` / `textarea` / `select`, plus existing evlog and admin YAML fields.
 - Short pointer suppression after `details.sum-card > summary` click so card toggle races SSE debounced rebuild.
 - `adminProviderKeyDraft` / `adminOllamaUrlDraft` on `ctx`, wired from `wireHandlers.js` and rendered in `adminProvider.js`.
-- Interaction contract documented in [`chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/README.md`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/README.md).
+- Interaction contract documented in [`chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/README.md`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/README.md).
 
 **Acceptance (Phase 1)**
 
@@ -354,9 +354,9 @@ Aim for **~4–6 GB RAM** total, **quantized** execution, **sub‑300 ms** per h
 
 ## Operator-managed virtual models
 
-**Execution plan:** [`plans/virtual-models-operator.md`](plans/virtual-models-operator.md) — phased delivery for virtual models in operator SQLite, gateway runtime resolution, `/api/ui` CRUD, and `/ui/logs` cards.
+**Execution plan:** [`plans/virtual-models-operator.md`](plans/virtual-models-operator.md) — phased delivery for virtual models in operator SQLite, gateway runtime resolution, `/api/ui` CRUD, and `/ui/settings` cards.
 
-**Goal:** Replace the single hard-coded virtual model (`Chimera-<semver>` from `gateway.semver`) with **first-class virtual models** operators create from `/ui/logs`, the same way they manage **users** and **indexer workspaces**. Each virtual model has its own client-facing id, metadata, enable toggle, and visibility (**public** = any user; **private** = creator only). Routing that is global today — **fallback chain**, **routing-policy rules**, and **tool-router** settings — becomes **per virtual model**.
+**Goal:** Replace the single hard-coded virtual model (`Chimera-<semver>` from `gateway.semver`) with **first-class virtual models** operators create from `/ui/settings`, the same way they manage **users** and **indexer workspaces**. Each virtual model has its own client-facing id, metadata, enable toggle, and visibility (**public** = any user; **private** = creator only). Routing that is global today — **fallback chain**, **routing-policy rules**, and **tool-router** settings — becomes **per virtual model**.
 
 **Scope**
 
@@ -402,9 +402,9 @@ v1 may store a monolithic **policy YAML** per virtual model for fastest parity w
 - **`/api/ui/virtual-models/*`:** session-authenticated CRUD; per-model generate / evaluate (port of today’s `/api/ui/routing/*`); deprecate global YAML writes once UI lands.
 - **Logs:** emit **`virtual_model_id`** on routing and conversation lines; cards show **24h usage** and **scoped evlog** panels (rule match, fallback, tool-router) filtered to that model.
 
-### Logs UI (`/ui/logs`)
+### Settings UI (`/ui/settings`)
 
-- New **Virtual models** section: **Add virtual model** draft card (workspace pattern); one **collapsible card per model** with nested **Fallback**, **Routing rules**, and **Tool router** sub-panels — reuse existing admin card renderers ([`adminFallback.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminFallback.js), [`adminRouting.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminRouting.js), [`adminRouterModels.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminRouterModels.js)) wired to per-model API endpoints.
+- New **Virtual models** section: **Add virtual model** draft card (workspace pattern); one **collapsible card per model** with nested **Fallback**, **Routing rules**, and **Tool router** sub-panels — reuse existing admin card renderers ([`adminFallback.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/render/cards/adminFallback.js), [`adminRouting.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/render/cards/adminRouting.js), [`adminRouterModels.js`](../chimera/chimera-gateway/internal/server/adminui/embed/embedui/settings/render/cards/adminRouterModels.js)) wired to per-model API endpoints.
 - Retire or collapse the current **global** Routing / Fallback / Router model cards after bootstrap migration.
 
 **Deliverables checklist**
@@ -412,7 +412,7 @@ v1 may store a monolithic **policy YAML** per virtual model for fastest parity w
 - Operator SQLite migrations + repository; bootstrap import from legacy YAML.
 - Gateway runtime: multi-model chat + models list; `virtual_model_id` in structured logs.
 - `/api/ui/virtual-models` CRUD and scoped routing generate/evaluate.
-- `/ui/logs` virtual model cards with create/edit/enable/disable and scoped routing logs.
+- `/ui/settings` virtual model cards with create/edit/enable/disable and scoped routing logs.
 - [`configuration.md`](configuration.md) update: `gateway.semver` no longer implies a single routable model id once DB is populated; global `routing.*` keys deprecated (import-only).
 
 **Acceptance**
@@ -716,7 +716,7 @@ From the master **Release roadmap** table:
 | Product naming                   | README, onboarding, UI copy, and startup logs reflect Porcelain / Chimera / Locus decisions; [`plans/v0-3-naming-migration.md`](plans/v0-3-naming-migration.md) closed. |
 | Credential naming                | `api-keys.yaml`, `api_keys`, `secret`, and `paths.api_keys` are implemented or migration behavior is documented.                                                   |
 | Internal embedding (exploration) | Spike or design note, per-model legal/distribution checklist, and ship / pilot / defer decision; config sketch matches indexer-style opt-in start.                 |
-| Operator-managed virtual models  | Bootstrap import; multi-model chat + catalog; per-model fallback/policy/tool-router from SQLite; `/ui/logs` CRUD cards; scoped routing logs with `virtual_model_id`. |
+| Operator-managed virtual models  | Bootstrap import; multi-model chat + catalog; per-model fallback/policy/tool-router from SQLite; `/ui/settings` CRUD cards; scoped routing logs with `virtual_model_id`. |
 | Workspace embedding scope        | Ingestion keys `(user, project, flavor?)`; flavored chat unions base + flavor; multi-workspace requests pool all valid scopes; wizard step 5–6 matches production. |
 | First-run token handoff          | First launch shows a copyable gateway API key and optional safe dotenv save.                                                                                       |
 | Setup wizard                     | Seven steps navigate correctly, support skip/finish, and use shared router regeneration; embedding combobox reflects internal provider when implemented.           |
