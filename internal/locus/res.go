@@ -74,6 +74,11 @@ func SupervisorSearchNames() []string {
 	return binfind.SearchNames(BinSupervisor)
 }
 
+// DataDirPath returns <runtimeRoot>/data.
+func DataDirPath(runtimeRoot string) string {
+	return filepath.Join(runtimeRoot, DirData)
+}
+
 // DesktopStateDirPath returns <runtimeRoot>/data/locus-desktop.
 func DesktopStateDirPath(runtimeRoot string) string {
 	return filepath.Join(runtimeRoot, DirData, DirDesktopState)
@@ -99,9 +104,9 @@ func LifecycleEventsPath(runtimeRoot string) string {
 	return filepath.Join(DesktopStateDirPath(runtimeRoot), FileLifecycleLog)
 }
 
-// SupervisorLogPath returns the desktop-owned supervisor log path under logDir.
-func SupervisorLogPath(logDir string) string {
-	return filepath.Join(logDir, FileSupervisorLog)
+// SupervisorLogPath returns <runtimeRoot>/data/locus-desktop-supervisor.log.
+func SupervisorLogPath(runtimeRoot string) string {
+	return filepath.Join(DataDirPath(runtimeRoot), FileSupervisorLog)
 }
 
 // Logf writes a prefixed line to stderr.

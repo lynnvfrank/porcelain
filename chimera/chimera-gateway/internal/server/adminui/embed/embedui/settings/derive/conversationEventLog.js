@@ -41,6 +41,74 @@
     });
   }
 
+  function turnHasMsg(sortedAsc, getFlat, slug) {
+    for (var i = 0; i < sortedAsc.length; i++) {
+      if (flatMsg(getFlat(sortedAsc[i].parsed)) === slug) return true;
+    }
+    return false;
+  }
+
+  function convEvlogDisplayRank(flat) {
+    var msg = flatMsg(flat);
+    if (msg === "conversation.delivered") return 100;
+    if (msg === "conversation.errored") return 99;
+    return 0;
+  }
+
+  function sortPreparedChronological(prepared, getFlat) {
+    getFlat = typeof getFlat === "function" ? getFlat : function (p) { return (p && p.rawFlat) || {}; };
+    return prepared.slice().sort(function (a, b) {
+      var fa = getFlat(a.parsed);
+      var fb = getFlat(b.parsed);
+      var sa = a.seq != null ? Number(a.seq) : 0;
+      var sb = b.seq != null ? Number(b.seq) : 0;
+      if (sa !== sb) return sa - sb;
+      var ta = Date.parse(a.ts || "");
+      var tb = Date.parse(b.ts || "");
+      if (!isFinite(ta) && !isFinite(tb)) {
+        return convEvlogDisplayRank(fa) - convEvlogDisplayRank(fb);
+      }
+      if (!isFinite(ta)) return -1;
+      if (!isFinite(tb)) return 1;
+      if (ta !== tb) return ta - tb;
+      return convEvlogDisplayRank(fa) - convEvlogDisplayRank(fb);
+    });
+  }
+
+  function repositionRoutingBeforeSuccessfulSend(prepared, getFlat) {
+    getFlat = typeof getFlat === "function" ? getFlat : function (p) { return (p && p.rawFlat) || {}; };
+    var routingIdx = -1;
+    for (var i = 0; i < prepared.length; i++) {
+      if (flatMsg(getFlat(prepared[i].parsed)) === "conversation.routing.resolved") {
+        routingIdx = i;
+        break;
+      }
+    }
+    if (routingIdx < 0) return prepared;
+
+    var lastOkRequestIdx = -1;
+    for (var j = prepared.length - 1; j >= 0; j--) {
+      var fj = getFlat(prepared[j].parsed);
+      var mj = flatMsg(fj);
+      if (mj !== "chat.chimera-broker.response" && mj !== "upstream chat response") continue;
+      var sc = Number(fj.statusCode != null ? fj.statusCode : fj.status_code);
+      if (isNaN(sc) || sc < 200 || sc > 299) continue;
+      for (var k = j - 1; k >= 0; k--) {
+        if (flatMsg(getFlat(prepared[k].parsed)) === "chat.chimera-broker.request") {
+          lastOkRequestIdx = k;
+          break;
+        }
+      }
+      if (lastOkRequestIdx >= 0) break;
+    }
+    if (lastOkRequestIdx < 0 || routingIdx <= lastOkRequestIdx) return prepared;
+
+    var out = prepared.slice();
+    var routingEv = out.splice(routingIdx, 1)[0];
+    out.splice(lastOkRequestIdx, 0, routingEv);
+    return out;
+  }
+
   function routingSummaryFromTurnEvents(sortedAsc, getFlat) {
     var skipped = [];
     var upstream = "";
@@ -101,7 +169,8 @@
   }
 
   /** Slugs omitted from conversation-card event log (still in raw logs / service panels). */
-  function convEvlogHideRow(flat) {
+  function convEvlogHideRow(flat, turnCtx) {
+    turnCtx = turnCtx || {};
     var msg = flatMsg(flat);
     if (!msg) return false;
     var ml = msg.toLowerCase();
@@ -115,6 +184,11 @@
     if (msg === "chat.routing.resolved") return true;
     if (msg === "chat.routing.attempt") return true;
     if (msg === "chat.provider_limits.blocked") return true;
+    if (msg === "chat.routing.fallback") return true;
+    if (msg === "conversation.fallback.attempted") return true;
+    if (msg === "chat.routing.model_not_found") return true;
+    if (msg === "chat.routing.rate_limit") return true;
+    if (msg === "conversation.rag.span" && turnCtx.hasRagAttached) return true;
     if (ml === "virtual model routing resolved" || ml === "virtual model fallback attempt") return true;
     if (msg === "gateway.http.access" || ml === "http response") {
       var pth = String(flat.path || "").split("?")[0];
@@ -133,6 +207,8 @@
     events = Array.isArray(events) ? events : [];
     getFlat = typeof getFlat === "function" ? getFlat : function (p) { return (p && p.rawFlat) || {}; };
     var sorted = sortEventsAsc(events);
+    var hasRagAttached = turnHasMsg(sorted, getFlat, "conversation.rag.attached");
+    var turnCtx = { hasRagAttached: hasRagAttached };
     var routingSummary = routingSummaryFromTurnEvents(sorted, getFlat);
     var merged = turnHasMerged(sorted, getFlat);
     var turnIndex = turnIndexFromEvents(sorted, getFlat);
@@ -154,7 +230,7 @@
     for (var i = 0; i < sorted.length; i++) {
       var ev = sorted[i];
       var f = getFlat(ev.parsed);
-      if (convEvlogHideRow(f)) continue;
+      if (convEvlogHideRow(f, turnCtx)) continue;
       if (meta.isPassthrough && flatMsg(f) === "chat.chimera-broker.request") continue;
       var copy = {};
       for (var k in ev) {
@@ -163,7 +239,8 @@
       copy.convEvlogMeta = meta;
       out.push(copy);
     }
-    return out;
+    var prepared = sortPreparedChronological(out, getFlat);
+    return repositionRoutingBeforeSuccessfulSend(prepared, getFlat);
   }
 
   /**
@@ -183,6 +260,7 @@
   }
 
   ChimeraSettings.Derive.convEvlogHideRow = convEvlogHideRow;
+  ChimeraSettings.Derive.convEvlogDisplayRank = convEvlogDisplayRank;
   ChimeraSettings.Derive.convEvlogPrepareTurnEvents = convEvlogPrepareTurnEvents;
   ChimeraSettings.Derive.convEvlogPrepareConvEvents = convEvlogPrepareConvEvents;
 })();

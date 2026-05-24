@@ -39,6 +39,7 @@ type fallbackFailureRecord struct {
 	UpstreamModel string `json:"upstream_model"`
 	Status        int    `json:"status"`
 	Summary       string `json:"summary,omitempty"`
+	RateLimit     bool   `json:"rate_limit,omitempty"`
 }
 
 func excerptOpenAIStyleErrorMessage(body []byte, max int) string {
@@ -63,6 +64,147 @@ func excerptUpstreamErrorForLog(body []byte, errMsg string, max int) string {
 	return excerptOpenAIStyleErrorMessage(body, max)
 }
 
+func upstreamErrorText(jsonBody []byte, errMsg string) string {
+	fields := parseUpstreamErrorFields(jsonBody, errMsg)
+	if fields.Message != "" {
+		return fields.Message
+	}
+	if len(jsonBody) > 0 {
+		return strings.TrimSpace(string(jsonBody))
+	}
+	return strings.TrimSpace(errMsg)
+}
+
+type upstreamErrorFields struct {
+	Message string
+	Type    string
+	Code    string
+}
+
+func parseUpstreamErrorFields(jsonBody []byte, errMsg string) upstreamErrorFields {
+	var out upstreamErrorFields
+	if msg := strings.TrimSpace(errMsg); msg != "" {
+		out.Message = msg
+	}
+	if len(jsonBody) == 0 {
+		return out
+	}
+	var wrap struct {
+		Error *struct {
+			Message string `json:"message"`
+			Type    string `json:"type"`
+			Code    any    `json:"code"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(jsonBody, &wrap) != nil || wrap.Error == nil {
+		return out
+	}
+	if out.Message == "" {
+		out.Message = strings.TrimSpace(wrap.Error.Message)
+	}
+	out.Type = strings.TrimSpace(wrap.Error.Type)
+	switch c := wrap.Error.Code.(type) {
+	case string:
+		out.Code = strings.TrimSpace(c)
+	case float64:
+		out.Code = strconv.FormatInt(int64(c), 10)
+	}
+	return out
+}
+
+func errorTextSignalsRateLimit(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	if lower == "" {
+		return false
+	}
+	for _, phrase := range []string{
+		"rate limit",
+		"rate_limit",
+		"ratelimit",
+		"too many requests",
+		"requests per minute",
+		"requests per day",
+		"rpm limit",
+		"tpm limit",
+		"tokens per minute",
+		"tokens per day",
+	} {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
+func upstreamErrorTypeSignalsRateLimit(errType, errCode string) bool {
+	lt := strings.ToLower(strings.TrimSpace(errType))
+	lc := strings.ToLower(strings.TrimSpace(errCode))
+	if lt == "rate_limit_exceeded" || lt == "rate_limit_error" || lt == "insufficient_quota" {
+		return true
+	}
+	if strings.Contains(lt, "rate") && strings.Contains(lt, "limit") {
+		return true
+	}
+	return lc == "rate_limit_exceeded"
+}
+
+var contextOverflowErrorCodes = map[string]struct{}{
+	"request_too_large":       {},
+	"context_length_exceeded": {},
+}
+
+// upstreamErrorIndicatesContextOverflow reports HTTP 400/422 responses where the upstream rejected
+// the request because the prompt or total context exceeded the model window.
+func upstreamErrorIndicatesContextOverflow(status int, jsonBody []byte, errMsg string) bool {
+	if status != http.StatusBadRequest && status != http.StatusUnprocessableEntity {
+		return false
+	}
+	fields := parseUpstreamErrorFields(jsonBody, errMsg)
+	if _, ok := contextOverflowErrorCodes[strings.ToLower(fields.Code)]; ok {
+		return true
+	}
+	lt := strings.ToLower(strings.TrimSpace(fields.Type))
+	return lt == "request_too_large" || lt == "context_length_exceeded"
+}
+
+// upstreamErrorIndicatesRateLimit reports whether an upstream response should be treated
+// as a provider rate limit (HTTP 429, or HTTP 400 with rate-limit-shaped error content).
+func upstreamErrorIndicatesRateLimit(status int, jsonBody []byte, errMsg string) bool {
+	if status == http.StatusTooManyRequests {
+		return true
+	}
+	if status != http.StatusBadRequest {
+		return false
+	}
+	fields := parseUpstreamErrorFields(jsonBody, errMsg)
+	if upstreamErrorTypeSignalsRateLimit(fields.Type, fields.Code) {
+		return true
+	}
+	return errorTextSignalsRateLimit(upstreamErrorText(jsonBody, errMsg))
+}
+
+func shouldRetryVirtualModelFallback(status int, jsonBody []byte, errMsg string) bool {
+	if _, ok := retryStatuses[status]; ok {
+		return true
+	}
+	if upstreamErrorIndicatesContextOverflow(status, jsonBody, errMsg) {
+		return true
+	}
+	return upstreamErrorIndicatesRateLimit(status, jsonBody, errMsg)
+}
+
+func allAttemptsRateLimited(attempts []fallbackFailureRecord) bool {
+	if len(attempts) == 0 {
+		return false
+	}
+	for _, a := range attempts {
+		if !a.RateLimit {
+			return false
+		}
+	}
+	return true
+}
+
 func clientModelFromBody(body map[string]json.RawMessage) string {
 	if body == nil {
 		return ""
@@ -76,6 +218,74 @@ func clientModelFromBody(body map[string]json.RawMessage) string {
 		return ""
 	}
 	return strings.TrimSpace(s)
+}
+
+// maxTokensFromBody returns client max_tokens when set. When the client omits max_tokens, 0 is
+// returned so context admission checks prompt size only (see context-window-admission plan).
+func maxTokensFromBody(body map[string]json.RawMessage) int64 {
+	if body == nil {
+		return 0
+	}
+	raw, ok := body["max_tokens"]
+	if !ok || len(raw) == 0 {
+		return 0
+	}
+	var n json.Number
+	if err := json.Unmarshal(raw, &n); err != nil {
+		var i int64
+		if err2 := json.Unmarshal(raw, &i); err2 != nil || i < 0 {
+			return 0
+		}
+		return i
+	}
+	v, err := n.Int64()
+	if err != nil || v < 0 {
+		return 0
+	}
+	return v
+}
+
+func requestAdmission(body map[string]json.RawMessage, out []byte, est int) providerlimits.RequestAdmission {
+	return providerlimits.RequestAdmission{
+		EstPromptTokens: int64(est),
+		MaxTokens:       maxTokensFromBody(body),
+		BodyBytes:       int64(len(out)),
+	}
+}
+
+func providerLimitsDenyMessage(reason providerlimits.Reason, fallbackChain bool) string {
+	dim := string(reason)
+	if fallbackChain {
+		return "Every model in the fallback chain would exceed configured provider limits (" + dim + ")."
+	}
+	return "Configured provider/model limits would be exceeded for this request (" + dim + ")."
+}
+
+func providerLimitsBlockedLogArgs(upstreamModel string, d providerlimits.Decision, admission providerlimits.RequestAdmission, guard *providerlimits.Guard) []any {
+	args := []any{
+		"msg", naming.MsgChatProviderLimitsBlocked,
+		"upstreamModel", upstreamModel,
+		"reason", string(d.Reason),
+		"detail", d.Detail,
+		"outgoingTokens", admission.EstPromptTokens,
+		"max_tokens", admission.MaxTokens,
+		"body_bytes", admission.BodyBytes,
+	}
+	if guard == nil {
+		return args
+	}
+	eff := guard.EffectiveFor(upstreamModel)
+	switch d.Reason {
+	case providerlimits.ReasonContext:
+		if cap, ok := eff.EffectiveContextCap(); ok {
+			args = append(args, "context_cap", cap)
+		}
+	case providerlimits.ReasonBodySize:
+		if eff.MaxBodyBytes != nil {
+			args = append(args, "max_body_bytes", *eff.MaxBodyBytes)
+		}
+	}
+	return args
 }
 
 func conversationRoutingLogArgs(clientModel, upstreamModel string, attempt, chainLen int, stream bool, outgoingTokens int) []any {
@@ -152,6 +362,7 @@ func appendFallbackFailure(dst *[]fallbackFailureRecord, upstreamModel string, s
 		UpstreamModel: upstreamModel,
 		Status:        status,
 		Summary:       excerptUpstreamErrorForLog(jsonBody, errMsg, 240),
+		RateLimit:     upstreamErrorIndicatesRateLimit(status, jsonBody, errMsg),
 	})
 }
 
@@ -179,7 +390,7 @@ func buildFallbackExhaustedMessage(attempts []fallbackFailureRecord) string {
 	return b.String()
 }
 
-func buildFallbackExhaustedJSONBody(attempts []fallbackFailureRecord) []byte {
+func fallbackAttemptObjects(attempts []fallbackFailureRecord) []map[string]any {
 	attemptObjs := make([]map[string]any, len(attempts))
 	for i, a := range attempts {
 		m := map[string]any{
@@ -189,14 +400,21 @@ func buildFallbackExhaustedJSONBody(attempts []fallbackFailureRecord) []byte {
 		if a.Summary != "" {
 			m["summary"] = a.Summary
 		}
+		if a.RateLimit {
+			m["rate_limit"] = true
+		}
 		attemptObjs[i] = m
 	}
+	return attemptObjs
+}
+
+func buildFallbackExhaustedJSONBody(attempts []fallbackFailureRecord) []byte {
 	root := map[string]any{
 		"error": map[string]any{
 			"message": buildFallbackExhaustedMessage(attempts),
 			"type":    "gateway_fallback_exhausted",
 			"details": map[string]any{
-				"attempts": attemptObjs,
+				"attempts": fallbackAttemptObjects(attempts),
 			},
 		},
 	}
@@ -205,6 +423,73 @@ func buildFallbackExhaustedJSONBody(attempts []fallbackFailureRecord) []byte {
 		return []byte(`{"error":{"message":"Every model in the fallback chain failed.","type":"gateway_fallback_exhausted"}}`)
 	}
 	return b
+}
+
+func buildRateLimitExhaustedMessage(attempts []fallbackFailureRecord) string {
+	var b strings.Builder
+	b.WriteString("Every model in the fallback chain was rate-limited")
+	if len(attempts) > 0 {
+		b.WriteString(" (")
+		b.WriteString(strconv.Itoa(len(attempts)))
+		b.WriteString(" attempt(s)): ")
+		for i, a := range attempts {
+			if i > 0 {
+				b.WriteString("; ")
+			}
+			b.WriteString(a.UpstreamModel)
+			b.WriteString(": HTTP ")
+			b.WriteString(strconv.Itoa(a.Status))
+			if a.Summary != "" {
+				b.WriteString(" — ")
+				b.WriteString(truncateRunes(a.Summary, 120))
+			}
+		}
+	}
+	b.WriteString(".")
+	return b.String()
+}
+
+func buildRateLimitExhaustedJSONBody(attempts []fallbackFailureRecord, chainLen int) []byte {
+	modelsTried := make([]string, len(attempts))
+	for i, a := range attempts {
+		modelsTried[i] = a.UpstreamModel
+	}
+	root := map[string]any{
+		"error": map[string]any{
+			"message": buildRateLimitExhaustedMessage(attempts),
+			"type":    "gateway_rate_limit_exhausted",
+			"details": map[string]any{
+				"attempts":      fallbackAttemptObjects(attempts),
+				"models_tried":  modelsTried,
+				"attempt_count": len(attempts),
+				"chain_len":     chainLen,
+				"cause":         "rate_limit",
+			},
+		},
+	}
+	b, err := json.Marshal(root)
+	if err != nil {
+		return []byte(`{"error":{"message":"Every model in the fallback chain was rate-limited.","type":"gateway_rate_limit_exhausted"}}`)
+	}
+	return b
+}
+
+func logRateLimitRouting(log *slog.Logger, upstreamModel string, attempt, chainLen int, willRetry bool, jsonBody []byte, errMsg string) {
+	if log == nil {
+		return
+	}
+	summary := excerptUpstreamErrorForLog(jsonBody, errMsg, 200)
+	args := []any{
+		"msg", "chat.routing.rate_limit",
+		"upstreamModel", upstreamModel,
+		"attempt", attempt,
+		"chainLen", chainLen,
+		"willRetry", willRetry,
+	}
+	if summary != "" {
+		args = append(args, "upstreamErrorExcerpt", summary)
+	}
+	log.Info("upstream rate limit", args...)
 }
 
 func logModelNotFoundRouting(log *slog.Logger, upstreamModel string, attempt, chainLen int, willRetry bool, jsonBody []byte) {
@@ -223,7 +508,16 @@ func logModelNotFoundRouting(log *slog.Logger, upstreamModel string, attempt, ch
 		args = append(args, "upstreamErrorExcerpt", summary)
 	}
 	log.Info("upstream model not found (HTTP 404)", args...)
-	log.Info("conversation fallback: upstream model not found",
+	if !willRetry {
+		log.Info("conversation fallback: upstream model not found",
+			"msg", naming.MsgConversationFallbackModelNotFound,
+			"upstreamModel", upstreamModel,
+			"attempt", attempt,
+			"chainLen", chainLen,
+			"willRetry", willRetry)
+		return
+	}
+	log.Info("conversation routing: model not found, trying next",
 		"msg", naming.MsgConversationFallbackModelNotFound,
 		"upstreamModel", upstreamModel,
 		"attempt", attempt,
@@ -325,19 +619,18 @@ func ProxyChatCompletion(ctx context.Context, w http.ResponseWriter, baseURL, ap
 		return ProxyResult{Status: 500, ErrMessage: "marshal request"}
 	}
 	if guard != nil {
-		d, gerr := guard.Allow(ctx, upstreamModel, int64(est))
+		admission := requestAdmission(body, out, est)
+		d, gerr := guard.Allow(ctx, upstreamModel, admission)
 		if gerr != nil && log != nil {
 			log.Warn("provider limits admission query failed; allowing request", "msg", "chat.provider_limits.query_failed", "err", gerr, "upstreamModel", upstreamModel)
 		}
 		if !d.Allowed {
 			if log != nil {
-				log.Info("chat blocked by provider limits",
-					"msg", "chat.provider_limits.blocked",
-					"upstreamModel", upstreamModel, "reason", d.Reason, "detail", d.Detail)
+				log.Info("chat blocked by provider limits", providerLimitsBlockedLogArgs(upstreamModel, d, admission, guard)...)
 			}
 			b, _ := json.Marshal(map[string]any{
 				"error": map[string]any{
-					"message": "Configured provider/model quota would be exceeded for this request (" + string(d.Reason) + ").",
+					"message": providerLimitsDenyMessage(d.Reason, false),
 					"type":    "gateway_provider_limits",
 				},
 			})
@@ -854,21 +1147,21 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 			return
 		}
 		if guard != nil {
-			d, gerr := guard.Allow(ctx, upstreamModel, int64(est))
+			admission := requestAdmission(body, out, est)
+			d, gerr := guard.Allow(ctx, upstreamModel, admission)
 			if gerr != nil && log != nil {
 				log.Warn("provider limits admission query failed; allowing attempt", "msg", "chat.provider_limits.query_failed", "err", gerr, "upstreamModel", upstreamModel)
 			}
 			if !d.Allowed {
 				if log != nil {
-					log.Info("skipping upstream model (provider limits)",
-						"msg", "chat.provider_limits.blocked",
-						"upstreamModel", upstreamModel, "reason", d.Reason, "detail", d.Detail)
+					skipArgs := providerLimitsBlockedLogArgs(upstreamModel, d, admission, guard)
+					log.Info("skipping upstream model (provider limits)", skipArgs...)
 				}
 				if i < len(chain)-1 {
 					continue
 				}
 				writeJSONError(w, http.StatusTooManyRequests, map[string]any{
-					"message": "Every model in the fallback chain would exceed configured provider quotas (" + string(d.Reason) + ").",
+					"message": providerLimitsDenyMessage(d.Reason, true),
 					"type":    "gateway_provider_limits",
 				})
 				deliver(http.StatusTooManyRequests, false, 0)
@@ -876,7 +1169,8 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 			}
 		}
 		r := proxyChatCompletionPayload(ctx, w, baseURL, apiKey, upstreamModel, stream, out, est, timeout, log, rec, innerOpts)
-		if r.Status == http.StatusRequestEntityTooLarge {
+		if r.Status == http.StatusRequestEntityTooLarge ||
+			upstreamErrorIndicatesContextOverflow(r.Status, r.JSONBody, r.ErrMessage) {
 			excluded413[upstreamModel] = struct{}{}
 		}
 		if r.Stream {
@@ -892,8 +1186,11 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 			return
 		}
 		if r.ErrMessage != "" {
-			if _, retry := retryStatuses[r.Status]; retry && hasMoreFallbackCandidates(chain, i, excluded413) {
+			if shouldRetryVirtualModelFallback(r.Status, nil, r.ErrMessage) && hasMoreFallbackCandidates(chain, i, excluded413) {
 				appendFallbackFailure(&attemptFailures, upstreamModel, r.Status, nil, r.ErrMessage)
+				if upstreamErrorIndicatesRateLimit(r.Status, nil, r.ErrMessage) {
+					logRateLimitRouting(log, upstreamModel, i+1, len(chain), true, nil, r.ErrMessage)
+				}
 				if log != nil {
 					log.Info("retrying next fallback model", "msg", "chat.routing.fallback", "upstreamModel", upstreamModel, "status", r.Status, "willRetry", true)
 					log.Info("conversation fallback attempted", "msg", naming.MsgConversationFallbackAttempted,
@@ -901,7 +1198,7 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 				}
 				continue
 			}
-			if _, retry := retryStatuses[r.Status]; retry && !hasMoreFallbackCandidates(chain, i, excluded413) {
+			if shouldRetryVirtualModelFallback(r.Status, nil, r.ErrMessage) && !hasMoreFallbackCandidates(chain, i, excluded413) {
 				appendFallbackFailure(&attemptFailures, upstreamModel, r.Status, nil, r.ErrMessage)
 				break
 			}
@@ -910,10 +1207,17 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 			return
 		}
 		if r.JSONBody != nil {
-			if _, retry := retryStatuses[r.Status]; retry && hasMoreFallbackCandidates(chain, i, excluded413) {
+			if shouldRetryVirtualModelFallback(r.Status, r.JSONBody, "") && hasMoreFallbackCandidates(chain, i, excluded413) {
 				appendFallbackFailure(&attemptFailures, upstreamModel, r.Status, r.JSONBody, "")
 				if r.Status == http.StatusNotFound {
 					logModelNotFoundRouting(log, upstreamModel, i+1, len(chain), true, r.JSONBody)
+				} else if upstreamErrorIndicatesRateLimit(r.Status, r.JSONBody, "") {
+					logRateLimitRouting(log, upstreamModel, i+1, len(chain), true, r.JSONBody, "")
+					if log != nil {
+						log.Info("retrying next fallback model", "msg", "chat.routing.fallback", "upstreamModel", upstreamModel, "status", r.Status, "willRetry", true)
+						log.Info("conversation fallback attempted", "msg", naming.MsgConversationFallbackAttempted,
+							"upstreamModel", upstreamModel, "prev_status", r.Status, "attempt", i+1, "chainLen", len(chain))
+					}
 				} else if log != nil {
 					log.Info("retrying next fallback model", "msg", "chat.routing.fallback", "upstreamModel", upstreamModel, "status", r.Status, "willRetry", true)
 					log.Info("conversation fallback attempted", "msg", naming.MsgConversationFallbackAttempted,
@@ -921,7 +1225,7 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 				}
 				continue
 			}
-			if _, retry := retryStatuses[r.Status]; !retry {
+			if !shouldRetryVirtualModelFallback(r.Status, r.JSONBody, "") {
 				if log != nil {
 					if len(chain) > 1 {
 						log.Info("routing resolved",
@@ -939,25 +1243,35 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 			appendFallbackFailure(&attemptFailures, upstreamModel, r.Status, r.JSONBody, "")
 			if r.Status == http.StatusNotFound {
 				logModelNotFoundRouting(log, upstreamModel, i+1, len(chain), false, r.JSONBody)
+			} else if upstreamErrorIndicatesRateLimit(r.Status, r.JSONBody, "") {
+				logRateLimitRouting(log, upstreamModel, i+1, len(chain), false, r.JSONBody, "")
 			}
 			break
 		}
 	}
 
 	if len(attemptFailures) > 0 {
-		wrap := buildFallbackExhaustedJSONBody(attemptFailures)
+		var wrap []byte
+		statusCode := http.StatusServiceUnavailable
+		if allAttemptsRateLimited(attemptFailures) {
+			wrap = buildRateLimitExhaustedJSONBody(attemptFailures, len(chain))
+			statusCode = http.StatusBadRequest
+		} else {
+			wrap = buildFallbackExhaustedJSONBody(attemptFailures)
+		}
 		attemptsJSON, _ := json.Marshal(attemptFailures)
 		if log != nil {
 			log.Warn("conversation fallback exhausted", "msg", naming.MsgConversationFallbackExhausted,
 				"chainLen", len(chain), "excluded_413_count", len(excluded413),
-				"attemptCount", len(attemptFailures), "attempts", string(attemptsJSON))
+				"attemptCount", len(attemptFailures), "attempts", string(attemptsJSON),
+				"rateLimitExhausted", allAttemptsRateLimited(attemptFailures))
 			log.Warn("chimera broker fallback chain exhausted", "msg", "chat.chimera-broker.fallback_chain_exhausted",
 				"attemptCount", len(attemptFailures), "attempts", string(attemptsJSON))
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
+		w.WriteHeader(statusCode)
 		_, _ = w.Write(wrap)
-		deliver(http.StatusServiceUnavailable, false, int64(len(wrap)))
+		deliver(statusCode, false, int64(len(wrap)))
 		return
 	}
 

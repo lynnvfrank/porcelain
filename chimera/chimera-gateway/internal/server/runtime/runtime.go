@@ -351,19 +351,25 @@ func (rt *Runtime) NoteIndexerSupervisorFromLogEntry(ent servicelogs.Entry) {
 	rt.NoteIndexerSupervisorLog(at)
 }
 
-// LimitsGuard returns an admission guard combining the parsed limits spec with live metrics.
-// Returns nil when no limits spec is configured or the metrics store is unavailable; callers
-// treat nil as "no enforcement".
+// LimitsGuard returns an admission guard combining the parsed limits spec with live metrics and
+// optional catalog context overlay. Returns nil when no limits spec is configured. Context
+// admission runs even when the metrics store is unavailable; RPM/TPM require metrics.
 func (rt *Runtime) LimitsGuard() *providerlimits.Guard {
 	rt.mu.RLock()
 	defer rt.mu.RUnlock()
-	if rt.resolved == nil || rt.resolved.ProviderLimitsSpec == nil || rt.metrics == nil {
+	if rt.resolved == nil || rt.resolved.ProviderLimitsSpec == nil {
 		return nil
 	}
-	return &providerlimits.Guard{
-		Cfg:   rt.resolved.ProviderLimitsSpec,
-		Usage: metricsUsageAdapter{store: rt.metrics},
+	g := &providerlimits.Guard{
+		Cfg: rt.resolved.ProviderLimitsSpec,
 	}
+	if rt.metrics != nil {
+		g.Usage = metricsUsageAdapter{store: rt.metrics}
+	}
+	if snap := rt.catalogSnapshot.Load(); snap != nil && snap.OK && snap.IsFresh(time.Now(), catalog.CatalogSnapshotFreshness) {
+		g.Catalog = snap
+	}
+	return g
 }
 
 // metricsUsageAdapter wraps *gatewaymetrics.Store so it satisfies providerlimits.UsageSource

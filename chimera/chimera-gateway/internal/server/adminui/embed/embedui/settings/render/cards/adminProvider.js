@@ -35,15 +35,16 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminProvider = function (ctx) {
       metrics =
         '<span class="sum-metrics">' +
         sgOpHealthPillHtml("models " + formatInt(modelCount), "metric") +
+        adminProviderAvailabilityHtml(providerId) +
         "</span>";
     } else {
       metrics =
         '<span class="sum-metrics">' +
         sgOpHealthPillHtml("keys " + formatInt(keyCount), "metric") +
         sgOpHealthPillHtml("models " + formatInt(modelCount), "metric") +
+        adminProviderAvailabilityHtml(providerId) +
         "</span>";
     }
-    var availability = adminProviderAvailabilityHtml(providerId);
     var usageRows = adminProviderUsageRows(providerId);
     var providerIntro = adminProviderIntro(providerId, subtitle);
     var usageHtml = "";
@@ -99,7 +100,6 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminProvider = function (ctx) {
       '<summary><span class="sum-avatar ' + escapeHtml(avatarClass) + '">' + escapeHtml(avatar) + '</span><span class="sum-main"><span class="sum-title">' + escapeHtml(title) + "</span>" +
       '<span class="sum-sub sum-sub--clamp">' + escapeHtml(subtitle) + "</span></span>" +
       metrics +
-      availability +
       operatorCardChevronHtml() +
       "</summary><div class=\"sum-body\">" + body +
       adminScopedEvlogPanelFromEvents("Scoped log — " + title, "provider-" + providerId, scoped) +

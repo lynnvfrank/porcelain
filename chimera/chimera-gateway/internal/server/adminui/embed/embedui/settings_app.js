@@ -452,7 +452,7 @@ globalThis.ChimeraSettings.Main = function () {
     return { count: count, sumMs: sumMs, worst: maxStatus };
   }
 
-  function serviceStripHtml(events) {
+  function serviceStripParts(events) {
     var ragN = 0,
       vectorstoreEvt = 0,
       ingestN = 0;
@@ -461,9 +461,11 @@ globalThis.ChimeraSettings.Main = function () {
     if (
       globalThis.ChimeraSettings &&
       ChimeraSettings.Derive &&
-      typeof ChimeraSettings.Derive.conversationChimeraBrokerRelayCount === "function"
+      typeof ChimeraSettings.Derive.conversationBrokerRelayCount === "function"
     ) {
-      chimeraBrokerN = ChimeraSettings.Derive.conversationChimeraBrokerRelayCount(events, function (p) { return getFlat(p); });
+      chimeraBrokerN = ChimeraSettings.Derive.conversationBrokerRelayCount(events, function (p) {
+        return getFlat(p);
+      });
     }
     for (var i = 0; i < events.length; i++) {
       var sh = events[i].parsed.shape || "";
@@ -484,22 +486,37 @@ globalThis.ChimeraSettings.Main = function () {
     }
     var parts = [];
     if (ragN) parts.push("RAG · " + ragN + (ragMs ? " · ~" + Math.round(ragMs) + " ms" : ""));
-    if (vectorstoreEvt) parts.push("chimera-vectorstore · " + vectorstoreEvt);
+    if (vectorstoreEvt) parts.push("vectorstore · " + vectorstoreEvt);
     if (ingestN) parts.push("ingest · " + ingestN);
-    if (chimeraBrokerN) parts.push("chimera-broker · " + chimeraBrokerN);
+    if (chimeraBrokerN) parts.push("broker · " + chimeraBrokerN);
+    return parts;
+  }
+
+  function serviceStripHtml(events) {
+    var parts = serviceStripParts(events);
     if (!parts.length) return "";
-    if (globalThis.ChimeraUI && globalThis.ChimeraUI.Chip && typeof globalThis.ChimeraUI.Chip.renderRow === "function") {
-      return globalThis.ChimeraUI.Chip.renderRow(parts);
+    if (
+      globalThis.ChimeraSettings &&
+      ChimeraSettings.Render &&
+      typeof ChimeraSettings.Render.sumEvlogServiceChipsHtml === "function"
+    ) {
+      return ChimeraSettings.Render.sumEvlogServiceChipsHtml(parts);
     }
-    return (
-      '<div class="service-chips">' +
-      parts
-        .map(function (p) {
-          return '<span class="chip">' + escapeHtml(p) + "</span>";
-        })
-        .join("") +
-      "</div>"
-    );
+    var html = "";
+    if (globalThis.ChimeraUI && globalThis.ChimeraUI.Chip && typeof globalThis.ChimeraUI.Chip.renderRow === "function") {
+      html = globalThis.ChimeraUI.Chip.renderRow(parts);
+    } else {
+      html =
+        '<div class="service-chips">' +
+        parts
+          .map(function (p) {
+            if (p == null || typeof p === "function") return "";
+            return '<span class="chip">' + escapeHtml(String(p)) + "</span>";
+          })
+          .join("") +
+        "</div>";
+    }
+    return typeof html === "string" && !/function\s+escapeHtml\s*\(/i.test(html) ? html : "";
   }
 
   function contextGrowthStripHtml(events) {
@@ -680,10 +697,15 @@ globalThis.ChimeraSettings.Main = function () {
       : '<span class="log-line-sum__lvl log-line-sum__lvl--none">—</span>';
     var badgeHtml = "";
     var hideIndexerBadge =
-      opts.suppressIndexerBadge && badgeOpt && (badgeOpt.lab === "chimera-indexer" || badgeOpt.lab === "indexer");
-    var hideVectorstoreBadge = opts.suppressVectorstoreBadge && badgeOpt && badgeOpt.lab === "chimera-vectorstore";
+      opts.suppressIndexerBadge && badgeOpt && (badgeOpt.key === "chimera-indexer" || badgeOpt.key === "indexer" || badgeOpt.lab === "indexer");
+    var hideVectorstoreBadge =
+      opts.suppressVectorstoreBadge &&
+      badgeOpt &&
+      (badgeOpt.key === "chimera-vectorstore" || badgeOpt.key === "vectorstore" || badgeOpt.lab === "vectorstore");
     var hideGatewayBadge =
-      opts.suppressGatewayBadge && badgeOpt && (badgeOpt.lab === "chimera-gateway" || badgeOpt.lab === "gateway");
+      opts.suppressGatewayBadge &&
+      badgeOpt &&
+      (badgeOpt.key === "chimera-gateway" || badgeOpt.key === "gateway" || badgeOpt.lab === "gateway");
     if (badgeOpt && badgeOpt.lab && !hideIndexerBadge && !hideVectorstoreBadge && !hideGatewayBadge) {
       badgeHtml =
         '<span class="sum-svc-badge ' +
@@ -881,6 +903,7 @@ globalThis.ChimeraSettings.Main = function () {
     formatLogRelativeAgo: formatLogRelativeAgo,
     toIsoDatetimeAttr: toIsoDatetimeAttr,
     operatorFriendlyGatewayMsg: operatorFriendlyGatewayMsg,
+    serviceStripParts: serviceStripParts,
     serviceStripHtml: serviceStripHtml,
     contextGrowthStripHtml: contextGrowthStripHtml,
     SHOW_CONV_EXPANDED_CONTEXT_STRIP: SHOW_CONV_EXPANDED_CONTEXT_STRIP,

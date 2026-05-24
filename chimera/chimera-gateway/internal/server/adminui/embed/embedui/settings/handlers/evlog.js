@@ -224,6 +224,15 @@ globalThis.ChimeraSettings.Handlers.Evlog.wire = function (ctx) {
       var ms = Date.parse(tEl.getAttribute("datetime"));
       return isNaN(ms) ? NaN : ms;
     }
+    function sumEvlogPanelColCount(root) {
+      if (!root) return 3;
+      var attr = root.getAttribute("data-sum-evlog-cols");
+      if (attr) {
+        var n = parseInt(String(attr), 10);
+        if (!isNaN(n) && n >= 3) return n;
+      }
+      return root.hasAttribute("data-sum-evlog-source") ? 4 : 3;
+    }
     function rowSearchBlob(tr) {
       var blob = "";
       try {
@@ -231,6 +240,8 @@ globalThis.ChimeraSettings.Handlers.Evlog.wire = function (ctx) {
         if (t) blob += " " + t.textContent.trim();
         var iso = tr.querySelector("time[datetime]");
         if (iso && iso.getAttribute("datetime")) blob += " " + iso.getAttribute("datetime");
+        var src = tr.querySelector(".sum-evlog__cell--source");
+        if (src) blob += " " + src.textContent.trim();
         var msg = tr.querySelector(".sum-evlog__cell--msg");
         if (msg) blob += " " + msg.textContent.trim();
         var stat = tr.querySelector(".sum-evlog__cell--status");
@@ -251,6 +262,8 @@ globalThis.ChimeraSettings.Handlers.Evlog.wire = function (ctx) {
     function ensureSearchEmptyRow(tbody) {
       var existing = tbody.querySelector("[data-sum-evlog-search-empty]");
       if (existing) return existing;
+      var root = tbody.closest("[data-sum-evlog-root]");
+      var colspan = sumEvlogPanelColCount(root);
       var tr = document.createElement("tr");
       tr.className = "sum-evlog__row sum-evlog__search-empty-row";
       tr.setAttribute("data-sum-evlog-search-empty", "");
@@ -258,7 +271,7 @@ globalThis.ChimeraSettings.Handlers.Evlog.wire = function (ctx) {
       tr.setAttribute("role", "status");
       var td = document.createElement("td");
       td.className = "sum-evlog__search-empty-cell";
-      td.colSpan = 3;
+      td.colSpan = colspan;
       td.appendChild(document.createTextNode("No matching entries for your search. "));
       var btn = document.createElement("button");
       btn.type = "button";
@@ -273,6 +286,8 @@ globalThis.ChimeraSettings.Handlers.Evlog.wire = function (ctx) {
     function ensureDataEmptyRow(tbody) {
       var existing = tbody.querySelector("[data-sum-evlog-data-empty]");
       if (existing) return existing;
+      var root = tbody.closest("[data-sum-evlog-root]");
+      var colspan = sumEvlogPanelColCount(root);
       var tr = document.createElement("tr");
       tr.className = "sum-evlog__row sum-evlog__search-empty-row";
       tr.setAttribute("data-sum-evlog-data-empty", "");
@@ -280,7 +295,7 @@ globalThis.ChimeraSettings.Handlers.Evlog.wire = function (ctx) {
       tr.setAttribute("role", "status");
       var td = document.createElement("td");
       td.className = "sum-evlog__search-empty-cell";
-      td.colSpan = 3;
+      td.colSpan = colspan;
       td.appendChild(document.createTextNode("No events to display"));
       tr.appendChild(td);
       tbody.appendChild(tr);
@@ -383,11 +398,16 @@ globalThis.ChimeraSettings.Handlers.Evlog.wire = function (ctx) {
         var tr = picked[i];
         var t = tr.querySelector("time");
         var timeStr = t ? t.textContent.trim() : "";
+        var src = tr.querySelector(".sum-evlog__cell--source");
+        var srcStr = src ? src.textContent.trim().replace(/\s+/g, " ") : "";
         var msg = tr.querySelector(".sum-evlog__cell--msg");
         var msgStr = msg ? msg.textContent.trim().replace(/\s+/g, " ") : "";
         var stat = tr.querySelector(".sum-evlog__cell--status");
         var statStr = stat ? stat.textContent.trim().replace(/\s+/g, " ") : "";
-        lines.push(timeStr + "\t" + msgStr + "\t" + statStr);
+        var cols = [timeStr, msgStr];
+        if (src) cols.push(srcStr);
+        cols.push(statStr);
+        lines.push(cols.join("\t"));
       }
       var text = lines.join("\n");
       function showToast(ok, msg) {

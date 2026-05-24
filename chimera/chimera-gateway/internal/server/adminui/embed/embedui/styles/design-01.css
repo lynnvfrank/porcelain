@@ -158,6 +158,11 @@ html[data-theme="design-01"] #panel-summarized .sum-feed-section:not(.sum-feed-s
   transform: rotate(90deg);
 }
 
+html[data-theme="design-01"] #panel-summarized .sum-card[open] > summary .sg-op-chev-icon,
+html[data-theme="design-01"] .sg-op-rail .sum-card[open] > summary .sg-op-chev-icon {
+  transform: rotate(90deg);
+}
+
 .sg-op-section-head__left {
   display: flex;
   align-items: center;
@@ -373,7 +378,7 @@ html[data-theme="design-01"] .sg-op-rail .sum-avatar.sum-av-svc-chimera-broker {
 html[data-theme="design-01"] #panel-summarized .sum-avatar.sum-av-svc-chimera-vectorstore,
 html[data-theme="design-01"] .sg-op-rail .sum-avatar.sum-av-svc-chimera-vectorstore {
   background: var(--embed-color-secondary-container, #c9e8cb);
-  color: var(--embed-semantic-success-fg, #07200f);
+  color: var(--embed-semantic-success-fg, #1b5e20);
 }
 
 html[data-theme="design-01"] #panel-summarized .sum-avatar.sum-av-svc-chimera-indexer,
@@ -391,7 +396,7 @@ html[data-theme="design-01"] .sg-op-rail .sum-avatar.sum-av-a {
 html[data-theme="design-01"] #panel-summarized .sum-avatar.sum-av-b,
 html[data-theme="design-01"] .sg-op-rail .sum-avatar.sum-av-b {
   background: var(--embed-color-secondary-container, #c9e8cb);
-  color: var(--embed-semantic-success-fg, #07200f);
+  color: var(--embed-semantic-success-fg, #1b5e20);
 }
 
 html[data-theme="design-01"] #panel-summarized .sum-avatar.sum-av-c,
@@ -556,14 +561,16 @@ html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--collapsible:n
 
 /* Summary row: metrics cluster + large operator pills (gallery panel + rails) */
 #panel-summarized .sum-card > summary > .sum-metrics,
-.sg-op-rail .sum-card > summary .sum-metrics {
+.sg-op-rail .sum-card > summary .sum-metrics,
+#panel-summarized .sum-card > .sum-card__hdr > .sum-metrics,
+.sg-op-rail .sum-card > .sum-card__hdr .sum-metrics {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
   justify-content: flex-end;
   flex: 0 1 auto;
-  max-width: 50%;
+  max-width: none;
 }
 
 #panel-summarized .sum-card > summary > .sum-metrics .sg-op-health-pill,
@@ -736,6 +743,50 @@ html[data-theme="design-01"] .sg-op-rail .sum-bf-prov-health-track--compact .sum
   border-radius: calc(var(--sg-op-summary-pill-radius) - 2px) !important;
 }
 
+/* Conversation lifecycle strip — same capsule geometry/height as service-health pills */
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact {
+  align-self: center;
+}
+
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-bar-track,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-bar-track {
+  display: flex;
+  gap: 0;
+  margin: 0;
+  padding: 2px;
+  border-radius: var(--sg-op-summary-pill-radius);
+  background: var(--embed-surface-container-low, #f4f3f0);
+  border: 1px solid var(--embed-border-medium, #e3e2e0);
+  box-sizing: border-box;
+  min-height: var(--sg-op-summary-pill-min-h);
+  overflow: hidden;
+}
+
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-seg,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-seg {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: calc(var(--sg-op-summary-pill-min-h) - 4px);
+  border: none;
+  border-radius: 0 !important;
+}
+
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-seg:first-child,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-seg:first-child {
+  border-radius: calc(var(--sg-op-summary-pill-radius) - 2px) 0 0 calc(var(--sg-op-summary-pill-radius) - 2px) !important;
+}
+
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-seg:last-child,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-seg:last-child {
+  border-radius: 0 calc(var(--sg-op-summary-pill-radius) - 2px) calc(var(--sg-op-summary-pill-radius) - 2px) 0 !important;
+}
+
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-seg:only-child,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact .sum-conv-lifecycle-seg:only-child {
+  border-radius: calc(var(--sg-op-summary-pill-radius) - 2px) !important;
+}
+
 html[data-theme="design-01"] #panel-summarized .sum-card > summary > .sum-metrics .sg-op-inset-well .material-symbols-outlined--sm,
 html[data-theme="design-01"] #panel-summarized .sum-card > .sum-card__hdr .sum-metrics .sg-op-inset-well .material-symbols-outlined--sm,
 html[data-theme="design-01"] .sg-op-rail .sum-card > summary .sg-op-inset-well .material-symbols-outlined--sm,
@@ -751,11 +802,11 @@ html[data-theme="design-01"] .sg-op-rail .sum-card > .sum-card__hdr .sum-metrics
   color: var(--embed-color-secondary, #4a654e);
 }
 
-/* Card summary rows — gateway overview parity (avatar | main | trailing metrics/status | chevron) */
+/* Card summary rows — avatar | main | trailing metrics | chevron (matches user cards) */
 html[data-theme="design-01"] #panel-summarized .sum-card:not(.sum-card--conversation):not(.sg-op-user-saved) > summary,
 html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--collapsible:not(.sg-op-user-saved) > .sum-card__hdr {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto 1rem;
   align-items: center;
 }
 
@@ -766,15 +817,30 @@ html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--collapsible:n
 
 html[data-theme="design-01"] #panel-summarized .sum-card:not(.sum-card--conversation):not(.sg-op-user-saved) > summary > .sum-metrics,
 html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--collapsible:not(.sg-op-user-saved) > .sum-card__hdr > .sum-metrics {
+  grid-column: 3;
   max-width: none;
   justify-self: end;
 }
 
-html[data-theme="design-01"] #panel-summarized .sum-card:not(.sum-card--conversation):not(.sg-op-user-saved) > summary > .sum-status,
-html[data-theme="design-01"] #panel-summarized .sum-card:not(.sum-card--conversation):not(.sg-op-user-saved) > summary > .sg-op-health-pill,
-html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--collapsible:not(.sg-op-user-saved) > .sum-card__hdr > .sum-status,
-html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--collapsible:not(.sg-op-user-saved) > .sum-card__hdr > .sg-op-health-pill {
+html[data-theme="design-01"] #panel-summarized .sum-card:not(.sum-card--conversation):not(.sg-op-user-saved) > summary > .sg-op-chev-icon,
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--collapsible:not(.sg-op-user-saved) > .sum-card__hdr > .sg-op-chev-icon,
+html[data-theme="design-01"] .sg-op-rail .sum-card:not(.sum-card--conversation):not(.sg-op-user-saved) > summary > .sg-op-chev-icon,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--collapsible:not(.sg-op-user-saved) > .sum-card__hdr > .sg-op-chev-icon {
+  grid-column: 4;
   justify-self: end;
+}
+
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--conversation > summary > .sg-op-chev-icon,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--conversation > summary > .sg-op-chev-icon {
+  grid-column: 6;
+  grid-row: 1;
+  justify-self: end;
+  align-self: center;
+}
+
+html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--conversation[open] > summary > .sg-op-chev-icon,
+html[data-theme="design-01"] .sg-op-rail .sum-card.sum-card--conversation[open] > summary > .sg-op-chev-icon {
+  grid-column: 5;
 }
 
 /* Expanded bodies: use full card inner width (routing, workspace, admin forms) */

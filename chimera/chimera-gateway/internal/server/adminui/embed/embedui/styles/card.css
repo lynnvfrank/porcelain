@@ -67,6 +67,38 @@ body.logs-summarized #panel-summarized {
 .sum-card.sum-card--conversation > summary .sum-conv-lifecycle-bar--compact {
   justify-self: center;
 }
+.sum-card.sum-card--conversation > summary > .sum-avatar {
+  grid-column: 1;
+  grid-row: 1;
+}
+.sum-card.sum-card--conversation > summary > .sum-main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+.sum-card.sum-card--conversation > summary > .sum-metrics {
+  grid-column: 3;
+  grid-row: 1;
+}
+.sum-card.sum-card--conversation > summary > .sum-conv-lifecycle-bar--compact {
+  grid-column: 4;
+  grid-row: 1;
+}
+.sum-card.sum-card--conversation > summary > .sg-op-health-pill,
+.sum-card.sum-card--conversation > summary > .sum-status {
+  grid-column: 5;
+  grid-row: 1;
+}
+.sum-card.sum-card--conversation > summary > .sg-op-chev-icon {
+  grid-column: 6;
+  grid-row: 1;
+  justify-self: end;
+  align-self: center;
+  margin-left: 0;
+}
+.sum-card.sum-card--conversation > summary > .sum-chev {
+  display: none;
+}
 .sum-card.sum-card--conversation > summary .sum-status {
   justify-self: stretch;
   text-align: center;
@@ -83,6 +115,13 @@ body.logs-summarized #panel-summarized {
     minmax(5.5rem, 6.75rem)
     8.25rem
     1rem;
+}
+.sum-card.sum-card--conversation[open] > summary > .sg-op-health-pill,
+.sum-card.sum-card--conversation[open] > summary > .sum-status {
+  grid-column: 4;
+}
+.sum-card.sum-card--conversation[open] > summary > .sg-op-chev-icon {
+  grid-column: 5;
 }
 .sum-card > summary::-webkit-details-marker { display: none; }
 .sum-card[open] > summary { border-bottom: 1px solid var(--embed-border-summary-open); }
@@ -435,6 +474,11 @@ body.logs-summarized #panel-summarized {
   list-style-position: inside;
 }
 .indexer-advanced-roll .sum-mini-row { margin-top: 0.35rem; }
+.sum-card:not(.sum-card--conversation) > summary > .sg-op-chev-icon,
+.sum-card:not(.sum-card--conversation) > .sum-card__hdr > .sg-op-chev-icon {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
 .sum-chev {
   flex: 0 0 auto;
   color: var(--embed-text-faint);

@@ -57,9 +57,10 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminRouterModels = function (ctx) 
       '<span class="sum-avatar sum-av-svc-chimera-gateway">Tr</span>' +
       '<span class="sum-main"><span class="sum-title">Router model</span>' +
       '<span class="sum-sub sum-sub--clamp">Tool-router controls and ordered router model list.</span></span>' +
+      '<span class="sum-metrics sum-metrics--router-toggle">' +
       '<button class="sum-router-toggle" type="button" id="admin-router-enabled" data-admin-action="router-enabled-toggle" aria-label="Toggle tool router" aria-pressed="' + (routerEnabled ? "true" : "false") + '">' +
       '<span class="sum-router-toggle__track"><span class="sum-router-toggle__thumb"></span></span>' +
-      "</button>" +
+      "</button></span>" +
       operatorCardChevronHtml() +
       "</header>" +
       '<div class="sum-body">' +

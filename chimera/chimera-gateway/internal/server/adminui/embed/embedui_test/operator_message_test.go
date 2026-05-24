@@ -111,6 +111,49 @@ func TestOperatorMessage_gatewaySlugs(t *testing.T) {
 			want: "Routed virtual model Chimera-0.2.0 → llama-4-scout-17b-16e-instruct · attempt 4 of 24.",
 		},
 		{
+			name: "rag_attached_evlog",
+			flat: map[string]any{
+				"msg":        "conversation.rag.attached",
+				"collection": "chimera-lynn-task-orchestrator-_-abc",
+				"hits":       8,
+			},
+			opts: map[string]any{"forEventLog": true},
+			want: "Retrieved context · from chimera-lynn-task-orchestrator · 8 chunks injected into the request.",
+		},
+		{
+			name: "model_not_found_will_retry",
+			flat: map[string]any{
+				"msg":           "conversation.fallback.model_not_found",
+				"upstreamModel": "google/gemini-3.1-flash-live-preview",
+				"attempt":       1,
+				"chainLen":      22,
+				"willRetry":     true,
+			},
+			opts: map[string]any{"forEventLog": true},
+			want: "gemini-3.1-flash-live-preview not found (404) · trying next in chain (attempt 1 of 22).",
+		},
+		{
+			name: "rag_retrieve_error_context_evlog",
+			flat: map[string]any{
+				"msg": "rag.retrieve.error",
+				"err": "Embedding input too long for the model context window.",
+			},
+			opts: map[string]any{"forEventLog": true},
+			want: "Unable to insert indexed samples from the workspace because they are too long for the model context window.",
+		},
+		{
+			name: "model_not_found_exhausted",
+			flat: map[string]any{
+				"msg":           "conversation.fallback.model_not_found",
+				"upstreamModel": "google/gemini-3.1-flash-live-preview",
+				"attempt":       22,
+				"chainLen":      22,
+				"willRetry":     false,
+			},
+			opts: map[string]any{"forEventLog": true},
+			want: "No model in the fallback chain could serve this request · last attempt: gemini-3.1-flash-live-preview (404).",
+		},
+		{
 			name: "gateway_auth_reloaded",
 			flat: map[string]any{"msg": "gateway.auth.reloaded", "count": 4},
 			want: "Client credentials reloaded from disk. Active keys: 4.",
@@ -124,6 +167,38 @@ func TestOperatorMessage_gatewaySlugs(t *testing.T) {
 			name: "supervisor_broker_ready_alias",
 			flat: map[string]any{"msg": "chimera-supervisor.chimera-broker.ready", "url": "http://127.0.0.1:8081/health"},
 			want: "chimera-broker passed health check — ready. · 127.0.0.1:8081/health",
+		},
+		{
+			name: "provider_limits_context_window",
+			flat: map[string]any{
+				"msg":            "chat.provider_limits.blocked",
+				"upstreamModel":  "groq/llama-3.3-70b-versatile",
+				"reason":         "context_window",
+				"outgoingTokens": 9500,
+				"max_tokens":     512,
+				"context_cap":    8192,
+			},
+			want: "Blocked by provider limits · llama-3.3-70b-versatile · context window · 9500 prompt + 512 max_tokens > cap 8192",
+		},
+		{
+			name: "provider_limits_tpm",
+			flat: map[string]any{
+				"msg":           "chat.provider_limits.blocked",
+				"upstreamModel": "groq/llama-3.1-8b-instant",
+				"reason":        "tpm",
+			},
+			want: "Blocked by provider limits · llama-3.1-8b-instant · TPM quota",
+		},
+		{
+			name: "provider_limits_body_bytes",
+			flat: map[string]any{
+				"msg":            "chat.provider_limits.blocked",
+				"upstreamModel":  "groq/groq/compound-mini",
+				"reason":         "request_body_bytes",
+				"body_bytes":     4000000,
+				"max_body_bytes": 3500000,
+			},
+			want: "Blocked by provider limits · groq/compound-mini · body size · 4000000 bytes > cap 3500000",
 		},
 		{
 			name: "unknown_slug",

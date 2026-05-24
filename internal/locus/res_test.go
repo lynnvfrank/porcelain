@@ -56,4 +56,8 @@ func TestRuntimePaths(t *testing.T) {
 	if filepath.Base(LifecycleEventsPath(root)) != FileLifecycleLog {
 		t.Fatalf("events path: %s", LifecycleEventsPath(root))
 	}
+	wantSupervisorLog := filepath.Join(root, DirData, FileSupervisorLog)
+	if SupervisorLogPath(root) != wantSupervisorLog {
+		t.Fatalf("supervisor log: got %s want %s", SupervisorLogPath(root), wantSupervisorLog)
+	}
 }

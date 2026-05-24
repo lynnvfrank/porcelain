@@ -33,8 +33,12 @@ formatters:
     description: Turn completed + duration in event log
   conversation_errored:
     description: Turn failed + duration in event log
+  conversation_fallback_model_not_found:
+    description: willRetry-aware model not found during routing
   conversation_routing:
     description: virtual vs passthrough routing summary
+  conversation_routing_rate_limit:
+    description: TPM rate limit during routing (service panels)
   conversation_turn_started:
     description: turn_index, clientModel, message_count
   gateway_auth_reloaded:
@@ -127,6 +131,8 @@ formatters:
     description: work kind label
   ingest_complete:
     description: chunks, source, tenant
+  rag_attached:
+    description: hits + collection for conversation.rag.attached
   rag_collection:
     description: Append RAG collection label from flat.collection
   rag_retrieve_error:
@@ -197,8 +203,10 @@ messages:
     summary: Redacted head/tail excerpt of request or response payload (trace only).
     gallery_preview: Payload sample (trace)
   - slug: conversation.rag.attached
-    summary: Retrieved chunks were injected into the chat request as context.
-    gallery_preview: RAG context attached to this turn
+    formatter: rag_attached
+    aliases:
+      - RAG context attached to this turn
+    gallery_preview: Retrieved context from collection · N chunks injected.
   - slug: conversation.rag.skipped
     summary: RAG retrieval was skipped for this turn (disabled, empty query, or no hits).
     gallery_preview: RAG skipped for this turn
@@ -221,14 +229,16 @@ messages:
     summary: chimera-broker request failed for this conversation turn.
     gallery_preview: chimera-broker request failed
   - slug: conversation.fallback.attempted
-    summary: Routing fallback attempted after an upstream failure.
-    gallery_preview: Fallback routing attempted
+    summary: Continuing to the next model in the fallback chain after an upstream failure.
+    gallery_preview: Fallback routing continued
   - slug: conversation.fallback.exhausted
     summary: All models in the routing fallback chain were exhausted.
     gallery_preview: Fallback chain exhausted
   - slug: conversation.fallback.model_not_found
-    summary: No model in the fallback chain could serve this request.
-    gallery_preview: Fallback model not found
+    formatter: conversation_fallback_model_not_found
+    aliases:
+      - Fallback model not found
+    gallery_preview: Model not found during routing · trying next in chain.
   - slug: rag.query
     formatter: rag_collection
     shape: rag
@@ -255,7 +265,7 @@ messages:
     gallery_preview: Request witness logged for correlation and auditing.
   - slug: rag.retrieve.error
     formatter: rag_retrieve_error
-    gallery_preview: RAG retrieval failed; continuing without injected chunks.
+    gallery_preview: Unable to insert indexed samples from the workspace; continuing without added context.
   - slug: conversation.errored
     formatter: conversation_errored
     gallery_preview: This conversation turn ended with an error (no successful completion delivered).
@@ -369,12 +379,18 @@ messages:
     aliases:
       - virtual model routing resolved
     gallery_preview: Routing resolved · gpt-4o · attempt 1/1 · HTTP 200
+  - slug: chat.routing.rate_limit
+    formatter: conversation_routing_rate_limit
+    gallery_preview: Rate limited on model · TPM limit · used · requested · trying next model.
+  - slug: chat.routing.model_not_found
+    formatter: conversation_fallback_model_not_found
+    gallery_preview: Model not found (404) · trying next in chain.
   - slug: chat.provider_limits.blocked
     formatter: broker_provider_limits
     aliases:
       - chat blocked by provider limits
       - skipping upstream model (provider limits)
-    gallery_preview: Blocked by provider limits · daily token cap
+    gallery_preview: Blocked by provider limits · llama-3.3-70b · context window · 9,500 prompt + 512 max_tokens > cap 8,192
   - slug: broker.startup.banner
     summary: 'chimera-broker starting (backend: BiFrost)'
     aliases:

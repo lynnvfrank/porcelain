@@ -30,9 +30,93 @@
   function brokerShortModel(model) {
     var m = model != null ? String(model).trim() : "";
     if (!m) return "";
-    var parts = m.split("/");
-    var tail = parts[parts.length - 1] || m;
-    return tail.length > 48 ? tail.slice(0, 46) + "…" : tail;
+    var parts = m.split("/").filter(function (p) {
+      return p !== "";
+    });
+    if (parts.length >= 3 && parts[0] === parts[1]) {
+      m = parts[0] + "/" + parts[parts.length - 1];
+    } else {
+      var tail = parts[parts.length - 1] || m;
+      if (tail === "compound" || tail === "compound-mini") {
+        var prov = parts.length >= 2 ? parts[0] : "";
+        m = prov ? prov + "/" + tail : tail;
+      } else {
+        m = tail;
+      }
+    }
+    return m.length > 48 ? m.slice(0, 46) + "…" : m;
+  }
+
+  function ragCollectionLabelFromFlat(flat) {
+    if (!flat || typeof flat !== "object") return "";
+    var collRaw = flat.collection != null ? String(flat.collection).trim() : "";
+    if (!collRaw) return "";
+    if (typeof ragCollectionLabelForUi === "function") {
+      var collLab = ragCollectionLabelForUi(collRaw);
+      if (collLab) return collLab;
+    }
+    if (globalThis.ChimeraSettings && ChimeraSettings.Derive && typeof ChimeraSettings.Derive.vectorstoreCollectionDisplay === "function") {
+      var lab2 = ChimeraSettings.Derive.vectorstoreCollectionDisplay(collRaw);
+      if (lab2 != null && String(lab2).trim() !== "") return String(lab2).trim();
+    }
+    var dash = collRaw.indexOf("-_-");
+    return dash >= 0 ? collRaw.slice(0, dash) : collRaw;
+  }
+
+  function sanitizeProviderErrorForOperator(rawErr, opts) {
+    opts = opts || {};
+    var er = String(rawErr || "").replace(/\s+/g, " ").trim();
+    if (!er) return "";
+    var msgMatch = er.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (msgMatch && msgMatch[1]) {
+      er = msgMatch[1].replace(/\\"/g, '"').replace(/\\n/g, " ").trim();
+    }
+    er = er.replace(/\s*Call ModelService\.ListModels[^.]*\./gi, ".");
+    er = er.replace(/\s*Call ModelService\.ListModels.*$/i, "");
+    er = er.replace(/\s+in organization `org_[^`]+`/gi, "");
+    er = er.replace(/\s+service tier `[^`]+`/gi, "");
+    er = er.replace(/\s*\.\s*\./g, ".");
+    er = er.replace(/\s+/g, " ").trim();
+    if (er.length > 200) er = er.slice(0, 199) + "…";
+    if (opts.modelNotFound && er.indexOf("Check virtual model fallback chain") < 0) {
+      er = er.replace(/\.$/, "");
+      er += ". Check virtual model fallback chain in routing policy.";
+    }
+    return er;
+  }
+
+  function parseTpmRateLimitError(rawErr) {
+    var er = String(rawErr || "").replace(/\s+/g, " ").trim();
+    if (!er) return null;
+    var msgMatch = er.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (msgMatch && msgMatch[1]) er = msgMatch[1].replace(/\\"/g, '"').replace(/\\n/g, " ").trim();
+    if (er.toLowerCase().indexOf("rate limit") < 0 && er.toLowerCase().indexOf("tokens per minute") < 0) return null;
+    var modelMatch = er.match(/model `([^`]+)`/i);
+    var limitMatch = er.match(/Limit\s+([\d,]+)/i);
+    var usedMatch = er.match(/Used\s+([\d,]+)/i);
+    var reqMatch = er.match(/Requested\s+([\d,]+)/i);
+    if (!limitMatch && !usedMatch && !reqMatch) return null;
+    return {
+      model: modelMatch && modelMatch[1] ? modelMatch[1] : "",
+      limit: limitMatch && limitMatch[1] ? limitMatch[1].replace(/,/g, "") : "",
+      used: usedMatch && usedMatch[1] ? usedMatch[1].replace(/,/g, "") : "",
+      requested: reqMatch && reqMatch[1] ? reqMatch[1].replace(/,/g, "") : ""
+    };
+  }
+
+  function formatTpmRateLimitLine(model, tpm) {
+    var bits = ["Rate limited"];
+    var mod = brokerShortModel(model || (tpm && tpm.model));
+    if (mod) bits.push("on " + mod);
+    if (tpm) {
+      var tpmBits = [];
+      if (tpm.limit) tpmBits.push("limit " + Number(tpm.limit).toLocaleString());
+      if (tpm.used) tpmBits.push("used " + Number(tpm.used).toLocaleString());
+      if (tpm.requested) tpmBits.push("requested " + Number(tpm.requested).toLocaleString());
+      if (tpmBits.length) bits.push("TPM " + tpmBits.join(" · "));
+    }
+    bits.push("trying next model");
+    return bits.join(" · ") + ".";
   }
 
   function formatConvDurationMs(ms) {
@@ -115,15 +199,27 @@
     return false;
   }
 
+  var CONTEXT_SAMPLES_TOO_LONG = "INDEXED_SAMPLES_TOO_LONG";
+
   function summarizeRagRetrieveErr(rawErr) {
     var er = String(rawErr || "").replace(/\s+/g, " ").trim();
     if (!er) return "";
     var low = er.toLowerCase();
-    if (low.indexOf("context length") >= 0 || low.indexOf("exceeds the context") >= 0)
-      return "Embedding input too long for the model context window.";
+    if (
+      low.indexOf("context length") >= 0 ||
+      low.indexOf("exceeds the context") >= 0 ||
+      low.indexOf("too long for the model context") >= 0 ||
+      low.indexOf("embedding input too long") >= 0
+    ) {
+      return CONTEXT_SAMPLES_TOO_LONG;
+    }
     var msgMatch = er.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
     if (msgMatch && msgMatch[1]) {
       var inner = msgMatch[1].replace(/\\"/g, '"').replace(/\\n/g, " ").trim();
+      var innerLow = inner.toLowerCase();
+      if (innerLow.indexOf("context length") >= 0 || innerLow.indexOf("exceeds the context") >= 0) {
+        return CONTEXT_SAMPLES_TOO_LONG;
+      }
       if (inner.length > 220) inner = inner.slice(0, 219) + "…";
       return inner;
     }
@@ -135,10 +231,15 @@
       var tail = idx >= 0 ? er.slice(idx + ("status " + code).length).replace(/^:\s*/, "").trim() : "";
       if (tail.charAt(0) === "{") {
         var nested = summarizeRagRetrieveErr(tail);
-        if (nested) return "Embedding API rejected the query (HTTP " + code + "): " + nested;
+        if (nested) {
+          if (nested === CONTEXT_SAMPLES_TOO_LONG) return nested;
+          return "workspace index lookup failed (HTTP " + code + "): " + nested;
+        }
       }
       if (tail.length > 120) tail = tail.slice(0, 119) + "…";
-      return tail ? "Embedding API HTTP " + code + ": " + tail : "Embedding API returned HTTP " + code + ".";
+      return tail
+        ? "workspace index lookup failed (HTTP " + code + "): " + tail
+        : "workspace index lookup failed (HTTP " + code + ").";
     }
     if (er.length > 140) er = er.slice(0, 139) + "…";
     return er;
@@ -160,18 +261,26 @@
     return stripped.length > maxLen ? stripped.slice(0, maxLen - 1) + "…" : stripped;
   }
 
+  formatters.rag_attached = function (flat, entry, opts) {
+      opts = opts || {};
+      var collLab = ragCollectionLabelFromFlat(flat);
+      var hits = flat.hits != null ? Number(flat.hits) : NaN;
+      if (opts.forEventLog === true) {
+        var bitsRa = ["Retrieved context"];
+        if (collLab) bitsRa.push("from " + collLab);
+        if (!isNaN(hits) && hits >= 0) {
+          bitsRa.push(hits + " chunk" + (hits === 1 ? "" : "s") + " injected into the request");
+        } else {
+          bitsRa.push("injected into the request");
+        }
+        return bitsRa.join(" · ") + ".";
+      }
+      return entry.summary || "Retrieved chunks were injected into the chat request as context.";
+  };
   formatters.rag_collection = function (flat, entry) {
       var slug = entry.slug || "";
       if (slug === "conversation.rag.span") {
-        var collLab = "";
-        var collRaw = flat.collection != null ? String(flat.collection).trim() : "";
-        if (collRaw && typeof ragCollectionLabelForUi === "function") {
-          collLab = ragCollectionLabelForUi(collRaw);
-        }
-        if (!collLab && collRaw) {
-          var dash = collRaw.indexOf("-_-");
-          collLab = dash >= 0 ? collRaw.slice(0, dash) : collRaw;
-        }
+        var collLab = ragCollectionLabelFromFlat(flat);
         return collLab
           ? "Searched collection " + collLab + " · context attached for this turn."
           : "Searched collection · context attached for this turn.";
@@ -179,11 +288,65 @@
       var base = entry.summary || "";
       return base + ragCollectionSuffix(flat);
   };
-  formatters.rag_retrieve_error = function (flat, entry) {
-    var baseErr = entry.summary || "RAG retrieval failed; continuing without injected chunks.";
+  formatters.conversation_fallback_model_not_found = function (flat, entry, opts) {
+      opts = opts || {};
+      if (opts.forEventLog !== true) {
+        return entry.summary || "No model in the fallback chain could serve this request.";
+      }
+      var model = brokerShortModel(flat.upstreamModel);
+      var att = flat.attempt != null ? Number(flat.attempt) : NaN;
+      var chain = flat.chainLen != null ? Number(flat.chainLen) : NaN;
+      var willRetry = flat.willRetry === true || flat.will_retry === true;
+      if (willRetry) {
+        var bitsRetry = [];
+        if (model) bitsRetry.push(model + " not found (404)");
+        else bitsRetry.push("Model not found (404)");
+        if (!isNaN(att) && !isNaN(chain) && chain > 0) {
+          bitsRetry.push("trying next in chain (attempt " + Math.round(att) + " of " + Math.round(chain) + ")");
+        } else {
+          bitsRetry.push("trying next in chain");
+        }
+        return bitsRetry.join(" · ") + ".";
+      }
+      if (model) {
+        return "No model in the fallback chain could serve this request · last attempt: " + model + " (404).";
+      }
+      return "No model in the fallback chain could serve this request.";
+  };
+  formatters.conversation_routing_rate_limit = function (flat, entry, opts) {
+      opts = opts || {};
+      if (opts.forEventLog !== true) {
+        return entry.summary || "Upstream rate limit during routing.";
+      }
+      var raw =
+        flat.upstreamErrorExcerpt != null
+          ? String(flat.upstreamErrorExcerpt)
+          : flat.err != null
+            ? String(flat.err)
+            : "";
+      var tpm = parseTpmRateLimitError(raw);
+      return formatTpmRateLimitLine(flat.upstreamModel, tpm);
+  };
+  formatters.rag_retrieve_error = function (flat, entry, opts) {
+    opts = opts || {};
     var rawEr = flat.err != null ? String(flat.err) : "";
     var sum = summarizeRagRetrieveErr(rawEr);
-    return sum ? baseErr + " Cause: " + sum : baseErr;
+    if (opts.forEventLog === true) {
+      if (sum === CONTEXT_SAMPLES_TOO_LONG) {
+        return "Unable to insert indexed samples from the workspace because they are too long for the model context window.";
+      }
+      if (sum) {
+        return "Unable to insert indexed samples from the workspace · " + sum + ".";
+      }
+      return "Unable to insert indexed samples from the workspace for this turn.";
+    }
+    var baseErr =
+      entry.summary ||
+      "Unable to insert indexed samples from the workspace; continuing without added context.";
+    if (sum === CONTEXT_SAMPLES_TOO_LONG) {
+      return baseErr + " They are too long for the model context window.";
+    }
+    return sum ? baseErr + " " + sum + "." : baseErr;
   };
   formatters.conversation_turn_started = function (flat, entry, opts) {
       var meta = convEvlogMetaFromOpts(opts);
@@ -455,4 +618,8 @@
   ChimeraSettings.Render.operatorMessage = operatorMessage;
   ChimeraSettings.Render.operatorFriendlyGatewayMsg = operatorMessage;
   formatters._extractOpenAIErrorMessage = extractOpenAIErrorMessage;
+  formatters._sanitizeProviderErrorForOperator = sanitizeProviderErrorForOperator;
+  formatters._parseTpmRateLimitError = parseTpmRateLimitError;
+  formatters._formatTpmRateLimitLine = formatTpmRateLimitLine;
+  formatters._brokerShortModel = brokerShortModel;
 })();

@@ -614,8 +614,8 @@ rules:
               </div>
               <div class="sum-metrics-table-wrap sum-evlog__table-scroll">
                 <table class="sum-metrics-table sum-evlog__table">
-                  <colgroup><col class="sum-evlog__col-time" /><col class="sum-evlog__col-msg" /><col class="sum-evlog__col-status" /></colgroup>
-                  <thead><tr><th class="sum-evlog__cell--time" scope="col">Time</th><th scope="col">Message</th><th class="sum-evlog__th-status" scope="col">
+                  <colgroup><col class="sum-evlog__col-time" /><col class="sum-evlog__col-msg" /><col class="sum-evlog__col-source" /><col class="sum-evlog__col-status" /></colgroup>
+                  <thead><tr><th class="sum-evlog__cell--time" scope="col">Time</th><th class="sum-evlog__th-msg" scope="col">Message</th><th class="sum-evlog__th-source" scope="col">Source</th><th class="sum-evlog__th-status" scope="col">
                     <div class="sum-evlog__th-status-head" role="group" aria-label="Status counts">
                       <span class="sum-evlog__th-status-label">Status</span>
                       <span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN sum-evlog-metric-num" data-sum-evlog-metric-warn>—</span>
@@ -627,17 +627,20 @@ rules:
                   <tbody data-gallery-evlog-tbody>
                     <tr class="sum-evlog__row" data-evlog-id="fb-1" data-evlog-level="WARN" data-evlog-http="429">
                       <td class="sum-evlog__cell--time"><time datetime="2026-05-11T08:11:01.200Z"></time></td>
-                      <td class="sum-evlog__cell--msg"><span class="sum-svc-badge sum-svc-broker">chimera-broker</span>Primary model rate-limited; evaluating fallback tier 2.</td>
+                      <td class="sum-evlog__cell--msg">Primary model rate-limited; evaluating fallback tier 2.</td>
+                      <td class="sum-evlog__cell--source"><span class="sum-svc-badge sum-svc-broker">broker</span></td>
                       <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__pill sum-evlog-status__lvl--WARN">WARN</span><span class="pill-4xx">429</span></div></td>
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="fb-2" data-evlog-level="INFO" data-evlog-http="200">
                       <td class="sum-evlog__cell--time"><time datetime="2026-05-11T08:11:03.040Z"></time></td>
                       <td class="sum-evlog__cell--msg">Relay succeeded on fallback route <code class="sum-mono-id">gemini/gemini-2.0-flash</code>.</td>
+                      <td class="sum-evlog__cell--source"><span class="sum-svc-badge sum-svc-broker">broker</span></td>
                       <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="pill-2xx">200</span></div></td>
                     </tr>
                     <tr class="sum-evlog__row" data-evlog-id="fb-3" data-evlog-level="ERROR" data-evlog-http="503">
                       <td class="sum-evlog__cell--time"><time datetime="2026-05-11T08:11:18.900Z"></time></td>
                       <td class="sum-evlog__cell--msg">Exhausted fallback chain — returning last error envelope to client.</td>
+                      <td class="sum-evlog__cell--source"><span class="sum-svc-badge sum-svc-gateway">gateway</span></td>
                       <td class="sum-evlog__cell--status"><div class="sum-evlog-status"><span class="sum-evlog-status__pill sum-evlog-status__lvl--ERROR">ERROR</span><span class="pill-5xx">503</span></div></td>
                     </tr>
                   </tbody>

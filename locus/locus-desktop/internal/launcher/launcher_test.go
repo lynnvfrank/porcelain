@@ -37,7 +37,7 @@ func TestFilterSupervisorArgs(t *testing.T) {
 func TestLogDir_Default(t *testing.T) {
 	root := filepath.Clean(filepath.FromSlash("/tmp/porcelain"))
 	got := LogDir(nil, root)
-	want := filepath.Clean(filepath.Join(root, "data", "chimera-supervisor"))
+	want := filepath.Clean(filepath.Join(root, "data"))
 	if got != want {
 		t.Fatalf("want %s, got %s", want, got)
 	}

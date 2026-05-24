@@ -29,6 +29,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   var sumEvlogCountWarnFailFromEntries = ctx.sumEvlogCountWarnFailFromEntries;
   var scopedEvlogTitle = ctx.scopedEvlogTitle;
   var serviceStripHtml = ctx.serviceStripHtml;
+  var serviceStripParts = ctx.serviceStripParts;
   var contextGrowthStripHtml = ctx.contextGrowthStripHtml;
   var SHOW_CONV_EXPANDED_CONTEXT_STRIP = !!ctx.SHOW_CONV_EXPANDED_CONTEXT_STRIP;
   var metricsPollTimer = null;
@@ -1702,26 +1703,44 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     return classes[n % classes.length];
   }
 
+  function serviceDisplayLabel(key) {
+    if (
+      globalThis.ChimeraSettings &&
+      ChimeraSettings.Contracts &&
+      typeof ChimeraSettings.Contracts.serviceDisplayLabel === "function"
+    ) {
+      return ChimeraSettings.Contracts.serviceDisplayLabel(key);
+    }
+    var k = String(key || "").trim().toLowerCase();
+    if (!k) return "";
+    if (k.indexOf("chimera-") === 0) return k.slice("chimera-".length);
+    return k;
+  }
+
+  function serviceBadge(key, cls) {
+    return { cls: cls, key: key, lab: serviceDisplayLabel(key) };
+  }
+
   function inferServiceBadge(ev) {
     var src = (ev.source || (ev.parsed && ev.parsed.app) || "").toLowerCase();
     var f = getFlat(ev.parsed);
     var sh = (ev.parsed && ev.parsed.shape) || "";
     if (src === "chimera-vectorstore" || sh === "service.chimera-vectorstore" || f.service === "chimera-vectorstore")
-      return { cls: "sum-svc-vectorstore", lab: "chimera-vectorstore" };
+      return serviceBadge("chimera-vectorstore", "sum-svc-vectorstore");
     if (src === "chimera-indexer" || sh.indexOf("chimera-indexer") === 0 || f.service === "chimera-indexer")
-      return { cls: "sum-svc-indexer", lab: "chimera-indexer" };
+      return serviceBadge("chimera-indexer", "sum-svc-indexer");
     if (src === "chimera-broker" || sh.indexOf("chimera-broker") >= 0 || sh.indexOf("chat.chimera-broker") === 0)
-      return { cls: "sum-svc-broker", lab: "chimera-broker" };
-    if (sh === "http.access" || (f.method && f.path)) return { cls: "sum-svc-web", lab: "web" };
-    if (sh === "chat.routing") return { cls: "sum-svc-gateway", lab: "routing" };
+      return serviceBadge("chimera-broker", "sum-svc-broker");
+    if (sh === "http.access" || (f.method && f.path)) return { cls: "sum-svc-web", key: "web", lab: "web" };
+    if (sh === "chat.routing") return { cls: "sum-svc-gateway", key: "routing", lab: "routing" };
     if (
       src === "chimera-gateway" ||
       src === "gateway" ||
       f.service === "chimera-gateway" ||
       f.service === "gateway"
     )
-      return { cls: "sum-svc-gateway", lab: "chimera-gateway" };
-    return { cls: "sum-svc-gateway", lab: "chimera-gateway" };
+      return serviceBadge("chimera-gateway", "sum-svc-gateway");
+    return serviceBadge("chimera-gateway", "sum-svc-gateway");
   }
 
   /**
@@ -1855,7 +1874,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     var ch = model.chips || {};
     var parts = [];
     if ((ch.tools || 0) > 0) parts.push("Tools · " + ch.tools);
-    if ((ch.fallback || 0) > 0) parts.push("Fallback · " + ch.fallback);
     if (!parts.length) return "";
     var h = '<div class="sum-conv-chip-row sum-conv-chip-row--summary">';
     for (var pi = 0; pi < parts.length; pi++) {
@@ -1882,7 +1900,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       row("Turn", kv.turnIndex) +
       row("Client model", kv.clientModel) +
       row("Upstream model", kv.upstreamModel) +
-      row("Stream", kv.stream) +
       row(
         "RAG collection",
         kv.ragCollection && typeof ragCollectionLabelForUi === "function"
@@ -2101,10 +2118,10 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
    */
   var TIMELINE_BAR_KINDS = [
     { key: "web", bg: "#42a5f5", label: "Web", title: "Inbound HTTP and API access lines" },
-    { key: "chimera-vectorstore", bg: "#66bb6a", label: "chimera-vectorstore", title: "chimera-vectorstore wrapper and backend lines" },
-    { key: "chimera-broker", bg: "#9575cd", label: "chimera-broker", title: "chimera-broker relay and upstream chat traffic" },
-    { key: "chimera-indexer", bg: "#ffa726", label: "chimera-indexer", title: "chimera-indexer subprocess lines" },
-    { key: "chimera-gateway", bg: "#78909c", label: "chimera-gateway", title: "chimera-gateway routing, startup, config, and other internal logs" }
+    { key: "chimera-vectorstore", bg: "#66bb6a", label: "vectorstore", title: "vectorstore wrapper and backend lines" },
+    { key: "chimera-broker", bg: "#9575cd", label: "broker", title: "broker relay and upstream chat traffic" },
+    { key: "chimera-indexer", bg: "#ffa726", label: "indexer", title: "indexer subprocess lines" },
+    { key: "chimera-gateway", bg: "#78909c", label: "gateway", title: "gateway routing, startup, config, and other internal logs" }
   ];
 
   /** Shared with timelineBarHtml and indexer scope cards (same `.sum-timeline-bar` DOM). */
@@ -2562,7 +2579,11 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     if (name === "chimera-broker") {
       var w = { parsed: ev.parsed, text: ev.text, ts: ev.ts, source: ev.source };
       if (entryIsGatewayUpstreamRelay(w)) {
-        return { cls: "sum-svc-broker sum-svc-badge-filled sum-svc-broker-filled", lab: "chimera-broker" };
+        return {
+          cls: "sum-svc-broker sum-svc-badge-filled sum-svc-broker-filled",
+          key: "chimera-broker",
+          lab: serviceDisplayLabel("chimera-broker")
+        };
       }
       return null;
     }
@@ -3459,11 +3480,11 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       '<table class="sum-metrics-table sum-metrics-table--indexer-recent">' +
       "<colgroup>" +
       '<col class="indexer-recent-col-time">' +
-      '<col class="indexer-recent-col-status">' +
       '<col class="indexer-recent-col-path">' +
       '<col class="indexer-recent-col-detail">' +
+      '<col class="indexer-recent-col-status">' +
       "</colgroup>" +
-      "<thead><tr><th>Time</th><th>Status</th><th>Path</th><th>Detail</th></tr></thead><tbody>";
+      "<thead><tr><th class=\"indexer-recent-cell-time\">Time</th><th class=\"indexer-recent-cell-path\">Path</th><th class=\"indexer-recent-cell-detail\">Detail</th><th class=\"indexer-recent-cell-status\">Status</th></tr></thead><tbody>";
     if (!rows.length) {
       html +=
         '<tr><td colspan="4" class="muted">No file-level activity in the loaded window yet. Scroll up to load older lines.</td></tr>';
@@ -3479,24 +3500,24 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         var relAgo = typeof formatLogRelativeAgo === "function" ? formatLogRelativeAgo(it.ts) : "";
         html +=
           "<tr>" +
-          '<td class="sum-evlog__cell--time">' +
+          '<td class="indexer-recent-cell-time sum-evlog__cell--time">' +
           "<time" +
           (iso ? ' datetime="' + escapeHtml(iso) + '"' : "") +
           (relAgo ? ' title="' + escapeHtml(relAgo) + '"' : "") +
           ">" +
           escapeHtml(it.t) +
           "</time></td>" +
-          '<td><span class="log-line-sum__lvl ' +
+          '<td class="indexer-recent-cell-path"><code class="sum-mono-id">' +
+          escapeHtml(it.rel) +
+          "</code></td>" +
+          '<td class="indexer-recent-cell-detail muted">' +
+          (it.detail ? escapeHtml(it.detail) : "") +
+          "</td>" +
+          '<td class="indexer-recent-cell-status"><span class="log-line-sum__lvl ' +
           escapeHtml(lvlClass) +
           '">' +
           escapeHtml(it.st) +
-          "</span></td>" +
-          '<td><code class="sum-mono-id">' +
-          escapeHtml(it.rel) +
-          "</code></td>" +
-          '<td class="muted">' +
-          (it.detail ? escapeHtml(it.detail) : "") +
-          "</td></tr>";
+          "</span></td></tr>";
       }
     }
     html += "</tbody></table></div>";
@@ -3684,13 +3705,15 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         : g.pid + "\0" + g.cid;
     var convScope = strHash(cardKey);
     var scrollTbodyId = "conv-log-" + convScope;
-    var tbodyInner = sumEvlogBuildTbodyFromConvEvents(evs, turnGroups, convScope);
+    var tbodyInner = sumEvlogBuildTbodyFromConvEvents(evs, turnGroups, convScope, { showSourceColumn: true });
     var mc = sumEvlogCountWarnFailFromEntries(evs);
-    var servicesStrip = typeof serviceStripHtml === "function" ? serviceStripHtml(evs) : "";
+    var stripParts = typeof serviceStripParts === "function" ? serviceStripParts(evs) : [];
+    if (!Array.isArray(stripParts)) stripParts = [];
     var full =
       '<div class="sum-full-log sum-full-log--evlog">' +
       sumEvlogPanelHtml({
         scrollTbodyId: scrollTbodyId,
+        showSourceColumn: true,
         warnN: mc.warn,
         failN: mc.fail,
         tbodyInnerHtml: tbodyInner,
@@ -3698,7 +3721,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
           typeof scopedEvlogTitle === "function"
             ? scopedEvlogTitle(conversationScopedLogSubject(g.pid, g.cid))
             : "Scoped log",
-        titleRightHtml: servicesStrip || ""
+        titleRightParts: stripParts
       }) +
       "</div>";
     var contextStrip =
@@ -3768,7 +3791,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       metrics +
       lifeCompact +
       serviceSummaryStatusPillHtml(st) +
-      '<span class="sum-chev"></span></summary>' +
+      operatorCardChevronHtml() +
+      "</summary>" +
       renderExpandedConv(g) +
       "</details>"
     );
@@ -4479,7 +4503,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         warnN: mc.warn,
         failN: mc.fail,
         tbodyInnerHtml: tbodyInner,
-        title: typeof scopedEvlogTitle === "function" ? scopedEvlogTitle(name) : "Scoped log"
+        title: typeof scopedEvlogTitle === "function" ? scopedEvlogTitle(serviceDisplayLabel(name)) : "Scoped log"
       }) +
       "</div>";
     return (
@@ -4507,6 +4531,28 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       out += ' <span class="material-symbols-outlined material-symbols-outlined--sm" aria-hidden="true">error</span>';
     }
     return out + "</span>";
+  }
+
+  function operatorCardChevronHtml() {
+    if (typeof ctx.operatorCardChevronHtml === "function") {
+      return ctx.operatorCardChevronHtml();
+    }
+    return (
+      '<span class="material-symbols-outlined sg-op-chev-icon" aria-hidden="true">chevron_right</span>' +
+      '<span class="sum-chev" aria-hidden="true"></span>'
+    );
+  }
+
+  /** Append trailing summary chips/pills into one .sum-metrics cluster (user-card parity). */
+  function summaryMetricsHtml(innerHtml, extraHtml) {
+    innerHtml = innerHtml != null ? String(innerHtml) : "";
+    extraHtml = extraHtml != null ? String(extraHtml) : "";
+    if (!innerHtml && !extraHtml) return "";
+    if (innerHtml.indexOf('class="sum-metrics"') >= 0) {
+      if (!extraHtml) return innerHtml;
+      return innerHtml.replace(/<\/span>\s*$/, extraHtml + "</span>");
+    }
+    return '<span class="sum-metrics">' + innerHtml + extraHtml + "</span>";
   }
 
   function serviceSummaryStatusPillHtml(st) {
@@ -4590,7 +4636,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     var av = serviceAvatarClass(name);
     /** Single outer .sum-title only — avoid nesting .sum-title (was hiding pills / breaking layout). */
     var titleClass = "sum-title";
-    var displayServiceName = name;
+    var displayServiceName = serviceDisplayLabel(name);
     var titleBlock = escapeHtml(displayServiceName);
     var wms = serviceWindowMs(arr);
     var metrics;
@@ -4644,6 +4690,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         (sumMs ? '<span class="sum-metric">' + escapeHtml(humanDurationMs(sumMs)) + " Σ</span>" : "") +
         "</span>";
     }
+    var statusHtml = isChimeraBroker ? "" : serviceSummaryStatusPillHtml(st);
+    metrics = summaryMetricsHtml(metrics, statusHtml);
     return (
       '<details class="sum-card" id="' +
       escapeHtml(sid) +
@@ -4661,8 +4709,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       escapeHtml(lastMsg) +
       "</span></span>" +
       metrics +
-      (isChimeraBroker ? "" : serviceSummaryStatusPillHtml(st)) +
-      '<span class="sum-chev"></span></summary>' +
+      operatorCardChevronHtml() +
+      "</summary>" +
       renderExpandedService(name, arr, svcCtx) +
       "</details>"
     );
@@ -5053,7 +5101,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       '</span><span class="sum-sub sum-sub--clamp muted">' +
       escapeHtml("Waiting on status update from an indexer worker") +
       "</span></span>" +
-      '<span class="sum-chev"></span></summary>' +
+      operatorCardChevronHtml() +
+      "</summary>" +
       '<div class="sum-body">' +
       '<div class="sum-section-label">Summary</div>' +
       '<dl class="indexer-run-kv">' +
@@ -5538,7 +5587,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       '</span><span class="sum-sub sum-sub--clamp muted">' +
       escapeHtml(subProse) +
       "</span></span>" +
-      '<span class="material-symbols-outlined sg-op-chev-icon" aria-hidden="true">chevron_right</span></header>' +
+      operatorCardChevronHtml() +
+      "</header>" +
       expanded +
       "</article>"
     );
@@ -5674,10 +5724,16 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       ? '<span class="sum-avatar sum-av-c sum-av-indexer-idle" aria-hidden="true">\u2713</span>'
       : '<span class="sum-avatar sum-av-c">IX</span>';
     var statusSpan = indexerCollapsedIdle ? "" : serviceSummaryStatusPillHtml(st);
-    var progressMetrics =
-      progressStack !== ""
-        ? '<span class="sum-metrics sum-metrics--indexer-scope">' + progressStack + "</span>"
-        : "";
+    var progressMetrics = "";
+    if (progressStack !== "" || statusSpan !== "") {
+      progressMetrics =
+        '<span class="sum-metrics' +
+        (progressStack !== "" ? " sum-metrics--indexer-scope" : "") +
+        '">' +
+        progressStack +
+        statusSpan +
+        "</span>";
+    }
     var iid = indexerCardDomIdFromMeta(meta, run.id);
     rememberIndexerCardSnapshot(run.id, meta);
     var detailsCls = "sum-card";
@@ -5700,9 +5756,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       sub +
       "</span>" +
       progressMetrics +
-      statusSpan +
-      '<span class="material-symbols-outlined sg-op-chev-icon" aria-hidden="true">chevron_right</span>' +
-      '<span class="sum-chev" aria-hidden="true"></span></summary>' +
+      operatorCardChevronHtml() +
+      "</summary>" +
       renderExpandedIndexer(run, evs, meta, partitionRegistry, expOptsIx) +
       "</details>"
     );
@@ -6775,6 +6830,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   ctx.resolveLogsOperatorUserLabel = resolveLogsOperatorUserLabel;
   ctx.inferServiceBadge = inferServiceBadge;
   ctx.badgeForServicePanel = badgeForServicePanel;
+  ctx.serviceDisplayLabel = serviceDisplayLabel;
   ctx.badgeForIndexerRunLine = badgeForIndexerRunLine;
   if (
     globalThis.ChimeraSettings.Render &&

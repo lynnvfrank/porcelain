@@ -103,7 +103,7 @@ This section is the implementation contract for Phase 2+ work. Changes to these 
   - Runtime-root-relative directories are canonical for `config` and `data`.
   - Desktop launcher state (lock, launch metadata, lifecycle trace) is stored under `data/locus-desktop/`.
 
-- **Supervisor log mirror (`data/chimera-supervisor/locus-desktop-supervisor.log`)**
+- **Supervisor log mirror (`data/locus-desktop-supervisor.log`)**
   - When desktop starts supervisor, child stdout/stderr are tee'd to this append-only file (see `locus/locus-desktop/internal/launcher/launcher.go`).
   - Each line is **normalized JSON** (`_chimera_norm: 1`) produced by per-service `*line` normalizers and a **lossless reorder** on supervisor ingest ([`log-supervisor-normalization-fidelity.md`](log-supervisor-normalization-fidelity.md)).
   - Structured fields (`progress_detail`, `method`, `path`, `collection`, indexer `rel`, `queue_depth`, etc.) must survive the wrapper → supervisor double-normalize path; bare `msg`-only rows indicate a regression.

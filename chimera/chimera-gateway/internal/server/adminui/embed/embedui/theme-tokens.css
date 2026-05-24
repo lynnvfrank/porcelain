@@ -323,7 +323,7 @@ html[data-theme="design-01"] {
 
   /* --- Semantic --- */
   --embed-semantic-success-bg: #cceace;
-  --embed-semantic-success-fg: #07200f;
+  --embed-semantic-success-fg: #1b5e20;
   --embed-semantic-warn-bg: #fff8e1;
   --embed-semantic-warn-fg: #b45309;
   --embed-semantic-error-bg: #ffdad6;
@@ -369,7 +369,7 @@ html[data-theme="design-01"] {
   --embed-body-tint-svc-qd: #cceace;
   --embed-body-tint-svc-ix: #ffdad2;
   --embed-chev-hover-svc-gw: #415f76;
-  --embed-strip-up: #4a654e;
+  --embed-strip-up: #1b5e20;
   --embed-strip-down: #ba1a1a;
   --embed-strip-unknown: #c2c7cd;
   --embed-status-complete-bg: #cceace;

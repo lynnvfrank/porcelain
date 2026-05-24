@@ -2475,3 +2475,196 @@ func TestLogsRender_sumEvlog_workspaceScopedLogOmitsIndexerBadge(t *testing.T) {
 		t.Fatalf("expected message body, got %q", html)
 	}
 }
+
+func TestLogsRender_sumEvlog_convSourceColumnSeparatesBadgeFromMessage(t *testing.T) {
+	vm := goja.New()
+	evalJS(t, vm, settingsUIPath(t, "testing", "loader.js"))
+	evalJS(t, vm, settingsUIPath(t, "util", "escape.js"))
+	evalJS(t, vm, settingsUIPath(t, "contracts.js"))
+	evalJS(t, vm, settingsUIPath(t, "render", "sumEvlog.js"))
+	_, err := vm.RunString(`
+		var ctx = {
+			getFlat: function (p) { return (p && p.rawFlat) || {}; },
+			escapeHtml: ChimeraSettings.escapeHtml,
+			primaryLogMessage: function () { return "Provider responded · llama-3."; },
+			formatLogDateTimeLocal: function () { return "12:00:00"; },
+			formatLogRelativeAgo: function () { return "just now"; },
+			toIsoDatetimeAttr: function () { return "2026-05-22T12:00:00"; },
+			strHash: function (s) { return String(s); },
+			inferServiceBadge: function () {
+				return { cls: "sum-svc-broker", key: "chimera-broker", lab: "broker" };
+			}
+		};
+		ChimeraSettings.Render.mountSumEvlog(ctx);
+		globalThis.__sumEvlogRow = ctx.sumEvlogRowTrHtml;
+		globalThis.__sumEvlogPanel = ctx.sumEvlogPanelHtml;
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rowFn, ok := goja.AssertFunction(vm.Get("__sumEvlogRow"))
+	if !ok {
+		t.Fatal("missing sumEvlogRowTrHtml")
+	}
+	ent := map[string]any{
+		"parsed": map[string]any{"rawFlat": map[string]any{"msg": "chat.chimera-broker.response"}, "levelCanon": "INFO"},
+		"text":   "",
+		"ts":     "2026-05-22T12:00:00Z",
+		"source": "chimera-broker",
+	}
+	rowV, err := rowFn(
+		goja.Undefined(),
+		vm.ToValue(ent),
+		vm.ToValue("conv-scope"),
+		vm.ToValue(0),
+		vm.ToValue(map[string]any{"cls": "sum-svc-broker", "key": "chimera-broker", "lab": "broker"}),
+		vm.ToValue(map[string]any{"showSourceColumn": true}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := rowV.String()
+	if !strings.Contains(row, `class="sum-evlog__cell--source"`) {
+		t.Fatalf("expected source cell, got %q", row)
+	}
+	if !strings.Contains(row, ">broker</span></td>") {
+		t.Fatalf("expected broker badge in source cell, got %q", row)
+	}
+	if strings.Contains(row, `cell--msg"><span class="sum-svc-badge`) {
+		t.Fatalf("badge should not appear in message cell, got %q", row)
+	}
+	if !strings.Contains(row, "Provider responded") {
+		t.Fatalf("expected message body, got %q", row)
+	}
+	if strings.Contains(row, "chimera-broker") {
+		t.Fatalf("should not show chimera- prefix in row html, got %q", row)
+	}
+
+	panelFn, ok := goja.AssertFunction(vm.Get("__sumEvlogPanel"))
+	if !ok {
+		t.Fatal("missing sumEvlogPanelHtml")
+	}
+	panelV, err := panelFn(goja.Undefined(), vm.ToValue(map[string]any{"showSourceColumn": true, "title": "Scoped log"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	panel := panelV.String()
+	if !strings.Contains(panel, ">Source</th>") {
+		t.Fatalf("expected Source column header, got %q", panel)
+	}
+	if !strings.Contains(panel, `data-sum-evlog-cols="4"`) {
+		t.Fatalf("expected 4 columns, got %q", panel)
+	}
+}
+
+func TestLogsRender_sumEvlog_titleRightHtmlRejectsFunctionFragment(t *testing.T) {
+	vm := goja.New()
+	evalJS(t, vm, settingsUIPath(t, "testing", "loader.js"))
+	evalJS(t, vm, settingsUIPath(t, "util", "escape.js"))
+	evalJS(t, vm, settingsUIPath(t, "render", "sumEvlog.js"))
+	_, err := vm.RunString(`
+		var ctx = {
+			getFlat: function (p) { return (p && p.rawFlat) || {}; },
+			escapeHtml: ChimeraSettings.escapeHtml,
+			primaryLogMessage: function () { return "msg"; },
+			formatLogDateTimeLocal: function () { return "12:00:00"; },
+			formatLogRelativeAgo: function () { return "just now"; },
+			toIsoDatetimeAttr: function () { return "2026-05-22T12:00:00"; },
+			strHash: function (s) { return String(s); }
+		};
+		ChimeraSettings.Render.mountSumEvlog(ctx);
+		globalThis.__sumEvlogPanel = ctx.sumEvlogPanelHtml;
+		globalThis.__esc = ChimeraSettings.escapeHtml;
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn, ok := goja.AssertFunction(vm.Get("__sumEvlogPanel"))
+	if !ok {
+		t.Fatal("missing sumEvlogPanelHtml")
+	}
+	escFnObj := vm.Get("ChimeraSettings").ToObject(vm).Get("escapeHtml")
+	escFn, ok := goja.AssertFunction(escFnObj)
+	if !ok {
+		t.Fatal("missing escapeHtml")
+	}
+	escapedLeak, err := escFn(escFnObj, escFnObj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []map[string]any{
+		{
+			"title":            "Scoped log — test",
+			"titleRightHtml":   escFnObj,
+			"showSourceColumn": true,
+		},
+		{
+			"title":            "Scoped log — test",
+			"titleRightHtml":   escapedLeak,
+			"showSourceColumn": true,
+		},
+	}
+	for i, opts := range cases {
+		v, err := fn(goja.Undefined(), vm.ToValue(opts))
+		if err != nil {
+			t.Fatalf("case %d: %v", i, err)
+		}
+		html := v.String()
+		if strings.Contains(html, "function escapeHtml") {
+			t.Fatalf("case %d: function fragment leaked into panel html: %q", i, html)
+		}
+		if strings.Contains(html, "sum-conv-services-after-log-hdr") {
+			t.Fatalf("case %d: expected no service strip wrapper for rejected fragment, got %q", i, html)
+		}
+	}
+}
+
+func TestLogsRender_sumEvlog_titleRightPartsRendersServiceChips(t *testing.T) {
+	vm := goja.New()
+	evalJS(t, vm, settingsUIPath(t, "testing", "loader.js"))
+	evalJS(t, vm, uiEmbedPath(t, "util", "escape.js"))
+	evalJS(t, vm, uiEmbedPath(t, "components", "Chip.js"))
+	evalJS(t, vm, settingsUIPath(t, "util", "escape.js"))
+	evalJS(t, vm, settingsUIPath(t, "render", "sumEvlog.js"))
+	_, err := vm.RunString(`
+		var ctx = {
+			getFlat: function (p) { return (p && p.rawFlat) || {}; },
+			escapeHtml: ChimeraSettings.escapeHtml,
+			primaryLogMessage: function () { return "msg"; },
+			formatLogDateTimeLocal: function () { return "12:00:00"; },
+			formatLogRelativeAgo: function () { return "just now"; },
+			toIsoDatetimeAttr: function () { return "2026-05-22T12:00:00"; },
+			strHash: function (s) { return String(s); }
+		};
+		ChimeraSettings.Render.mountSumEvlog(ctx);
+		globalThis.__sumEvlogPanel = ctx.sumEvlogPanelHtml;
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fn, ok := goja.AssertFunction(vm.Get("__sumEvlogPanel"))
+	if !ok {
+		t.Fatal("missing sumEvlogPanelHtml")
+	}
+	v, err := fn(
+		goja.Undefined(),
+		vm.ToValue(map[string]any{
+			"title":            "Scoped log — conv",
+			"titleRightParts":  []any{"RAG · 2", "broker · 1"},
+			"showSourceColumn": true,
+		}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := v.String()
+	if strings.Contains(html, "function escapeHtml") {
+		t.Fatalf("unexpected leak: %q", html)
+	}
+	if !strings.Contains(html, "sum-conv-services-after-log-hdr") {
+		t.Fatalf("expected service strip wrapper, got %q", html)
+	}
+	if !strings.Contains(html, "RAG · 2") || !strings.Contains(html, "broker · 1") {
+		t.Fatalf("expected chip labels in html, got %q", html)
+	}
+}

@@ -37,11 +37,20 @@
   }
 
   function brokerShortTailModel(model) {
+    var fmt = globalThis.ChimeraSettings && ChimeraSettings.Render && ChimeraSettings.Render._operatorFormatters;
+    if (fmt && typeof fmt._brokerShortModel === "function") {
+      return fmt._brokerShortModel(model);
+    }
     var m = model != null ? String(model).trim() : "";
     if (!m) return "";
     var parts = m.split("/");
     var tail = parts[parts.length - 1] || m;
     return tail.length > 48 ? tail.slice(0, 46) + "…" : tail;
+  }
+
+  function operatorFmtHelpers() {
+    var fmt = globalThis.ChimeraSettings && ChimeraSettings.Render && ChimeraSettings.Render._operatorFormatters;
+    return fmt && typeof fmt === "object" ? fmt : null;
   }
 
   function usageTokensFromFlat(f) {
@@ -148,18 +157,27 @@
                   : flat.responseBodyExcerpt != null
                     ? String(flat.responseBodyExcerpt)
                     : "";
+            var helpers = operatorFmtHelpers();
+            var tpm = helpers && typeof helpers._parseTpmRateLimitError === "function" ? helpers._parseTpmRateLimitError(rawErr) : null;
+            if (tpm && helpers && typeof helpers._formatTpmRateLimitLine === "function") {
+              return helpers._formatTpmRateLimitLine(flat.upstreamModel, tpm);
+            }
             var errMsg = "";
-            if (globalThis.ChimeraSettings && ChimeraSettings.Render && ChimeraSettings.Render._operatorFormatters) {
-              var fmt = ChimeraSettings.Render._operatorFormatters;
-              if (typeof fmt._extractOpenAIErrorMessage === "function") {
-                errMsg = fmt._extractOpenAIErrorMessage(rawErr);
-              }
+            if (helpers && typeof helpers._extractOpenAIErrorMessage === "function") {
+              errMsg = helpers._extractOpenAIErrorMessage(rawErr);
             }
             if (!errMsg && rawErr) {
               var msgMatch = rawErr.match(/"message"\s*:\s*"((?:[^"\\]|\\.)*)"/);
               if (msgMatch && msgMatch[1]) errMsg = msgMatch[1].replace(/\\"/g, '"').trim();
             }
             if (!errMsg) errMsg = rawErr.replace(/\s+/g, " ").trim().slice(0, 220);
+            var scErr = Number(flat.statusCode != null ? flat.statusCode : flat.status_code);
+            var is404 = scErr === 404 || errMsg.toLowerCase().indexOf("not found") >= 0;
+            if (helpers && typeof helpers._sanitizeProviderErrorForOperator === "function") {
+              errMsg = helpers._sanitizeProviderErrorForOperator(errMsg, { modelNotFound: is404 });
+            }
+            var modErr = brokerShortTailModel(flat.upstreamModel);
+            if (modErr && errMsg) return "Provider rejected " + modErr + ": " + errMsg;
             return errMsg ? "Provider rejected request: " + errMsg : "Provider rejected request.";
           }
           var bitsOk = ["Provider responded"];
@@ -229,8 +247,43 @@
     },
     broker_provider_limits: function (flat, entry) {
       var rsn = flat.reason != null ? String(flat.reason).replace(/\s+/g, " ").trim() : "";
-      if (rsn.length > 140) rsn = rsn.slice(0, 139) + "…";
-      return rsn ? "Blocked by provider limits · " + rsn : entry.summary || "Blocked by provider limits";
+      var bits = ["Blocked by provider limits"];
+      var model = brokerShortTailModel(flat.upstreamModel);
+      if (model) bits.push(model);
+      if (rsn === "context_window") {
+        var outTok = Number(flat.outgoingTokens != null ? flat.outgoingTokens : flat.outgoing_tokens);
+        var maxTok = Number(flat.max_tokens != null ? flat.max_tokens : flat.maxTokens);
+        var cap = Number(flat.context_cap != null ? flat.context_cap : flat.contextCap);
+        var needParts = [];
+        if (!isNaN(outTok) && outTok > 0) needParts.push(Math.round(outTok).toLocaleString() + " prompt");
+        if (!isNaN(maxTok) && maxTok > 0) needParts.push(Math.round(maxTok).toLocaleString() + " max_tokens");
+        var need = needParts.join(" + ");
+        if (need && !isNaN(cap) && cap > 0) {
+          bits.push("context window · " + need + " > cap " + Math.round(cap).toLocaleString());
+        } else {
+          bits.push("context window");
+        }
+        return bits.join(" · ");
+      }
+      if (rsn === "request_body_bytes") {
+        var bodyBytes = Number(flat.body_bytes != null ? flat.body_bytes : flat.bodyBytes);
+        var maxBody = Number(flat.max_body_bytes != null ? flat.max_body_bytes : flat.maxBodyBytes);
+        if (!isNaN(bodyBytes) && !isNaN(maxBody) && maxBody > 0) {
+          bits.push("body size · " + Math.round(bodyBytes).toLocaleString() + " bytes > cap " + Math.round(maxBody).toLocaleString());
+        } else {
+          bits.push("request body bytes");
+        }
+        return bits.join(" · ");
+      }
+      if (rsn === "tpm") bits.push("TPM quota");
+      else if (rsn === "rpm") bits.push("RPM quota");
+      else if (rsn === "tpd") bits.push("TPD quota");
+      else if (rsn === "rpd") bits.push("RPD quota");
+      else if (rsn) {
+        if (rsn.length > 140) rsn = rsn.slice(0, 139) + "…";
+        bits.push(rsn);
+      }
+      return bits.join(" · ");
     },
     broker_trim_detail: function (flat, entry, opts) {
       var det = trimDetail(flat, 260);
