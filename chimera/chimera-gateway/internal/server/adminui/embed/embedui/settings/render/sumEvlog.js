@@ -145,25 +145,58 @@ globalThis.ChimeraSettings.Render.mountSumEvlog = function (ctx) {
     return true;
   }
 
+  /** indexer.storage.stats with available:false — often logged at INFO though detail carries HTTP errors. */
+  function sumEvlogIndexerStorageStatsUnavailable(flat) {
+    if (!flat || typeof flat !== "object") return null;
+    var msgRaw = flat.msg != null ? flat.msg : flat.message != null ? flat.message : "";
+    var msgL = String(msgRaw).toLowerCase();
+    if (msgL !== "indexer.storage.stats" && msgL.indexOf("indexer.storage.stats") !== 0) return null;
+    var avail = flat.available;
+    if (avail === true || avail === "true") return null;
+    var hasErr = flat.err != null && String(flat.err).trim() !== "";
+    var hasDetail = flat.detail != null && String(flat.detail).trim() !== "";
+    if (!(avail === false || avail === "false" || hasErr || hasDetail)) return null;
+    var http = sumEvlogHttpStatusNumber(flat.http_status != null ? flat.http_status : flat.httpStatus);
+    if (http == null) {
+      var blob = String(flat.detail || flat.err || "");
+      var dm = blob.match(/\bstatus\s+(\d{3})\b/i);
+      if (dm) http = sumEvlogHttpStatusNumber(dm[1]);
+    }
+    return { http: http };
+  }
+
+  function sumEvlogRowStatusModel(parsed, flatOpt) {
+    var flat = flatOpt != null ? flatOpt : getFlat(parsed);
+    var http = sumEvlogHttpCode(parsed, flat);
+    var lk = sumEvlogLevelKey(
+      parsed.levelCanon || (parsed.levelLabel && parsed.levelLabel !== "—" ? parsed.levelLabel : "")
+    );
+    var ixUnavail = sumEvlogIndexerStorageStatsUnavailable(flat);
+    if (ixUnavail) {
+      if (ixUnavail.http != null && http == null) http = ixUnavail.http;
+      if (lk !== "ERROR" && http != null && http >= 400) lk = "ERROR";
+      else if (lk !== "ERROR" && lk !== "WARN") lk = "WARN";
+    }
+    return { levelKey: lk, http: http };
+  }
+
   function sumEvlogCountWarnFailFromEntries(entries) {
     var warn = 0;
     var fail = 0;
     for (var i = 0; i < entries.length; i++) {
       var p = entries[i].parsed;
-      var http = sumEvlogHttpCode(p, getFlat(p));
-      var lk = p.levelCanon || (p.levelLabel && p.levelLabel !== "—" ? p.levelLabel : "");
-      if (sumEvlogIsWarnish(lk, http)) warn++;
-      if (sumEvlogIsFailish(lk, http)) fail++;
+      var model = sumEvlogRowStatusModel(p, getFlat(p));
+      if (sumEvlogIsWarnish(model.levelKey, model.http)) warn++;
+      if (sumEvlogIsFailish(model.levelKey, model.http)) fail++;
     }
     return { warn: warn, fail: fail };
   }
 
   function sumEvlogStatusInnerHtml(parsed) {
     var flat = getFlat(parsed);
-    var http = sumEvlogHttpCode(parsed, flat);
-    var lk = sumEvlogLevelKey(
-      parsed.levelCanon || (parsed.levelLabel && parsed.levelLabel !== "—" ? parsed.levelLabel : "")
-    );
+    var model = sumEvlogRowStatusModel(parsed, flat);
+    var lk = model.levelKey;
+    var http = model.http;
     var UI = globalThis.ChimeraUI;
     if (UI && UI.StatusIndicator && typeof UI.StatusIndicator.evlogRow === "function") {
       return UI.StatusIndicator.evlogRow({ levelKey: lk, http: http });
@@ -187,6 +220,15 @@ globalThis.ChimeraSettings.Render.mountSumEvlog = function (ctx) {
     opts = opts || {};
     if (!opts.showSourceColumn) return "";
     if (sumEvlogShouldHideBadge(badgeOpt, opts)) return "";
+    if (badgeOpt && badgeOpt.kind === "indexer-workspace" && badgeOpt.lab) {
+      return (
+        '<span class="sum-evlog-workspace-source" title="' +
+        escapeHtml(String(badgeOpt.lab)) +
+        '">' +
+        escapeHtml(String(badgeOpt.lab)) +
+        "</span>"
+      );
+    }
     return sumEvlogBadgeHtml(badgeOpt);
   }
 
@@ -228,11 +270,12 @@ globalThis.ChimeraSettings.Render.mountSumEvlog = function (ctx) {
     summaryOpts = summaryOpts || {};
     var parsed = entLike.parsed;
     var flat = getFlat(parsed);
-    var http = sumEvlogHttpCode(parsed, flat);
-    var lvlRaw = parsed.levelCanon || (parsed.levelLabel && parsed.levelLabel !== "—" ? parsed.levelLabel : "");
-    var lvlStr = lvlRaw ? String(lvlRaw).trim() : "";
+    var statusModel = sumEvlogRowStatusModel(parsed, flat);
+    var lvlStr =
+      statusModel.levelKey && statusModel.levelKey !== "_NONE" ? String(statusModel.levelKey).trim() : "";
     var lvlAttr = escapeHtml(lvlStr.toUpperCase());
-    var httpAttr = http == null ? "" : ' data-evlog-http="' + escapeHtml(String(http)) + '"';
+    var httpAttr =
+      statusModel.http == null ? "" : ' data-evlog-http="' + escapeHtml(String(statusModel.http)) + '"';
     var rowId = escapeHtml(sumEvlogStableRowId(cardScope, entLike, rowIndex));
     var iso = toIsoDatetimeAttr(entLike.ts);
     var dt = formatLogDateTimeLocal(entLike.ts);
@@ -385,6 +428,9 @@ globalThis.ChimeraSettings.Render.mountSumEvlog = function (ctx) {
       "</div></th>";
     var rootAttrs =
       ' data-sum-evlog-root data-sum-evlog-cols="' + escapeHtml(String(cols)) + '"' + (showSource ? ' data-sum-evlog-source' : "");
+    if (showSource && o.sourceColumnKind === "indexer-workspace") {
+      rootAttrs += ' data-sum-evlog-source-indexer-workspace';
+    }
     return (
       '<div class="sum-evlog sum-evlog--in-card"' +
       rootAttrs +
@@ -563,6 +609,7 @@ globalThis.ChimeraSettings.Render.mountSumEvlog = function (ctx) {
   ctx.sumEvlogMsgCellInnerHtml = sumEvlogMsgCellInnerHtml;
   ctx.sumEvlogSourceCellInnerHtml = sumEvlogSourceCellInnerHtml;
   ctx.sumEvlogHttpCode = sumEvlogHttpCode;
+  ctx.sumEvlogRowStatusModel = sumEvlogRowStatusModel;
   ctx.sumEvlogIsWarnish = sumEvlogIsWarnish;
   ctx.sumEvlogIsFailish = sumEvlogIsFailish;
   ctx.sumEvlogColCount = sumEvlogColCount;

@@ -196,6 +196,9 @@
   --sum-evlog-status-col-w: 4.75rem;
   --sum-evlog-source-col-w: 4.75rem;
 }
+.sum-evlog[data-sum-evlog-source-indexer-workspace] .sum-metrics-table.sum-evlog__table {
+  --sum-evlog-source-col-w: 13.5rem;
+}
 .sum-metrics-table.sum-evlog__table thead,
 .sum-metrics-table.sum-evlog__table tbody {
   display: block;
@@ -349,6 +352,19 @@
   max-width: 100%;
   box-sizing: border-box;
   min-height: 1.45rem;
+}
+.sum-metrics-table.sum-evlog__table .sum-evlog-source .sum-evlog-workspace-source {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--embed-text-secondary);
+  vertical-align: baseline;
 }
 /* Service badges in source column — match status pill size/position */
 .sum-metrics-table.sum-evlog__table .sum-evlog-source .sum-svc-badge {

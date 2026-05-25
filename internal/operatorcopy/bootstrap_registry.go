@@ -264,7 +264,7 @@ func gatewayMessages() []Message {
 func brokerMessages() []Message {
 	return []Message{
 		formatted("broker.http.access", "http_broker_inbound",
-			"Inbound GET /v1/models → 200 · 12 ms",
+			"Model catalog refresh · gateway admin · GET /v1/models → 200 · 12 ms",
 			"chimera-broker.http.access"),
 		formatted("broker.rate_limit", "http_broker_inbound",
 			"Rate limited POST /v1/chat/completions → 429 · 3 ms",

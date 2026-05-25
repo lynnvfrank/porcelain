@@ -346,7 +346,7 @@ messages:
     formatter: http_broker_inbound
     aliases:
       - chimera-broker.http.access
-    gallery_preview: Inbound GET /v1/models → 200 · 12 ms
+    gallery_preview: Model catalog refresh · gateway admin · GET /v1/models → 200 · 12 ms
   - slug: broker.rate_limit
     formatter: http_broker_inbound
     aliases:

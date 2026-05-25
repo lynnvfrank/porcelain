@@ -94,9 +94,16 @@
   var svc = {
     http_broker_inbound: function (flat, entry, opts) {
       opts = opts || {};
-      var omitStatus = opts.forEventLog === true;
       var flatM = String(flat.msg != null ? flat.msg : "").trim();
       var rateLimit = (entry && entry.slug === "broker.rate_limit") || flatM === "chimera-broker.rate_limit";
+      if (
+        globalThis.ChimeraSettings &&
+        ChimeraSettings.Derive &&
+        typeof ChimeraSettings.Derive.brokerHttpInboundLine === "function"
+      ) {
+        return ChimeraSettings.Derive.brokerHttpInboundLine(flat, rateLimit, opts);
+      }
+      var omitStatus = opts.forEventLog === true;
       var meth = flat.http_method != null ? String(flat.http_method).trim() : "?";
       var tgt = flat.http_target != null ? flat.http_target : flat.httpTarget;
       var path = brokerPathFromTarget(tgt);
@@ -106,12 +113,7 @@
       var msRaw = flat.http_duration_ms != null ? flat.http_duration_ms : flat.httpDurationMS;
       var ms = Number(msRaw);
       var bits = [];
-      bits.push(rateLimit ? "Rate limited" : "Inbound");
-      var pid = flat.provider_id != null ? String(flat.provider_id).trim() : "";
-      if (pid) bits.push("provider " + pid);
-      else if (flat.progress_detail != null && String(flat.progress_detail).trim()) {
-        bits.push(String(flat.progress_detail).trim());
-      }
+      bits.push(rateLimit ? "Rate limited" : "Broker HTTP");
       bits.push(meth + " " + path);
       if (!omitStatus) bits.push("→ " + st);
       if (!isNaN(ms) && ms >= 0) bits.push(Math.round(ms) + " ms");

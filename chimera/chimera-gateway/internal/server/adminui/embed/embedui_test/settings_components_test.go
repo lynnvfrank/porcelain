@@ -652,7 +652,15 @@ func TestLogsDerive_chimeraBrokerOperatorLine(t *testing.T) {
 	}{
 		{
 			flat: map[string]any{"service": "chimera-broker", "msg": "chimera-broker.http.access", "http_method": "GET", "http_target": "http://localhost:8081/v1/models", "http_status": 200, "http_duration_ms": 3.2},
-			want: "Inbound · GET /v1/models · → 200 · 3 ms",
+			want: "Model catalog refresh · gateway admin · GET /v1/models · → 200 · 3 ms",
+		},
+		{
+			flat: map[string]any{"service": "chimera-broker", "msg": "chimera-broker.http.access", "http_method": "GET", "http_target": "/api/governance/providers", "http_status": 200, "http_duration_ms": 5},
+			want: "Provider roster sync · gateway admin · GET /api/governance/providers · → 200 · 5 ms",
+		},
+		{
+			flat: map[string]any{"service": "chimera-broker", "msg": "chimera-broker.http.access", "http_method": "GET", "http_target": "/api/providers/gemini", "http_status": 200, "http_duration_ms": 4, "provider_id": "gemini"},
+			want: "Provider health probe · gemini · GET /api/providers/gemini · → 200 · 4 ms",
 		},
 		{
 			flat: map[string]any{"service": "chimera-broker", "msg": "chimera-broker.rate_limit", "http_method": "POST", "http_target": "/v1/embeddings", "http_status": 429, "http_duration_ms": 10},
@@ -717,7 +725,7 @@ func TestLogsDerive_chimeraBrokerOperatorLine(t *testing.T) {
 	}{
 		{
 			flat: map[string]any{"service": "chimera-broker", "msg": "chimera-broker.http.access", "http_method": "GET", "http_target": "http://localhost:8081/v1/models", "http_status": 200, "http_duration_ms": 3.2},
-			want: "Inbound · GET /v1/models · 3 ms",
+			want: "Model catalog refresh · gateway admin · GET /v1/models · 3 ms",
 		},
 		{
 			flat: map[string]any{"msg": "chat.chimera-broker.response", "statusCode": 200, "usageTotalTokens": 50, "responseBytes": 1200, "finish_reason": "stop"},
@@ -1254,6 +1262,36 @@ func TestLogsDerive_chimeraBrokerCardMetrics_catalogModelCount_gatewayLine(t *te
 	obj := v.ToObject(vm)
 	if obj.Get("catalogModelCount").Export() != int64(42) {
 		t.Fatalf("catalogModelCount=%v", obj.Get("catalogModelCount").Export())
+	}
+}
+
+func TestLogsDerive_chimeraBrokerAvailableModelCount_snapshotPreferred(t *testing.T) {
+	vm := goja.New()
+	evalJS(t, vm, settingsUIPath(t, "testing", "loader.js"))
+	evalJS(t, vm, settingsUIPath(t, "derive", "chimeraBrokerMetrics.js"))
+	fn, ok := goja.AssertFunction(vm.Get("ChimeraSettings").ToObject(vm).Get("Derive").ToObject(vm).Get("chimeraBrokerAvailableModelCount"))
+	if !ok {
+		t.Fatal("missing chimeraBrokerAvailableModelCount")
+	}
+	arr := []map[string]any{
+		{"text": "", "parsed": map[string]any{"rawFlat": map[string]any{
+			"msg": "chat.chimera-broker.available_models", "service": "gateway", "catalog_model_count": 3,
+		}}},
+	}
+	snap := map[string]any{"catalog_model_count": 99}
+	v, err := fn(goja.Undefined(), vm.ToValue(arr), goja.Undefined(), vm.ToValue(snap))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.Export() != int64(99) {
+		t.Fatalf("snapshot count=%v want 99", v.Export())
+	}
+	v2, err := fn(goja.Undefined(), vm.ToValue(arr), goja.Undefined(), goja.Undefined())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v2.Export() != int64(3) {
+		t.Fatalf("log fallback count=%v want 3", v2.Export())
 	}
 }
 
@@ -2527,7 +2565,7 @@ func TestLogsRender_sumEvlog_convSourceColumnSeparatesBadgeFromMessage(t *testin
 	if !strings.Contains(row, `class="sum-evlog__cell--source"`) {
 		t.Fatalf("expected source cell, got %q", row)
 	}
-	if !strings.Contains(row, ">broker</span></td>") {
+	if !strings.Contains(row, `sum-evlog__cell--source`) || !strings.Contains(row, `sum-svc-badge sum-svc-broker">broker</span>`) {
 		t.Fatalf("expected broker badge in source cell, got %q", row)
 	}
 	if strings.Contains(row, `cell--msg"><span class="sum-svc-badge`) {
@@ -2554,6 +2592,71 @@ func TestLogsRender_sumEvlog_convSourceColumnSeparatesBadgeFromMessage(t *testin
 	}
 	if !strings.Contains(panel, `data-sum-evlog-cols="4"`) {
 		t.Fatalf("expected 4 columns, got %q", panel)
+	}
+}
+
+func TestLogsRender_sumEvlog_indexerStorageStatsUnavailableShowsStatus(t *testing.T) {
+	vm := goja.New()
+	evalJS(t, vm, settingsUIPath(t, "testing", "loader.js"))
+	evalJS(t, vm, settingsUIPath(t, "util", "escape.js"))
+	evalJS(t, vm, uiEmbedPath(t, "components", "Pill.js"))
+	evalJS(t, vm, uiEmbedPath(t, "components", "StatusIndicator.js"))
+	evalJS(t, vm, settingsUIPath(t, "render", "sumEvlog.js"))
+	_, err := vm.RunString(`
+		var ctx = {
+			getFlat: function (p) { return (p && p.rawFlat) || {}; },
+			escapeHtml: ChimeraSettings.escapeHtml,
+			primaryLogMessage: function () { return "Could not verify the stored search index"; },
+			formatLogDateTimeLocal: function () { return "06:21:28"; },
+			formatLogRelativeAgo: function () { return "just now"; },
+			toIsoDatetimeAttr: function () { return "2026-05-25T06:21:28"; },
+			strHash: function (s) { return String(s); }
+		};
+		ChimeraSettings.Render.mountSumEvlog(ctx);
+		globalThis.__sumEvlogStatusModel = ctx.sumEvlogRowStatusModel;
+		globalThis.__sumEvlogStatusHtml = ctx.sumEvlogStatusInnerHtml;
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	modelFn, ok := goja.AssertFunction(vm.Get("__sumEvlogStatusModel"))
+	if !ok {
+		t.Fatal("missing sumEvlogRowStatusModel")
+	}
+	parsed := map[string]any{
+		"rawFlat": map[string]any{
+			"msg":            "indexer.storage.stats",
+			"available":      false,
+			"ingest_project": "assistants",
+			"detail":         "qdrant GET /collections/chimera-lynn-assistants-_-976cb46c: status 404: {\"status\":{\"error\":\"Not found\"}}",
+		},
+		"levelCanon": "INFO",
+	}
+	modelV, err := modelFn(goja.Undefined(), vm.ToValue(parsed), vm.ToValue(parsed["rawFlat"]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := modelV.ToObject(vm)
+	if model.Get("levelKey").String() != "ERROR" {
+		t.Fatalf("levelKey = %q, want ERROR", model.Get("levelKey").String())
+	}
+	if model.Get("http").ToInteger() != 404 {
+		t.Fatalf("http = %v, want 404", model.Get("http"))
+	}
+	statusFn, ok := goja.AssertFunction(vm.Get("__sumEvlogStatusHtml"))
+	if !ok {
+		t.Fatal("missing sumEvlogStatusInnerHtml")
+	}
+	statusV, err := statusFn(goja.Undefined(), vm.ToValue(parsed))
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := statusV.String()
+	if !strings.Contains(status, "ERROR") {
+		t.Fatalf("expected ERROR pill in status column, got %q", status)
+	}
+	if !strings.Contains(status, "404") {
+		t.Fatalf("expected 404 HTTP pill in status column, got %q", status)
 	}
 }
 

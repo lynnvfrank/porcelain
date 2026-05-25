@@ -1201,11 +1201,46 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   function patchChimeraBrokerProviderUiFromSnapshot() {
     if (getViewMode() !== "summarized") return;
     patchChimeraBrokerProviderHealthStrip();
+    patchChimeraBrokerAvailableModelsCount();
     var needRebuild = false;
     for (var pi = 0; pi < ADMIN_PROVIDER_PATCH_SPECS.length; pi++) {
       if (!patchAdminProviderCard(ADMIN_PROVIDER_PATCH_SPECS[pi].id)) needRebuild = true;
     }
     if (needRebuild) refreshSummarizedPanel();
+  }
+
+  function chimeraBrokerProviderSnapshotDataForUi() {
+    if (!ctx.chimeraBrokerProviderSnapshot || !ctx.chimeraBrokerProviderSnapshot.data) return null;
+    var snapshotAgeMs = Date.now() - Number(ctx.chimeraBrokerProviderSnapshot.fetchedClientMs || 0);
+    if (snapshotAgeMs > CHIMERA_BROKER_PROVIDER_STALE_MS) return null;
+    return ctx.chimeraBrokerProviderSnapshot.data;
+  }
+
+  function chimeraBrokerAvailableModelCountResolve(arr) {
+    var snap = chimeraBrokerProviderSnapshotDataForUi();
+    if (
+      globalThis.ChimeraSettings &&
+      ChimeraSettings.Derive &&
+      typeof ChimeraSettings.Derive.chimeraBrokerAvailableModelCount === "function"
+    ) {
+      return ChimeraSettings.Derive.chimeraBrokerAvailableModelCount(arr, function (p) {
+        return getFlat(p);
+      }, snap);
+    }
+    var bx = chimeraBrokerCardMetrics(arr);
+    return bx.catalogModelCount != null && bx.catalogModelCount > 0 ? bx.catalogModelCount : 0;
+  }
+
+  function chimeraBrokerAvailableModelCountLabel(arr) {
+    var n = chimeraBrokerAvailableModelCountResolve(arr);
+    return n > 0 ? formatInt(n) : "—";
+  }
+
+  function patchChimeraBrokerAvailableModelsCount() {
+    if (getViewMode() !== "summarized") return;
+    var el = document.getElementById("chimera-broker-available-models-count");
+    if (!el) return;
+    el.textContent = chimeraBrokerAvailableModelCountLabel(collectChimeraBrokerBufferForStrip());
   }
 
   /** Mirror the chimera-broker-bucket selection in refreshSummarizedPanel so the patched strip's
@@ -2625,7 +2660,202 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       }
       return null;
     }
+    if (name === "chimera-indexer") {
+      var ixLab = indexerEvlogWorkspaceSourceLabel(ev);
+      if (!ixLab) return null;
+      return { kind: "indexer-workspace", lab: ixLab, key: ixLab };
+    }
     return inferServiceBadge(ev);
+  }
+
+  var indexerEvlogWorkspaceLabelMapCacheKey = null;
+  var indexerEvlogWorkspaceLabelMapCache = null;
+
+  function indexerEvlogWorkspaceLabelMapFingerprint() {
+    return [
+      ctx.lastIndexerSummarizeByRun,
+      ctx.lastIndexerSummarizePartitionRegistry,
+      ctx.lastIndexerOperatorWorkspacesFingerprint || "",
+      resolveLogsOperatorUserLabel()
+    ].join("\u0000");
+  }
+
+  function indexerEvlogRegisterWorkspaceLabel(map, label, keys) {
+    if (!map || !label || label === "—" || label === "—:—" || label.indexOf("—:") === 0) return;
+    for (var i = 0; i < keys.length; i++) {
+      var k = String(keys[i] != null ? keys[i] : "").trim();
+      if (k) map.byKey[k] = label;
+    }
+  }
+
+  function buildIndexerEvlogWorkspaceLabelMap() {
+    var byKey = Object.create(null);
+    var byWorkspaceId = Object.create(null);
+    var byProjectFlavor = Object.create(null);
+    var map = { byKey: byKey, byWorkspaceId: byWorkspaceId, byProjectFlavor: byProjectFlavor };
+    var igFn =
+      globalThis.ChimeraSettings &&
+      ChimeraSettings.Derive &&
+      typeof ChimeraSettings.Derive.indexerIgSyntheticGid === "function"
+        ? ChimeraSettings.Derive.indexerIgSyntheticGid
+        : null;
+
+    var byRun = ctx.lastIndexerSummarizeByRun;
+    var preg = ctx.lastIndexerSummarizePartitionRegistry;
+    if (byRun && typeof byRun === "object") {
+      var runKeys = Object.keys(byRun);
+      for (var ri = 0; ri < runKeys.length; ri++) {
+        var bucketId = runKeys[ri];
+        var run = byRun[bucketId];
+        if (!run || !run.events || !run.events.length) continue;
+        var pmeta = null;
+        if (
+          preg &&
+          globalThis.ChimeraSettings &&
+          ChimeraSettings.Derive &&
+          typeof ChimeraSettings.Derive.indexerPartitionMetaForRun === "function"
+        ) {
+          pmeta = ChimeraSettings.Derive.indexerPartitionMetaForRun(
+            preg,
+            run.id,
+            run.events,
+            getFlat
+          );
+        }
+        var meta = collectIndexerRunMeta(run.id, run.events, pmeta);
+        meta = mergePersistedIndexerWatchRoots(meta, run.events, run.id);
+        var label = indexerCardTitleSortLabel(meta);
+        indexerEvlogRegisterWorkspaceLabel(map, label, [
+          bucketId,
+          meta.indexerKey,
+          meta.runId,
+          meta.workspaceId && meta.workspaceId !== "—" ? meta.workspaceId : ""
+        ]);
+        var tid = meta.tenantId != null ? String(meta.tenantId).trim() : "";
+        var proj = meta.projectId && meta.projectId !== "—" ? String(meta.projectId).trim() : "";
+        var flav = meta.flavorId && meta.flavorId !== "—" ? String(meta.flavorId).trim() : "";
+        if (proj) {
+          byProjectFlavor[proj + "\u0000" + normalizeFlavorMatch(flav)] = label;
+          if (igFn) indexerEvlogRegisterWorkspaceLabel(map, label, [igFn(tid, proj, flav)]);
+        }
+        if (meta.workspaceId && meta.workspaceId !== "—") {
+          byWorkspaceId[String(meta.workspaceId).trim()] = label;
+        }
+      }
+    }
+
+    var nested = ctx.lastIndexerOperatorWorkspacesNested || [];
+    for (var wi = 0; wi < nested.length; wi++) {
+      var ws = nested[wi];
+      var wsLabel = operatorManagedWorkspaceTitleText(ws);
+      var wsId = canonicalWorkspaceRowIdKey(ws.id);
+      var wsNum = String(operatorWorkspaceNumericId(ws));
+      indexerEvlogRegisterWorkspaceLabel(map, wsLabel, [wsId, wsNum]);
+      if (wsId) byWorkspaceId[wsId] = wsLabel;
+      var wp = String(ws.project_id || "").trim();
+      var wf = normalizeFlavorMatch(ws.flavor_id);
+      if (wp) byProjectFlavor[wp + "\u0000" + wf] = wsLabel;
+    }
+
+    return map;
+  }
+
+  function getIndexerEvlogWorkspaceLabelMap() {
+    var fp = indexerEvlogWorkspaceLabelMapFingerprint();
+    if (fp !== indexerEvlogWorkspaceLabelMapCacheKey) {
+      indexerEvlogWorkspaceLabelMapCacheKey = fp;
+      indexerEvlogWorkspaceLabelMapCache = buildIndexerEvlogWorkspaceLabelMap();
+    }
+    return indexerEvlogWorkspaceLabelMapCache;
+  }
+
+  function indexerEvlogFlatForEntry(ent) {
+    var raw = getFlat(ent.parsed);
+    if (
+      globalThis.ChimeraSettings &&
+      ChimeraSettings.Derive &&
+      typeof ChimeraSettings.Derive.indexerAugmentFlat === "function"
+    ) {
+      return ChimeraSettings.Derive.indexerAugmentFlat(ent, raw);
+    }
+    return raw;
+  }
+
+  function indexerEvlogLineIsProcessWide(f) {
+    if (
+      globalThis.ChimeraSettings &&
+      ChimeraSettings.Derive &&
+      typeof ChimeraSettings.Derive.indexerFlatIsServiceGlobalOnly === "function" &&
+      ChimeraSettings.Derive.indexerFlatIsServiceGlobalOnly(f)
+    ) {
+      return true;
+    }
+    var msg = indexerFlatMsg(f);
+    if (msg === "indexer.state") return true;
+    if (msg === "gateway.indexer.config") return true;
+    if (flatLooksLikeIndexerRunStart(f) || flatLooksLikeIndexerRunProgress(f) || flatLooksLikeIndexerRunDone(f))
+      return true;
+    if (msg.indexOf("indexer.supervised.") === 0) return true;
+    return false;
+  }
+
+  function indexerEvlogUserLabelFromFlat(f) {
+    if (f.user_label && String(f.user_label).trim() !== "") return String(f.user_label).trim();
+    var tid = String(f.tenant_id || f.principal_id || f.tenant || "").trim();
+    if (tid && ctx.tokenLabelByTenant[tid]) return String(ctx.tokenLabelByTenant[tid]).trim();
+    return resolveLogsOperatorUserLabel();
+  }
+
+  function indexerEvlogWorkspaceSourceLabel(ent) {
+    var f = indexerEvlogFlatForEntry(ent);
+    if (!f || typeof f !== "object") return "";
+    if (indexerEvlogLineIsProcessWide(f)) return "";
+
+    var map = getIndexerEvlogWorkspaceLabelMap();
+    var itk = String(f.indexer_target_key || "").trim();
+    if (itk && map.byKey[itk]) return map.byKey[itk];
+
+    var ik = String(f.indexer_key || "").trim();
+    if (ik && map.byKey[ik]) return map.byKey[ik];
+
+    var rid = String(f.index_run_id || "").trim();
+    if (rid && map.byKey[rid]) return map.byKey[rid];
+
+    var preg = ctx.lastIndexerSummarizePartitionRegistry;
+    if (
+      rid &&
+      preg &&
+      preg[rid] &&
+      globalThis.ChimeraSettings &&
+      ChimeraSettings.Derive &&
+      typeof ChimeraSettings.Derive.indexerBucketGidsForLine === "function"
+    ) {
+      var gids = ChimeraSettings.Derive.indexerBucketGidsForLine(f, preg[rid]);
+      if (gids && gids.length === 1) {
+        var gidLab = map.byKey[String(gids[0]).trim()];
+        if (gidLab) return gidLab;
+      }
+    }
+
+    var sws = String(f.scope_workspace_id || "").trim();
+    if (sws && map.byWorkspaceId[sws]) return map.byWorkspaceId[sws];
+
+    var proj = String(
+      f.scope_project_id || f.project_id || f.ingest_project || ""
+    ).trim();
+    var flav = normalizeFlavorMatch(f.flavor_id);
+    if (proj) {
+      var pfLab = map.byProjectFlavor[proj + "\u0000" + flav];
+      if (pfLab) return pfLab;
+      var title = indexerCardTitleSortLabel({
+        userLabel: indexerEvlogUserLabelFromFlat(f),
+        projectId: proj,
+        flavorId: flav || "—"
+      });
+      if (title && title !== "—" && title.indexOf("—:") !== 0) return title;
+    }
+
+    return "";
   }
 
   /** How long file-level indexer activity stays “fresh” for UI subtitle hints. */
@@ -2736,6 +2966,73 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       return stateLine ? stateLine + " — " + pathShow : pathShow;
     }
     return stateLine || "—";
+  }
+
+  function indexerWorkspaceFileCountFromMeta(meta) {
+    if (
+      meta &&
+      meta.scopeWorkspaceTotal != null &&
+      !isNaN(Number(meta.scopeWorkspaceTotal))
+    ) {
+      return Math.round(Number(meta.scopeWorkspaceTotal));
+    }
+    return null;
+  }
+
+  /** Latest qdrant_points for this workspace from scoped logs, then rollup meta. */
+  function indexerWorkspaceEmbeddedChunksFromMeta(meta, evs) {
+    if (Array.isArray(evs) && evs.length) {
+      for (var i = evs.length - 1; i >= 0; i--) {
+        var f = getFlat(evs[i].parsed);
+        var m = indexerFlatMsg(f);
+        if (m !== "indexer.storage.stats" && m.indexOf("indexer.storage.stats") !== 0) continue;
+        if (f.qdrant_points != null && f.qdrant_points !== "") {
+          var qp = Number(f.qdrant_points);
+          if (!isNaN(qp)) return Math.round(qp);
+        }
+      }
+    }
+    if (meta && meta.qdrantPointsLive != null && !isNaN(Number(meta.qdrantPointsLive))) {
+      return Math.round(Number(meta.qdrantPointsLive));
+    }
+    if (meta && meta.vectorsStored != null && !isNaN(Number(meta.vectorsStored))) {
+      return Math.round(Number(meta.vectorsStored));
+    }
+    return null;
+  }
+
+  function indexerWorkspaceMetricWellHtml(count, icon, title) {
+    var lab = count != null && !isNaN(Number(count)) ? formatInt(Math.round(Number(count))) : "—";
+    var titleAttr =
+      title != null && String(title).trim() !== ""
+        ? ' title="' + escapeHtml(String(title)) + '"'
+        : "";
+    return (
+      '<span class="sg-op-inset-well"' +
+      titleAttr +
+      ">" +
+      escapeHtml(lab) +
+      ' <span class="material-symbols-outlined material-symbols-outlined--sm" aria-hidden="true">' +
+      escapeHtml(icon) +
+      "</span></span>"
+    );
+  }
+
+  function indexerWorkspaceCollapsedMetricsHtml(meta, evs) {
+    var files = indexerWorkspaceFileCountFromMeta(meta);
+    var chunks = indexerWorkspaceEmbeddedChunksFromMeta(meta, evs);
+    return (
+      indexerWorkspaceMetricWellHtml(
+        files,
+        "note_stack",
+        "Workspace files tracked by the indexer"
+      ) +
+      indexerWorkspaceMetricWellHtml(
+        chunks,
+        "text_snippet",
+        "Embedded text chunks stored for search retrieval"
+      )
+    );
   }
 
   var INDEXER_HIST_COLS = {
@@ -2937,194 +3234,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     return { queueCap: cap, workers: workers };
   }
 
-  /** Per-file / operator slugs for expanded indexer Summary (service + run cards). */
-  function indexerStructuredRollupCounts(entries) {
-    var upload = 0,
-      ingested = 0,
-      skipped = 0,
-      failed = 0,
-      retry = 0,
-      paused = 0,
-      snapshots = 0;
-    var relSet = {};
-    var workers = null;
-    var queueDepth = null;
-    for (var i = 0; i < entries.length; i++) {
-      var f = getFlat(entries[i].parsed);
-      var m = indexerFlatMsg(f);
-      if (m === "indexer.job.upload") {
-        upload++;
-        if (f.rel) relSet[String(f.rel)] = 1;
-      } else if (m === "indexer.job.ingested" || m === "ingested") {
-        ingested++;
-        if (f.rel) relSet[String(f.rel)] = 1;
-      } else if (m === "indexer.job.skipped") {
-        skipped++;
-        if (f.rel) relSet[String(f.rel)] = 1;
-      } else if (m.indexOf("indexer.job.failed") === 0) failed++;
-      else if (m.indexOf("indexer.retry") === 0) retry++;
-      else if (m.indexOf("indexer.worker.paused") === 0) paused++;
-      else if (m.indexOf("indexer.queue.snapshot") === 0) snapshots++;
-    }
-    for (var j = entries.length - 1; j >= 0; j--) {
-      var fj = getFlat(entries[j].parsed);
-      var mj = indexerFlatMsg(fj);
-      if (mj.indexOf("indexer.queue.snapshot") === 0) {
-        if (fj.workers != null && fj.workers !== "") workers = Number(fj.workers);
-        if (fj.queue_depth != null && fj.queue_depth !== "") queueDepth = Number(fj.queue_depth);
-        break;
-      }
-    }
-    return {
-      upload: upload,
-      ingested: ingested,
-      skipped: skipped,
-      failed: failed,
-      retry: retry,
-      paused: paused,
-      snapshots: snapshots,
-      uniqRel: Object.keys(relSet).length,
-      workers: workers,
-      queueDepth: queueDepth
-    };
-  }
-
-  function indexerStructuredRollupMiniHtml(entries) {
-    var r = indexerStructuredRollupCounts(entries);
-    var sk = formatInt(r.skipped);
-    var ig = formatInt(r.ingested);
-    var up = formatInt(r.upload);
-    var rt = formatInt(r.retry);
-    var fa = formatInt(r.failed);
-    var pu = formatInt(r.paused);
-    return (
-      '<div class="sum-mini-row">' +
-      '<div class="sum-mini-card">Skipped (before upload)<strong>' +
-      escapeHtml(sk) +
-      '</strong></div>' +
-      '<div class="sum-mini-card">Successfully ingested<strong>' +
-      escapeHtml(ig) +
-      '</strong></div>' +
-      '<div class="sum-mini-card">Started upload<strong>' +
-      escapeHtml(up) +
-      "</strong></div></div>" +
-      '<div class="sum-mini-row">' +
-      '<div class="sum-mini-card">Retries<strong>' +
-      escapeHtml(rt) +
-      '</strong></div>' +
-      '<div class="sum-mini-card">Failed<strong>' +
-      escapeHtml(fa) +
-      '</strong></div>' +
-      '<div class="sum-mini-card">Worker pauses<strong>' +
-      escapeHtml(pu) +
-      "</strong></div></div>"
-    );
-  }
-
-  /** Caption under aggregate indexer progress bar (sums scope rows across partitioned indexer cards). */
-  function indexerAggregateBacklogCaption(sumRem, sumTot) {
-    if (sumRem !== null && !isNaN(Number(sumRem)) && sumTot !== null && !isNaN(Number(sumTot)))
-      return (
-        formatInt(Math.round(Number(sumRem))) +
-        " remaining of " +
-        formatInt(Math.round(Number(sumTot))) +
-        " total"
-      );
-    if (sumRem !== null && !isNaN(Number(sumRem)))
-      return formatInt(Math.round(Number(sumRem))) + " remaining of — total";
-    if (sumTot !== null && !isNaN(Number(sumTot)))
-      return "— remaining of " + formatInt(Math.round(Number(sumTot))) + " total";
-    return "";
-  }
-
-  /** Explains aggregate scope bar while buffers warm up vs when metrics are live. */
-  function indexerAggregateProgressDetailText(agg) {
-    if (!agg || !agg.anyRun) {
-      return "No indexer scopes in the loaded log window — scroll for older lines or wait for indexer traffic.";
-    }
-    var hasRem = agg.sumRem !== null && !isNaN(Number(agg.sumRem));
-    var hasTot = agg.sumTot !== null && !isNaN(Number(agg.sumTot));
-    if (!hasRem && !hasTot && !agg.allDone) {
-      return "Waiting for indexer.scope.status heartbeats with queue and workspace file totals…";
-    }
-    if (agg.allDone) {
-      return "Tracked runs in view have finished; bar reflects combined scope status when present.";
-    }
-    if (hasRem && Number(agg.sumRem) === 0 && hasTot) {
-      return "No pending ingest or fan-out rows for scopes in view — totals match workspace file counts.";
-    }
-    return "Enqueued + fan-out backlog vs total workspace files.";
-  }
-
-  /**
-   * Sum pending ingest + fan-out rows and workspace file totals across indexer partition buckets
-   * (same metadata as each per-scope indexer card).
-   */
-  function rollupIndexerAggregateScopeProgress(byRun, partitionRegistry) {
-    var sumRem = 0;
-    var sumTot = 0;
-    var anyRem = false;
-    var anyTot = false;
-    var anyRun = false;
-    var allDone = true;
-    if (!byRun || typeof byRun !== "object") {
-      return { sumRem: null, sumTot: null, allDone: false, anyRun: false };
-    }
-    var keys = Object.keys(byRun);
-    for (var i = 0; i < keys.length; i++) {
-      var run = byRun[keys[i]];
-      if (!run || !run.events || !run.events.length) continue;
-      anyRun = true;
-      var pmeta = null;
-      if (
-        partitionRegistry &&
-        globalThis.ChimeraSettings &&
-        ChimeraSettings.Derive &&
-        typeof ChimeraSettings.Derive.indexerPartitionMetaForRun === "function"
-      ) {
-        pmeta = ChimeraSettings.Derive.indexerPartitionMetaForRun(
-          partitionRegistry,
-          run.id,
-          run.events,
-          getFlat
-        );
-      }
-      var meta = collectIndexerRunMeta(run.id, run.events, pmeta);
-      meta = mergePersistedIndexerWatchRoots(meta, run.events, run.id);
-      if (!meta.doneSeen) allDone = false;
-      var qIng =
-        meta.scopeQueueIngestPending != null && !isNaN(Number(meta.scopeQueueIngestPending))
-          ? Number(meta.scopeQueueIngestPending)
-          : null;
-      var qFan =
-        meta.scopeQueueFanoutPending != null && !isNaN(Number(meta.scopeQueueFanoutPending))
-          ? Number(meta.scopeQueueFanoutPending)
-          : null;
-      var pRem = null;
-      if (qIng != null || qFan != null) {
-        pRem = (qIng != null ? qIng : 0) + (qFan != null ? qFan : 0);
-      }
-      var qTot =
-        meta.scopeWorkspaceTotal != null && !isNaN(Number(meta.scopeWorkspaceTotal))
-          ? Math.round(Number(meta.scopeWorkspaceTotal))
-          : null;
-      if (pRem !== null) {
-        sumRem += pRem;
-        anyRem = true;
-      }
-      if (qTot !== null) {
-        sumTot += qTot;
-        anyTot = true;
-      }
-    }
-    return {
-      sumRem: anyRem ? sumRem : null,
-      sumTot: anyTot ? sumTot : null,
-      allDone: anyRun && allDone,
-      anyRun: anyRun
-    };
-  }
-
   function gatewayHttpOkFailTooltip(counters) {
     var c = counters || {};
     var detail =
@@ -3138,6 +3247,37 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         : formatInt(c.http2xx) + " ok · " + formatInt(c.httpNot2xx) + " fail";
     return (
       "HTTP responses in the current log view: 2xx successes (check) vs non-2xx failures (error). " + detail + "."
+    );
+  }
+
+  function chimeraBrokerRelayOkFailTooltip(metrics) {
+    var m = metrics || {};
+    var detail =
+      (m.relay429N || 0) > 0
+        ? formatInt(m.relayOk) +
+          " ok · " +
+          formatInt(m.relayFail) +
+          " fail · " +
+          formatInt(m.relay429N) +
+          " rate-limited (429)"
+        : formatInt(m.relayOk) + " ok · " + formatInt(m.relayFail) + " fail";
+    return (
+      "Chat relay outcomes since last chimera-broker ready: successful upstream responses (check) vs errors (error). " +
+      detail +
+      "."
+    );
+  }
+
+  function indexerQueueDepthTooltip(qi) {
+    qi = qi || {};
+    var detail = formatInt(Math.round(Number(qi.queueDepth))) + " queued";
+    if (qi.ingestInflight != null && !isNaN(Number(qi.ingestInflight))) {
+      detail += " · " + formatInt(Math.round(Number(qi.ingestInflight))) + " in flight";
+    }
+    return (
+      "Ingest queue depth from the latest indexer.state line in this log view (stacks icon). " +
+      detail +
+      "."
     );
   }
 
@@ -3280,7 +3420,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       auth: "—",
       mcp: "—",
       governance: "—",
-      lastModel: "—",
       backendName: "",
       backendMode: ""
     };
@@ -3292,7 +3431,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       if (d.auth) M.auth = d.auth;
       if (d.mcp) M.mcp = d.mcp;
       if (d.governance) M.governance = d.governance;
-      if (d.lastModel) M.lastModel = chimeraBrokerShortModelLabel(d.lastModel);
       if (d.backendName) M.backendName = d.backendName;
       if (d.backendMode) M.backendMode = d.backendMode;
     }
@@ -3322,8 +3460,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       escapeHtml(M.mcp) +
       '</dd><dt>governance</dt><dd>' +
       escapeHtml(M.governance) +
-      '</dd><dt>last model</dt><dd>' +
-      escapeHtml(M.lastModel) +
       "</dd></dl>"
     );
   }
@@ -4382,29 +4518,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     ) {
       timelineBlock = '<div class="sum-section-label">Request timeline</div>' + timelineBarHtml(evConv);
     }
-    var aggregateIndexerProgressBlock = "";
-    if (name === "chimera-indexer") {
-      var aggIx = rollupIndexerAggregateScopeProgress(svcCtx.byRun, svcCtx.partitionRegistry);
-      var aggCap = indexerAggregateBacklogCaption(aggIx.sumRem, aggIx.sumTot);
-      var aggDetail = indexerAggregateProgressDetailText(aggIx);
-      var aggCaptionRow =
-        '<div class="indexer-aggregate-caption-row">' +
-        (aggCap !== ""
-          ? '<span class="indexer-scope-caption">' + escapeHtml(aggCap) + "</span>"
-          : "") +
-        '<span class="indexer-aggregate-progress-detail muted">' +
-        escapeHtml(aggDetail) +
-        "</span></div>";
-      aggregateIndexerProgressBlock =
-        '<div class="indexer-aggregate-progress-wrap">' +
-        '<div class="sum-section-label sum-section-label--indexer-progress">' +
-        escapeHtml("Progress (all indexers)") +
-        "</div>" +
-        '<div class="indexer-scope-progress indexer-scope-progress--aggregate" title="Sum of pending ingest + fan-out rows vs workspace files across all indexer scopes (from indexer.scope.status)">' +
-        indexerScopeProgressTimelineBarHtml(aggIx.sumRem, aggIx.sumTot, aggIx.allDone) +
-        aggCaptionRow +
-        "</div></div>";
-    }
     var indexerSummaryKv = "";
     if (name === "chimera-indexer") {
       indexerSummaryKv =
@@ -4428,24 +4541,20 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
           " → " +
           (bx.usageSum > 0 ? formatInt(Math.round(bx.usageSum)) : "—");
       }
-      var rlBox = bx.rateLimitBoxN != null ? bx.rateLimitBoxN : 0;
-      var fbBox = bx.fallbackN != null ? bx.fallbackN : 0;
-      var availModelsStr =
-        bx.catalogModelCount != null && bx.catalogModelCount > 0 ? formatInt(bx.catalogModelCount) : "—";
+      var availModelsStr = chimeraBrokerAvailableModelCountLabel(arr);
       var providerHealthStrip = chimeraBrokerProviderHealthStripHtml(arr);
-      var relayOutcomeStrip = chimeraBrokerRelayOutcomeStripHtml(arr);
       mini =
         buildBrokerCardIntroHtml() +
         '<div class="sum-section-label">Provider health</div>' +
         providerHealthStrip +
+        '<div class="sum-section-label">Relay outcomes</div>' +
+        chimeraBrokerRelayOutcomeStripHtml(arr) +
         '<div class="sum-mini-row sum-mini-row--chimera-broker-deck">' +
-        '<div class="sum-mini-card">Available models<strong>' +
+        '<div class="sum-mini-card">Available models<strong id="chimera-broker-available-models-count">' +
         escapeHtml(availModelsStr) +
-        '</strong><span class="sum-mini-sub">Count from latest chimera-broker catalog sync log (when backend reports a numeric total)</span></div>' +
+        '</strong><span class="sum-mini-sub">Live catalog from chimera-broker /v1/models (refreshed with provider health polls); falls back to log sync lines when stale</span></div>' +
         "</div>" +
         kvB +
-        '<div class="sum-section-label">Relay outcomes</div>' +
-        relayOutcomeStrip +
         '<div class="sum-mini-row sum-mini-row--chimera-broker-deck2">' +
         '<div class="sum-mini-card">Relay (ok / fail)<strong>' +
         escapeHtml(formatInt(bx.relayOk) + " / " + formatInt(bx.relayFail)) +
@@ -4454,15 +4563,9 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         escapeHtml(tokLineB) +
         "</strong>" +
         '<span class="sum-mini-sub">Prompt tokens sent vs completion usage from upstream JSON</span></div>' +
-        '<div class="sum-mini-card">Rate limits<strong>' +
-        escapeHtml(formatInt(rlBox)) +
-        '</strong><span class="sum-mini-sub">Throttling / HTTP 429 (broker HTTP + chat relay)</span></div>' +
-        '<div class="sum-mini-card">Routing fallback<strong>' +
-        escapeHtml(formatInt(fbBox)) +
-        '</strong><span class="sum-mini-sub">Virtual model fallback attempts (gateway)</span></div>' +
         '</div>';
     } else if (name === "chimera-indexer") {
-      mini = indexerStructuredRollupMiniHtml(arr);
+      mini = "";
     } else if (name === "chimera-gateway") {
       mini = buildGatewayCardIntroHtml() + gatewayServicePanelMiniHtml(arr);
     } else if (name === "chimera-vectorstore") {
@@ -4495,30 +4598,31 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     var cardScope = strHash("svc:" + name);
     var visEnt = sumEvlogVisibleEntriesForService(name, arr, name === "chimera-gateway");
     var mc = sumEvlogCountWarnFailFromEntries(visEnt);
-    var showSourceColumn = name === "chimera-gateway";
+    var showSourceColumn = name === "chimera-gateway" || name === "chimera-indexer";
     var evlogBuildOpts = {
       cardScope: cardScope,
       filterGatewayProbe: name === "chimera-gateway"
     };
     if (showSourceColumn) evlogBuildOpts.showSourceColumn = true;
     var tbodyInner = sumEvlogBuildTbodyFromServiceEntries(name, arr, evlogBuildOpts);
+    var evlogPanelOpts = {
+      scrollTbodyId: scrollTbodyId,
+      showSourceColumn: showSourceColumn,
+      warnN: mc.warn,
+      failN: mc.fail,
+      tbodyInnerHtml: tbodyInner,
+      title: typeof scopedEvlogTitle === "function" ? scopedEvlogTitle(serviceDisplayLabel(name)) : "Scoped log"
+    };
+    if (name === "chimera-indexer") evlogPanelOpts.sourceColumnKind = "indexer-workspace";
     var full =
       '<div class="' + fullLogClass + '">' +
-      sumEvlogPanelHtml({
-        scrollTbodyId: scrollTbodyId,
-        showSourceColumn: showSourceColumn,
-        warnN: mc.warn,
-        failN: mc.fail,
-        tbodyInnerHtml: tbodyInner,
-        title: typeof scopedEvlogTitle === "function" ? scopedEvlogTitle(serviceDisplayLabel(name)) : "Scoped log"
-      }) +
+      sumEvlogPanelHtml(evlogPanelOpts) +
       "</div>";
     return (
       '<div class="sum-body">' +
       timelineBlock +
       '<div class="sum-section-label">Summary</div>' +
       indexerSummaryKv +
-      aggregateIndexerProgressBlock +
       mini +
       full +
       "</div>"
@@ -4657,7 +4761,9 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       var bxC = chimeraBrokerCardMetrics(arr);
       metrics =
         '<span class="sum-metrics">' +
-        sgOpInsetWellOkFailHtml(bxC.relayOk, bxC.relayFail) +
+        sgOpInsetWellOkFailHtml(bxC.relayOk, bxC.relayFail, "", {
+          title: chimeraBrokerRelayOkFailTooltip(bxC)
+        }) +
         chimeraBrokerProviderHealthStripHtml(arr, { compact: true }) +
         "</span>";
     } else if (name === "chimera-vectorstore") {
@@ -4687,9 +4793,12 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       var qiIx = latestIndexerStateQueueInflightFromEntries(arr);
       if (qiIx.queueDepth != null && !isNaN(Number(qiIx.queueDepth))) {
         var qCurIx = formatInt(Math.round(Number(qiIx.queueDepth)));
+        var qTooltipIx = indexerQueueDepthTooltip(qiIx);
         metrics =
           '<span class="sum-metrics">' +
-          '<span class="sg-op-inset-well">' +
+          '<span class="sg-op-inset-well" title="' +
+          escapeHtml(qTooltipIx) +
+          '">' +
           escapeHtml(qCurIx) +
           ' <span class="material-symbols-outlined material-symbols-outlined--sm" aria-hidden="true">stacks</span></span></span>';
       } else {
@@ -5116,6 +5225,9 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       '</span><span class="sum-sub sum-sub--clamp muted">' +
       escapeHtml("Waiting on status update from an indexer worker") +
       "</span></span>" +
+      '<span class="sum-metrics">' +
+      indexerWorkspaceCollapsedMetricsHtml(staleMeta, []) +
+      "</span>" +
       operatorCardChevronHtml() +
       "</summary>" +
       '<div class="sum-body">' +
@@ -5629,6 +5741,9 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       '</span><span class="sum-sub sum-sub--clamp muted">' +
       escapeHtml(subProse) +
       "</span></span>" +
+      '<span class="sum-metrics">' +
+      indexerWorkspaceCollapsedMetricsHtml(meta, scopedEvs) +
+      "</span>" +
       operatorCardChevronHtml() +
       "</header>" +
       expanded +
@@ -5764,12 +5879,14 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       ? '<span class="sum-avatar sum-av-c sum-av-indexer-idle" aria-hidden="true">\u2713</span>'
       : '<span class="sum-avatar sum-av-c">IX</span>';
     var statusSpan = indexerCollapsedIdle ? "" : serviceSummaryStatusPillHtml(st);
+    var workspaceMetrics = indexerWorkspaceCollapsedMetricsHtml(meta, evs);
     var progressMetrics = "";
-    if (progressStack !== "" || statusSpan !== "") {
+    if (workspaceMetrics || progressStack !== "" || statusSpan !== "") {
       progressMetrics =
         '<span class="sum-metrics' +
         (progressStack !== "" ? " sum-metrics--indexer-scope" : "") +
         '">' +
+        workspaceMetrics +
         progressStack +
         statusSpan +
         "</span>";
@@ -6883,6 +7000,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   ctx.resolveLogsOperatorUserLabel = resolveLogsOperatorUserLabel;
   ctx.inferServiceBadge = inferServiceBadge;
   ctx.badgeForServicePanel = badgeForServicePanel;
+  ctx.indexerEvlogWorkspaceSourceLabel = indexerEvlogWorkspaceSourceLabel;
   ctx.serviceDisplayLabel = serviceDisplayLabel;
   ctx.badgeForIndexerRunLine = badgeForIndexerRunLine;
   if (

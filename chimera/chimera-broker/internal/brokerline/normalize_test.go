@@ -169,8 +169,11 @@ func TestNormalizePayloadHTTPAccessProviderProbe(t *testing.T) {
 	if m["provider_id"] != "ollama" {
 		t.Fatalf("provider_id=%v", m["provider_id"])
 	}
-	if m["progress_detail"] != "provider ollama" {
+	if m["progress_detail"] != "gateway admin · provider health probe · ollama" {
 		t.Fatalf("progress_detail=%v", m["progress_detail"])
+	}
+	if m["level"] != "DEBUG" {
+		t.Fatalf("level=%v want DEBUG for successful admin probe", m["level"])
 	}
 
 	rawGov := `{"level":"info","http.method":"GET","http.target":"/api/governance/providers","http.status_code":200,"time":"t","message":"request completed"}`
@@ -179,8 +182,21 @@ func TestNormalizePayloadHTTPAccessProviderProbe(t *testing.T) {
 	if err := json.Unmarshal(bGov, &mGov); err != nil {
 		t.Fatal(err)
 	}
-	if mGov["progress_detail"] != "governance provider list" {
+	if mGov["progress_detail"] != "gateway admin · configured provider roster" {
 		t.Fatalf("progress_detail=%v", mGov["progress_detail"])
+	}
+	if mGov["level"] != "DEBUG" {
+		t.Fatalf("level=%v want DEBUG for successful governance list", mGov["level"])
+	}
+
+	rawFail := `{"level":"info","http.method":"GET","http.target":"/api/providers/gemini","http.status_code":503,"time":"t","message":"request completed"}`
+	bFail := NormalizePayload(rawFail)
+	var mFail map[string]any
+	if err := json.Unmarshal(bFail, &mFail); err != nil {
+		t.Fatal(err)
+	}
+	if mFail["level"] == "DEBUG" {
+		t.Fatalf("failed admin probe should not be DEBUG, level=%v", mFail["level"])
 	}
 }
 

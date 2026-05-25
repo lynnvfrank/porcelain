@@ -153,6 +153,9 @@ func fetchChimeraBrokerProviderHealthWithList(ctx context.Context, client *broke
 		out.Providers = append(out.Providers, entry)
 	}
 	out.BrokerUp = anySuccess
+	if liveSnapshot != nil && liveSnapshot.OK && liveSnapshot.IsFresh(time.Now(), catalog.CatalogSnapshotFreshness) {
+		out.CatalogModelCount = liveSnapshot.CatalogModelCount
+	}
 	if !anySuccess {
 		// All live HTTP probes failed — annotate the response so the strip caption can explain
 		// the empty state instead of looking like "no providers".

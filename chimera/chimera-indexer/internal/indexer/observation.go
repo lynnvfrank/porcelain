@@ -59,6 +59,20 @@ func (ix *Indexer) EmitStorageStatsAndState(ctx context.Context, watchMode bool)
 				continue
 			}
 			total += stats.Points
+			if !stats.Available {
+				ix.log.Warn("indexer storage stats unavailable",
+					"msg", "indexer.storage.stats",
+					"indexer_target_key", itk,
+					"ingest_project", proj,
+					"flavor_id", flav,
+					"collection", stats.Collection,
+					"qdrant_points", stats.Points,
+					"vector_dim", stats.VectorDim,
+					"available", false,
+					"detail", stats.Detail,
+				)
+				continue
+			}
 			ix.log.Info("indexer storage stats sync",
 				"msg", "indexer.storage.stats",
 				"indexer_target_key", itk,

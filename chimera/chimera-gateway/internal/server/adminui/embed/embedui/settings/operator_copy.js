@@ -259,7 +259,7 @@
     "gateway.startup.config_resolved": {summary: "Gateway configuration paths resolved.", formatter: "gateway_startup_config_resolved"},
     "gateway.operator.workspace.path_added": {summary: "Watch path added · C:\\repo\\new-path", formatter: "gateway_operator_workspace_path_added"},
     "gateway.operator.workspace.path_deleted": {summary: "Watch path removed · C:\\repo\\old-path", formatter: "gateway_operator_workspace_path_deleted"},
-    "broker.http.access": {summary: "Inbound GET /v1/models → 200 · 12 ms", formatter: "http_broker_inbound"},
+    "broker.http.access": {summary: "Model catalog refresh · gateway admin · GET /v1/models → 200 · 12 ms", formatter: "http_broker_inbound"},
     "broker.rate_limit": {summary: "Rate limited POST /v1/chat/completions → 429 · 3 ms", formatter: "http_broker_inbound"},
     "chat.chimera-broker.available_models": {summary: "Model list for routing · 42 models", formatter: "broker_chat_relay"},
     "chat.chimera-broker.request": {summary: "Relay request · gpt-4o · streaming on", formatter: "broker_chat_relay"},

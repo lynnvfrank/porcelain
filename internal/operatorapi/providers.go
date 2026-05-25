@@ -19,10 +19,11 @@ type ProviderHealthEntry struct {
 
 // ProviderHealthResponse is GET /api/ui/chimera-broker/providers.
 type ProviderHealthResponse struct {
-	FetchedAt time.Time             `json:"fetched_at"`
-	BrokerUp  bool                  `json:"chimera_broker_up"`
-	Error     string                `json:"error,omitempty"`
-	Providers []ProviderHealthEntry `json:"providers"`
+	FetchedAt         time.Time             `json:"fetched_at"`
+	BrokerUp          bool                  `json:"chimera_broker_up"`
+	CatalogModelCount int                   `json:"catalog_model_count,omitempty"`
+	Error             string                `json:"error,omitempty"`
+	Providers         []ProviderHealthEntry `json:"providers"`
 }
 
 // ProviderKeyEntry is one API key row in GET /api/ui/state provider entries.
