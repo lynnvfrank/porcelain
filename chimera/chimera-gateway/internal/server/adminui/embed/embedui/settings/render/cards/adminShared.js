@@ -137,27 +137,40 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminShared = function (ctx) {
     );
   }
 
-  function operatorSectionAddBtn(attrs, label) {
+  function operatorSectionAddBtn(attrs, label, opts) {
     attrs = attrs || {};
+    opts = opts || {};
     var attrStr = "";
     for (var k in attrs) {
       if (!Object.prototype.hasOwnProperty.call(attrs, k)) continue;
       attrStr += " " + k + '="' + escapeHtml(String(attrs[k])) + '"';
     }
     var lab = label != null ? String(label) : "Add";
-    return (
+    var title = opts.title != null ? String(opts.title) : lab;
+    var disabled = opts.disabled ? ' disabled aria-disabled="true"' : "";
+    var btn =
       '<button type="button" class="sg-op-section-action"' +
       attrStr +
+      disabled +
       ' aria-label="' +
       escapeHtml(lab) +
       '" title="' +
-      escapeHtml(lab) +
+      escapeHtml(title) +
       '">' +
       '<span class="material-symbols-outlined" aria-hidden="true">add_2</span>' +
       "<span>" +
       escapeHtml(lab) +
-      "</span></button>"
-    );
+      "</span></button>";
+    if (opts.desktopLocked) {
+      return (
+        '<span class="ws-desktop-only-locked" title="' +
+        escapeHtml(title) +
+        '">' +
+        btn +
+        "</span>"
+      );
+    }
+    return btn;
   }
 
   /** Full-width add control under section title row (same width as cards). */

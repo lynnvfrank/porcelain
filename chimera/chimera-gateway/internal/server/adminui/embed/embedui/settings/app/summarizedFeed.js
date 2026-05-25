@@ -1353,6 +1353,44 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     return typeof window.chimeraPickFolder === "function" ? window.chimeraPickFolder : null;
   }
 
+  var WORKSPACE_WEB_UNAVAILABLE_TITLE =
+    "Not available through the web. Use the desktop app.";
+
+  function workspaceDesktopFeaturesAvailable() {
+    return !!nativeFolderPickerFn();
+  }
+
+  function wrapDesktopOnlyLockedControl(btnHtml, locked, overlay) {
+    if (!locked) return btnHtml;
+    var cls = "ws-desktop-only-locked";
+    if (overlay) cls += " ws-desktop-only-locked--overlay";
+    return (
+      '<span class="' +
+      cls +
+      '" title="' +
+      escapeHtml(WORKSPACE_WEB_UNAVAILABLE_TITLE) +
+      '">' +
+      btnHtml +
+      "</span>"
+    );
+  }
+
+  function buildWorkspacesCreateBtnHtml(label) {
+    var lab = label != null && String(label).trim() ? String(label).trim() : "Create workspace";
+    var desktop = workspaceDesktopFeaturesAvailable();
+    var dis = desktop ? "" : " disabled aria-disabled=\"true\"";
+    return wrapDesktopOnlyLockedControl(
+      '<button type="button" class="sum-workspaces-create-btn" data-sum-workspaces-create="1"' +
+        dis +
+        ' title="' +
+        escapeHtml(lab) +
+        '">' +
+        escapeHtml(lab) +
+        "</button>",
+      !desktop
+    );
+  }
+
 
   function saveWorkspaceDraftById(draftId) {
     var d = findWorkspaceDraft(draftId);
@@ -5327,7 +5365,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
 
   function buildManagedWorkspacePathsEditHtml(wsNum, pathRows) {
     var rows = pathRows && pathRows.length ? pathRows : [];
-    var rmDisabled = rows.length ? "" : " disabled";
+    var addDisabled = ctx.workspaceManagedFolderPickerOpen ? " disabled" : "";
     var selOpts = "";
     var pi;
     for (pi = 0; pi < rows.length; pi++) {
@@ -5346,10 +5384,10 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       selOpts +
       "</select>" +
       '<div class="ws-draft-path-btns">' +
-      '<button type="button" class="sg-op-btn sg-op-btn--ghost ws-managed-btn-add">Add</button>' +
-      '<button type="button" class="sg-op-btn sg-op-btn--ghost ws-managed-btn-remove"' +
-      rmDisabled +
-      ">Remove</button>" +
+      '<button type="button" class="sg-op-btn sg-op-btn--ghost ws-managed-btn-add"' +
+      addDisabled +
+      '>Add</button>' +
+      '<button type="button" class="sg-op-btn sg-op-btn--ghost ws-managed-btn-remove" disabled>Remove</button>' +
       "</div></div>"
     );
   }
@@ -5359,30 +5397,58 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       titleText && String(titleText).trim()
         ? "Configure workspace " + String(titleText).trim()
         : "Configure workspace";
+    var desktop = workspaceDesktopFeaturesAvailable();
+    var dis = desktop ? "" : " disabled aria-disabled=\"true\"";
+    var tip = desktop ? "Configure" : WORKSPACE_WEB_UNAVAILABLE_TITLE;
+    return wrapDesktopOnlyLockedControl(
+      '<button type="button" class="sg-op-configure-btn sg-op-configure-btn--overlay ws-managed-btn-configure"' +
+        dis +
+        ' data-ws-managed-id="' +
+        escapeHtml(String(wsNum)) +
+        '" aria-label="' +
+        escapeHtml(lab) +
+        '" title="' +
+        escapeHtml(tip) +
+        '"><span class="material-symbols-outlined" aria-hidden="true">settings</span></button>',
+      !desktop,
+      true
+    );
+  }
+
+  function buildManagedWorkspaceIconActionBtnHtml(extraClass, icon, ariaLabel, title) {
+    var lab = ariaLabel != null ? String(ariaLabel) : "";
+    var tit = title != null ? String(title) : lab;
     return (
-      '<button type="button" class="sg-op-configure-btn sg-op-configure-btn--overlay ws-managed-btn-configure" data-ws-managed-id="' +
-      escapeHtml(String(wsNum)) +
+      '<button type="button" class="sg-op-configure-btn sg-op-configure-btn--overlay ' +
+      extraClass +
       '" aria-label="' +
       escapeHtml(lab) +
-      '" title="Configure"><span class="material-symbols-outlined" aria-hidden="true">settings</span></button>'
+      '" title="' +
+      escapeHtml(tit) +
+      '"><span class="material-symbols-outlined" aria-hidden="true">' +
+      escapeHtml(icon) +
+      "</span></button>"
     );
   }
 
-  function buildManagedWorkspaceEditToolbarHtml(wsNum) {
+  function buildManagedWorkspaceEditToolbarHtml(_wsNum) {
     return (
-      '<div class="ws-managed-toolbar">' +
-      '<span class="ws-managed-editing-hint muted">Editing</span>' +
-      '<span class="ws-managed-actions">' +
-      '<button type="button" class="sg-op-btn sg-op-btn--ghost ws-managed-btn-cancel">Cancel</button>' +
-      '<button type="button" class="sg-op-btn ws-managed-btn-save">Save</button>' +
-      '<button type="button" class="sg-op-btn sg-op-btn--ghost sg-op-btn--danger ws-managed-btn-delete">Delete workspace</button>' +
-      "</span></div>"
+      '<div class="ws-managed-edit-controls">' +
+      buildManagedWorkspaceIconActionBtnHtml(
+        "ws-managed-btn-delete",
+        "delete_forever",
+        "Delete workspace",
+        "Delete workspace"
+      ) +
+      buildManagedWorkspaceIconActionBtnHtml("ws-managed-btn-save", "save", "Save workspace", "Save") +
+      buildManagedWorkspaceIconActionBtnHtml("ws-managed-btn-cancel", "cancel", "Cancel editing", "Cancel") +
+      "</div>"
     );
   }
 
-  function buildManagedWorkspaceToolbarHtml(wsNum, isEdit) {
+  function buildManagedWorkspaceToolbarHtml(wsNum, isEdit, titleText) {
     if (isEdit) return buildManagedWorkspaceEditToolbarHtml(wsNum);
-    return buildManagedWorkspaceConfigureBtnHtml(wsNum);
+    return buildManagedWorkspaceConfigureBtnHtml(wsNum, titleText);
   }
 
   function beginWorkspaceManagedEdit(wsNum) {
@@ -5405,6 +5471,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   function cancelWorkspaceManagedEdit() {
     ctx.workspaceManagedEditId = null;
     ctx.workspaceManagedStaging = null;
+    ctx.workspaceManagedFolderPickerOpen = false;
     ctx.summarizedForceFullRebuild = true;
     refreshSummarizedPanel();
   }
@@ -5558,14 +5625,12 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     if (isEdit) {
       pathsBlockHtml = buildManagedWorkspacePathsEditHtml(wsNum, ctx.workspaceManagedStaging.paths);
     }
-    var configureBtn = !isEdit ? buildManagedWorkspaceConfigureBtnHtml(wsNum, titleText) : "";
-    var editToolbar = isEdit ? buildManagedWorkspaceEditToolbarHtml(wsNum) : "";
+    var configureBtn = buildManagedWorkspaceToolbarHtml(wsNum, isEdit, titleText);
     var expanded = renderExpandedIndexer(syntheticRun, entryCache, meta, partitionRegistry, {
       kvOpts: { omitFileCountIfZero: true },
       recentOpts: { omitWhenEmpty: true },
       pathsBlockHtml: pathsBlockHtml,
-      configureBtnHtml: configureBtn,
-      extraAfterSummaryHtml: editToolbar
+      configureBtnHtml: configureBtn
     });
     var cardCls =
       "sum-card sum-card--collapsible sum-card--indexer-operator-workspace sum-card--workspace-operator" +
@@ -5641,8 +5706,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     }
     var titleText = workspaceCardTitleFromIndexerMeta(meta);
     var configureBtnIx =
-      wsNumIx > 0 && !isIxEdit ? buildManagedWorkspaceConfigureBtnHtml(wsNumIx, titleText) : "";
-    var editToolbarIx = isIxEdit ? buildManagedWorkspaceEditToolbarHtml(wsNumIx) : "";
+      wsNumIx > 0 ? buildManagedWorkspaceToolbarHtml(wsNumIx, isIxEdit, titleText) : "";
     var expOptsIx = {
       kvOpts: {
         omitFileCountIfZero: true,
@@ -5650,8 +5714,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       },
       recentOpts: wsNumIx > 0 ? { omitWhenEmpty: true } : undefined,
       pathsBlockHtml: pathsBlockIx,
-      configureBtnHtml: configureBtnIx,
-      extraAfterSummaryHtml: editToolbarIx
+      configureBtnHtml: configureBtnIx
     };
     var doneSeen = meta.doneSeen;
     var errRecent = countErrorSignalsInEntries(sliceRecent(evs, RECENT_CARD_STATUS_N));
@@ -6773,14 +6836,26 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
           return (
             '<div class="sum-feed-section-head">' +
             '<span class="sum-feed-section-title sum-section-label">Workspaces</span>' +
-            '<button type="button" class="sum-workspaces-create-btn" data-sum-workspaces-create="1">Create</button></div>'
+            buildWorkspacesCreateBtnHtml("Create") +
+            "</div>"
           );
         }
+        var webOnly = !workspaceDesktopFeaturesAvailable();
         return ctx.operatorSectionHeadHtml("Workspaces", "database", {
           actionHtml:
             typeof ctx.operatorSectionAddBtn === "function"
-              ? ctx.operatorSectionAddBtn({ "data-sum-workspaces-create": "1" }, "Create workspace")
-              : "",
+              ? ctx.operatorSectionAddBtn(
+                  { "data-sum-workspaces-create": "1" },
+                  "Create workspace",
+                  webOnly
+                    ? {
+                        disabled: true,
+                        title: WORKSPACE_WEB_UNAVAILABLE_TITLE,
+                        desktopLocked: true
+                      }
+                    : undefined
+                )
+              : buildWorkspacesCreateBtnHtml("Create workspace"),
         });
       },
       servicesSectionHead: function () {
@@ -6790,6 +6865,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         return ctx.operatorSectionHeadHtml("Core services", "dns", { iconPrimary: true });
       },
       workspacesSectionIntro: buildWorkspacesSectionIntroHtml,
+      buildWorkspacesCreateBtnHtml: buildWorkspacesCreateBtnHtml,
       emptyFeedMessage: function () {
         return (
           '<p class="muted">No conversation / service cards in the <em>loaded</em> window yet. Chat traffic needs <code>conversation_id</code> in structured logs; <strong>scroll to the top</strong> of this feed to load older lines (indexer snapshots often crowd the recent tail). Switch to <strong>StructuredLogs</strong> for the full stream.</p>'
@@ -6903,6 +6979,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   ctx.parseFallbackChainInput = parseFallbackChainInput;
   ctx.fallbackChainToYAML = fallbackChainToYAML;
   ctx.pickFolderForWorkspaceDraft = pickFolderForWorkspaceDraft;
+  ctx.workspaceDesktopFeaturesAvailable = workspaceDesktopFeaturesAvailable;
+  ctx.buildWorkspacesCreateBtnHtml = buildWorkspacesCreateBtnHtml;
   ctx.findWorkspaceDraft = findWorkspaceDraft;
   ctx.appendWorkspaceDraftPath = appendWorkspaceDraftPath;
   ctx.saveWorkspaceDraftById = saveWorkspaceDraftById;

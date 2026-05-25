@@ -775,6 +775,35 @@ a.sum-ext-link {
   background: var(--embed-btn-primary-hover);
   border-color: var(--embed-btn-primary-hover);
 }
+.sum-workspaces-create-btn:disabled,
+.sum-workspaces-create-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.sum-workspaces-create-btn:disabled:hover,
+.sum-workspaces-create-btn[aria-disabled="true"]:hover {
+  background: var(--embed-btn-primary);
+  border-color: var(--embed-btn-primary);
+}
+.ws-desktop-only-locked {
+  display: inline-flex;
+  cursor: not-allowed;
+}
+.ws-desktop-only-locked > button:disabled,
+.ws-desktop-only-locked > button[aria-disabled="true"] {
+  pointer-events: none;
+}
+.ws-desktop-only-locked--overlay {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.75rem;
+  z-index: 2;
+}
+.ws-desktop-only-locked--overlay > .sg-op-configure-btn {
+  position: static;
+  top: auto;
+  right: auto;
+}
 .sum-workspaces-intro {
   margin: 0 0 0.65rem 0;
   font-size: 0.82rem;

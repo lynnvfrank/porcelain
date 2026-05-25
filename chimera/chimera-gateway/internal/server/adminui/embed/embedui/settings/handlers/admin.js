@@ -29,12 +29,35 @@ globalThis.ChimeraSettings.Handlers.Admin.wire = function (ctx) {
 
   if (!globalThis.__ChimeraSettingsWorkspaceDraftUiWired) {
     globalThis.__ChimeraSettingsWorkspaceDraftUiWired = true;
+
+    function syncManagedWorkspacePathActionBtns(cardEl, selEl) {
+      if (!cardEl) return;
+      if (!selEl) selEl = cardEl.querySelector(".ws-managed-paths-select");
+      var rmBt = cardEl.querySelector(".ws-managed-btn-remove");
+      var addBt = cardEl.querySelector(".ws-managed-btn-add");
+      if (rmBt && selEl) {
+        rmBt.disabled =
+          selEl.selectedIndex < 0 || !selEl.options || !selEl.options.length;
+      }
+      if (addBt) addBt.disabled = !!ctx.workspaceManagedFolderPickerOpen;
+    }
+
     document.body.addEventListener(
       "click",
       function (ev) {
         var t = ev.target;
         if (!t || typeof t.closest !== "function") return;
         if (t.closest("[data-sum-workspaces-create]")) {
+          var createBtn = t.closest("[data-sum-workspaces-create]");
+          if (
+            !createBtn ||
+            createBtn.disabled ||
+            createBtn.getAttribute("aria-disabled") === "true" ||
+            (ctx.workspaceDesktopFeaturesAvailable &&
+              !ctx.workspaceDesktopFeaturesAvailable())
+          ) {
+            return;
+          }
           ev.preventDefault();
           ev.stopPropagation();
           ctx.workspaceDrafts.push({
@@ -51,6 +74,16 @@ globalThis.ChimeraSettings.Handlers.Admin.wire = function (ctx) {
           var wsNumM = Number(managedCard.getAttribute("data-workspace-managed-id"));
           if (!wsNumM) return;
           if (t.closest(".ws-managed-btn-configure")) {
+            var cfgBtn = t.closest(".ws-managed-btn-configure");
+            if (
+              !cfgBtn ||
+              cfgBtn.disabled ||
+              cfgBtn.getAttribute("aria-disabled") === "true" ||
+              (ctx.workspaceDesktopFeaturesAvailable &&
+                !ctx.workspaceDesktopFeaturesAvailable())
+            ) {
+              return;
+            }
             ev.preventDefault();
             ev.stopPropagation();
             beginWorkspaceManagedEdit(wsNumM);
@@ -84,13 +117,25 @@ globalThis.ChimeraSettings.Handlers.Admin.wire = function (ctx) {
             ) {
               return;
             }
+            if (ctx.workspaceManagedFolderPickerOpen) return;
+            var addBtM = t.closest(".ws-managed-btn-add");
+            ctx.workspaceManagedFolderPickerOpen = true;
+            if (addBtM) addBtM.disabled = true;
             var stA = ctx.workspaceManagedStaging.paths;
             var startDirA = stA && stA.length ? stA[stA.length - 1].path : "";
-            pickFolderForWorkspaceDraft(startDirA).then(function (picked) {
-              if (!picked) return;
-              ctx.workspaceManagedStaging.paths.push({ id: null, path: String(picked).trim() });
-              scheduleStoryRebuild();
-            });
+            pickFolderForWorkspaceDraft(startDirA)
+              .then(function (picked) {
+                if (!picked) return;
+                ctx.workspaceManagedStaging.paths.push({ id: null, path: String(picked).trim() });
+                scheduleStoryRebuild();
+              })
+              .finally(function () {
+                ctx.workspaceManagedFolderPickerOpen = false;
+                var cardNow = document.querySelector(
+                  '[data-workspace-managed-id="' + String(wsNumM) + '"]'
+                );
+                syncManagedWorkspacePathActionBtns(cardNow);
+              });
             return;
           }
           if (t.closest(".ws-managed-btn-remove")) {
@@ -177,10 +222,7 @@ globalThis.ChimeraSettings.Handlers.Admin.wire = function (ctx) {
         if (!el || !el.classList) return;
         var cardManagedCh = el.closest("[data-workspace-managed-id]");
         if (cardManagedCh && el.classList.contains("ws-managed-paths-select")) {
-          var rmBtM = cardManagedCh.querySelector(".ws-managed-btn-remove");
-          if (rmBtM)
-            rmBtM.disabled =
-              el.selectedIndex < 0 || !el.options || !el.options.length;
+          syncManagedWorkspacePathActionBtns(cardManagedCh, el);
           return;
         }
         if (!el.classList.contains("ws-draft-paths-select")) return;
@@ -190,6 +232,19 @@ globalThis.ChimeraSettings.Handlers.Admin.wire = function (ctx) {
         if (rmBt)
           rmBt.disabled =
             el.selectedIndex < 0 || !el.options || !el.options.length;
+      },
+      false
+    );
+    document.body.addEventListener(
+      "click",
+      function (ev) {
+        var sel = ev.target && ev.target.closest && ev.target.closest(".ws-managed-paths-select");
+        if (!sel) return;
+        var cardManagedClick = sel.closest("[data-workspace-managed-id]");
+        if (!cardManagedClick) return;
+        window.setTimeout(function () {
+          syncManagedWorkspacePathActionBtns(cardManagedClick, sel);
+        }, 0);
       },
       false
     );

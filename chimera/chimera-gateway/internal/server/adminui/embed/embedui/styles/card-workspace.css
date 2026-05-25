@@ -41,7 +41,7 @@
 }
 /* Draft / managed workspace actions use .sg-op-btn (legacy ws-draft-btn-* classes kept for handlers). */
 .ws-draft-actions .sg-op-btn:disabled,
-.ws-managed-actions .sg-op-btn:disabled {
+.ws-managed-edit-controls .sg-op-configure-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }

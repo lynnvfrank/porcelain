@@ -71,6 +71,8 @@ globalThis.ChimeraSettings.Main = function () {
   var workspaceManagedEditId = null;
   /** { wsNum: number, paths: { id: number|null, path: string }[] } — only valid while workspaceManagedEditId matches wsNum. */
   var workspaceManagedStaging = null;
+  /** True while native folder picker is open for managed workspace path Add. */
+  var workspaceManagedFolderPickerOpen = false;
   var started = false;
   /** Dedup live + historical loads (seq may overlap SSE vs initial tail fetch). */
   var seenSeq = {};
@@ -939,6 +941,7 @@ globalThis.ChimeraSettings.Main = function () {
     nextWorkspaceDraftId: nextWorkspaceDraftId,
     workspaceManagedEditId: workspaceManagedEditId,
     workspaceManagedStaging: workspaceManagedStaging,
+    workspaceManagedFolderPickerOpen: workspaceManagedFolderPickerOpen,
     adminUserDrafts: adminUserDrafts,
     nextAdminUserDraftId: nextAdminUserDraftId,
     adminProviderKeyDraft: adminProviderKeyDraft,

@@ -213,6 +213,18 @@ html[data-theme="design-01"] #panel-summarized .sg-op-section-action:hover {
   background: var(--embed-surface-elevated, #fff);
 }
 
+.sg-op-section-action:disabled,
+.sg-op-section-action[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+html[data-theme="design-01"] #panel-summarized .sg-op-section-action:disabled:hover,
+html[data-theme="design-01"] #panel-summarized .sg-op-section-action[aria-disabled="true"]:hover {
+  border-color: var(--embed-border-medium, #e3e2e0);
+  background: var(--embed-surface-container-low, #f4f3f0);
+}
+
 .sg-op-section-action .material-symbols-outlined {
   font-size: 1.1rem;
 }
@@ -683,6 +695,18 @@ html[data-theme="design-01"] #panel-summarized .sum-card.sum-card--collapsible:n
   outline-offset: 2px;
 }
 
+.sg-op-configure-btn:disabled,
+.sg-op-configure-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sg-op-configure-btn:disabled:hover,
+.sg-op-configure-btn[aria-disabled="true"]:hover {
+  border-color: var(--embed-border-medium, #e3e2e0);
+  background: var(--embed-surface-elevated, #fff);
+}
+
 /* Configure in head row (icon-only; no trailing gap after settings glyph) */
 .sg-op-configure-btn.sg-op-configure-btn--inline {
   position: static;
@@ -860,7 +884,6 @@ html[data-theme="design-01"] #panel-summarized .sum-card > .sum-body .sum-full-l
 html[data-theme="design-01"] #panel-summarized .sum-card > .sum-body .sum-evlog,
 html[data-theme="design-01"] #panel-summarized .sum-card > .sum-body .sg-op-head-row,
 html[data-theme="design-01"] #panel-summarized .sum-card > .sum-body .sg-op-eval-out,
-html[data-theme="design-01"] #panel-summarized .sum-card > .sum-body .ws-managed-toolbar,
 html[data-theme="design-01"] #panel-summarized .sum-card > .sum-body [id^="admin-routing-"],
 html[data-theme="design-01"] #panel-summarized .sum-card > .sum-body [id^="admin-fallback-"],
 html[data-theme="design-01"] #panel-summarized .sum-card > .sum-body [id^="admin-router-"] {
