@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway chat routing, `internal/providerlimits`, catalog polling, Make/catalog CLIs, operator docs |
-| **Status** | `in progress` |
+| **Status** | `done` |
 | **Targets** | Gateway next patch after v0.2 routing baseline |
 | **Last updated** | 2026-05-24 |
 | **Supersedes / superseded by** | Extends [`version-v0.1.1.md`](../version-v0.1.1.md) §3.7 (TPM/RPM admission); complements [`tokencount-talk.md`](../tokencount-talk.md) |
