@@ -170,9 +170,17 @@ html[data-theme="design-01"] .sg-op-rail .sum-card[open] > summary .sg-op-chev-i
   min-width: 0;
 }
 
-.sg-op-section-icon {
-  color: var(--embed-color-tertiary, #804f44);
+.sg-op-section-head .material-symbols-outlined.sg-op-section-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
   font-size: 1.35rem;
+  line-height: 1;
+  color: var(--embed-color-tertiary, #804f44);
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
 
 .sg-op-section-icon--primary {

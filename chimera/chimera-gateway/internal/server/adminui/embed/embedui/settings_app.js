@@ -40,6 +40,8 @@ globalThis.ChimeraSettings.Main = function () {
   var routerEnabledDraft = null;
   var adminUserDrafts = [];
   var nextAdminUserDraftId = 1;
+  var virtualModelDrafts = [];
+  var nextVirtualModelDraftId = 1;
   /** In-flight provider API key inputs keyed by provider id; survives summarized panel rebuild. */
   var adminProviderKeyDraft = {};
   /** Provider ids shown as summarized admin-provider-* cards (seeded from catalog configured_ids). */
@@ -880,6 +882,8 @@ globalThis.ChimeraSettings.Main = function () {
     workspaceManagedFolderPickerOpen: workspaceManagedFolderPickerOpen,
     adminUserDrafts: adminUserDrafts,
     nextAdminUserDraftId: nextAdminUserDraftId,
+    virtualModelDrafts: virtualModelDrafts,
+    nextVirtualModelDraftId: nextVirtualModelDraftId,
     adminProviderKeyDraft: adminProviderKeyDraft,
     adminVisibleProviderIds: adminVisibleProviderIds,
     adminProviderCatalog: adminProviderCatalog,
@@ -899,6 +903,8 @@ globalThis.ChimeraSettings.Main = function () {
     adminRoutingEditing: adminRoutingEditing,
     adminFallbackEditing: adminFallbackEditing,
     adminRouterEditing: adminRouterEditing,
+    virtualModelDetails: {},
+    virtualModelUi: {},
     storyRebuildTimer: null,
     sumEvlogUiDeferTimer: null,
     sumEvlogPointerSuppressedUntil: 0

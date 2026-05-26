@@ -123,6 +123,8 @@ func loadCardTestCtx(t *testing.T, vm *goja.Runtime) {
 			},
 			tokenListCache: [{ tenant_id: "tenant-a", label: "Alice", index: 0 }],
 			adminUserDrafts: [],
+			virtualModelDrafts: [],
+			nextVirtualModelDraftId: 1,
 			adminProviderKeyDraft: {},
 			adminVisibleProviderIds: ["groq", "ollama"],
 			adminOllamaUrlDraft: null,

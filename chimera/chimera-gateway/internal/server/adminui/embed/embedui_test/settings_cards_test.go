@@ -238,6 +238,93 @@ func TestLogsCards_adminRoutingCards_stableIds(t *testing.T) {
 	}
 }
 
+func TestLogsCards_virtualModelCard_detailsLayout(t *testing.T) {
+	vm := goja.New()
+	loadCardTestCtx(t, vm)
+
+	v, err := vm.RunString(`
+		ctx.buildVirtualModelCardHtml({
+			id: 42,
+			model_id: "Chimera-0.2.0",
+			name: "Chimera",
+			version: "0.2.0",
+			description: "Bootstrap",
+			enabled: true,
+			visibility: "public",
+			fallback_depth: 18,
+			routing_policy_enabled: true,
+			tool_router_enabled: false,
+			router_models: []
+		});
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := v.String()
+	for _, want := range []string{
+		`<details class="sum-card sum-card--virtual-model"`,
+		`id="virtual-model-42"`,
+		`data-virtual-model-id="42"`,
+		`<summary>`,
+		`sum-avatar sum-av-svc-chimera-gateway">Vm</span>`,
+		`Chimera · 0.2.0`,
+		`Bootstrap`,
+		`>public</span>`,
+		`Chimera-0.2.0`,
+		`sg-op-health-pill`,
+		`sum-body--virtual-model`,
+		`sum-vm-client-usage`,
+		`sum-vm-client-usage-hdr`,
+		`sum-vm-card-toggles`,
+		`Client usage`,
+		`chat completion url with your API key`,
+		`vm-chat-url-copy`,
+		`vm-chat-body-copy`,
+		`sum-vm-client-usage-json-wrap`,
+		`sg-op-yaml-ov-btn sum-vm-json-copy-btn`,
+		`vm-42-chat-body`,
+		`&quot;model&quot;: &quot;Chimera-0.2.0&quot;`,
+		`/v1/chat/completions`,
+		`vm-identity-configure`,
+		`vm-identity-visibility-toggle`,
+		`vm-identity-enabled-toggle`,
+		`vm-routing-enabled-toggle`,
+		`vm-router-enabled-toggle`,
+		`sum-vm-section__hdr-toggles`,
+		`fixed at create time`,
+		`vm-42-identity-view`,
+		`vm-42-visibility-toggle`,
+		`sg-op-kv--vm-identity`,
+		`sum-vm-section`,
+		`Identity`,
+		`Fallback chain`,
+		`Routing policy`,
+		`sum-vm-routing-panel`,
+		`vm-42-routing-table`,
+		`vm-42-routing-yaml`,
+		`Tool router`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Fatalf("missing %q in %q", want, html)
+		}
+	}
+	for _, absent := range []string{
+		`18 fallback`,
+		`sg-op-health-pill--routing`,
+		`Dry-run router`,
+		`vm-42-eval-msg`,
+		`>required</span>`,
+		`>optional</span>`,
+		` tiers</span>`,
+		` rules</span>`,
+		`>Chat completions URL</`,
+	} {
+		if strings.Contains(html, absent) {
+			t.Fatalf("unexpected %q in card header html", absent)
+		}
+	}
+}
+
 func TestLogsCards_formatMergedConversationSubtitle(t *testing.T) {
 	vm := goja.New()
 	loadCardTestCtx(t, vm)

@@ -217,9 +217,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
 
   function summarizedAdminEditingActive() {
     if (ctx.adminUserDrafts && ctx.adminUserDrafts.length) return true;
-    if (ctx.adminRoutingEditing) return true;
-    if (ctx.adminFallbackEditing) return true;
-    if (ctx.adminRouterEditing) return true;
+    if (ctx.virtualModelDrafts && ctx.virtualModelDrafts.length) return true;
     if (ctx.workspaceManagedEditId != null) return true;
     return false;
   }
@@ -271,12 +269,11 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     if (tag === "input" || tag === "textarea" || tag === "select") return true;
     if (a.classList && a.classList.contains("sum-evlog__search")) return true;
     if (a.matches && a.matches("[data-evlog-filter-status]")) return true;
-    if (
-      a.id === "admin-routing-yaml" ||
-      a.id === "admin-fallback-yaml" ||
-      a.id === "admin-router-models-yaml" ||
-      a.id === "admin-router-threshold"
-    ) return true;
+    var aid = a.id != null ? String(a.id) : "";
+    if (aid.indexOf("vm-") === 0 && (tag === "input" || tag === "textarea" || tag === "select")) return true;
+    if (a.closest && a.closest(".sum-card--virtual-model")) return true;
+    if (a.closest && a.closest(".sum-card--virtual-model-draft")) return true;
+    if (a.getAttribute && a.getAttribute("data-vm-draft-field")) return true;
     return false;
   }
 
@@ -304,9 +301,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
 
   function summarizedPatchSkipCardIds() {
     var skip = Object.create(null);
-    if (ctx.adminRoutingEditing) skip["admin-routing-rules"] = true;
-    if (ctx.adminFallbackEditing) skip["admin-fallback-chain"] = true;
-    if (ctx.adminRouterEditing) skip["admin-router-model"] = true;
     if (ctx.workspaceManagedEditId != null) {
       var wsn = ctx.lastIndexerOperatorWorkspacesNested || [];
       var wi;
@@ -317,6 +311,20 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
           skip["ix-opws-" + strHash(String(w.id))] = true;
           break;
         }
+      }
+    }
+    var gwVm = ctx.adminStateCache && ctx.adminStateCache.gateway;
+    var vmList = gwVm && gwVm.virtual_models && Array.isArray(gwVm.virtual_models) ? gwVm.virtual_models : [];
+    for (var vmi = 0; vmi < vmList.length; vmi++) {
+      var vmRow = vmList[vmi];
+      if (!vmRow || vmRow.id == null) continue;
+      var vmKey = String(vmRow.id);
+      var vmCardId = "virtual-model-" + vmKey;
+      var vmEl = document.getElementById(vmCardId);
+      if (vmEl && vmEl.open) skip[vmCardId] = true;
+      var vmUi = ctx.virtualModelUi && ctx.virtualModelUi[vmKey];
+      if (vmUi && (vmUi.identityEditing || vmUi.fallbackEditing || vmUi.routingEditing || vmUi.routerEditing)) {
+        skip[vmCardId] = true;
       }
     }
     return skip;
@@ -1669,9 +1677,9 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     statusEl.className = msg ? (kind === "err" ? "status-line err" : "status-line") : "status-line";
   }
 
-  function adminPostJSON(url, body) {
+  function adminJsonRequest(url, method, body) {
     return fetch(url, {
-      method: "POST",
+      method: method || "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body || {})
@@ -1682,6 +1690,124 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         return j;
       });
     });
+  }
+
+  function adminPostJSON(url, body) {
+    return adminJsonRequest(url, "POST", body);
+  }
+
+  function adminPutJSON(url, body) {
+    return adminJsonRequest(url, "PUT", body);
+  }
+
+  function lookupVmSummary(vmId) {
+    var gw = ctx.adminStateCache && ctx.adminStateCache.gateway;
+    var vms = gw && gw.virtual_models && Array.isArray(gw.virtual_models) ? gw.virtual_models : [];
+    for (var i = 0; i < vms.length; i++) {
+      if (vms[i] && Number(vms[i].id) === Number(vmId)) return vms[i];
+    }
+    return null;
+  }
+
+  function syncVmSummaryFromDetail(detail) {
+    if (!detail || detail.id == null) return;
+    var gw = ctx.adminStateCache && ctx.adminStateCache.gateway;
+    if (!gw || !gw.virtual_models) return;
+    var key = String(detail.id);
+    for (var i = 0; i < gw.virtual_models.length; i++) {
+      if (gw.virtual_models[i] && String(gw.virtual_models[i].id) === key) {
+        var row = gw.virtual_models[i];
+        row.enabled = !!detail.enabled;
+        row.name = detail.name;
+        row.version = detail.version;
+        row.description = detail.description;
+        row.visibility = detail.visibility;
+        row.routing_policy_enabled = !!detail.routing_policy_enabled;
+        row.tool_router_enabled = !!detail.tool_router_enabled;
+        row.router_models = detail.router_models;
+        row.fallback_depth = detail.fallback_chain && detail.fallback_chain.length ? detail.fallback_chain.length : 0;
+        break;
+      }
+    }
+  }
+
+  function virtualModelCardEl(vmId) {
+    return document.getElementById("virtual-model-" + String(vmId));
+  }
+
+  function virtualModelPanelIsOpen(vmId) {
+    var el = virtualModelCardEl(vmId);
+    return !!(el && el.open);
+  }
+
+  function fetchVirtualModelDetail(vmId, force) {
+    if (ctx.uiUnauthorized) return Promise.resolve(null);
+    var key = String(vmId);
+    if (!ctx.virtualModelDetails) ctx.virtualModelDetails = {};
+    if (!ctx.virtualModelUi) ctx.virtualModelUi = {};
+    var ui = ctx.virtualModelUi[key];
+    if (!ui) {
+      ui = ctx.virtualModelUi[key] = { panelOpen: false, hydrated: false };
+    }
+    if (!force && ctx.virtualModelDetails[key]) {
+      return Promise.resolve(ctx.virtualModelDetails[key]);
+    }
+    ui.detailLoading = true;
+    return fetch("/api/ui/virtual-models/" + encodeURIComponent(key), { credentials: "same-origin" })
+      .then(function (r) {
+        if (r.status === 401) {
+          markUiUnauthorized();
+          return null;
+        }
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (j) {
+        ui.detailLoading = false;
+        if (!j) return null;
+        ctx.virtualModelDetails[key] = j;
+        syncVmSummaryFromDetail(j);
+        return j;
+      })
+      .catch(function (e) {
+        ui.detailLoading = false;
+        throw e;
+      });
+  }
+
+  function syncVmSectionOpenFromDom(cardEl, ui) {
+    if (!cardEl || !ui) return;
+    if (!ui.sectionOpen) ui.sectionOpen = { identity: true, fallback: true };
+    var list = cardEl.querySelectorAll("details.sum-vm-section[data-vm-section]");
+    for (var i = 0; i < list.length; i++) {
+      var key = list[i].getAttribute("data-vm-section");
+      if (key) ui.sectionOpen[key] = !!list[i].open;
+    }
+  }
+
+  function patchVirtualModelCard(vmId, opts) {
+    opts = opts || {};
+    if (opts.onlyIfOpen && !virtualModelPanelIsOpen(vmId)) return false;
+    var summary = lookupVmSummary(vmId);
+    if (!summary || typeof buildVirtualModelCardHtml !== "function") return false;
+    var cardId = "virtual-model-" + String(vmId);
+    var oldEl = document.getElementById(cardId);
+    var uiKey = String(vmId);
+    if (oldEl && ctx.virtualModelUi && ctx.virtualModelUi[uiKey]) {
+      syncVmSectionOpenFromDom(oldEl, ctx.virtualModelUi[uiKey]);
+    }
+    var keepOpen = oldEl ? !!oldEl.open : false;
+    var ok = replaceCardById(
+      cardId,
+      function () {
+        return buildVirtualModelCardHtml(summary);
+      },
+      { preserveOpen: keepOpen, preserveScrollSelectors: ADMIN_CARD_TABLE_SCROLL_SEL }
+    );
+    if (ok && ctx.virtualModelUi && ctx.virtualModelUi[String(vmId)]) {
+      ctx.virtualModelUi[String(vmId)].hydrated = true;
+    }
+    return ok;
   }
 
   function fetchAdminState() {
@@ -1727,27 +1853,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     );
   }
 
-  function patchAdminRoutingCard() {
-    return replaceCardById("admin-routing-rules", buildAdminRoutingRulesCardHtml, {
-      preserveOpen: true,
-      preserveScrollSelectors: ADMIN_CARD_TABLE_SCROLL_SEL
-    });
-  }
-
-  function patchAdminFallbackCard() {
-    return replaceCardById("admin-fallback-chain", buildAdminFallbackCardHtml, {
-      preserveOpen: true,
-      preserveScrollSelectors: ADMIN_CARD_TABLE_SCROLL_SEL
-    });
-  }
-
-  function patchAdminRouterModelsCard() {
-    return replaceCardById("admin-router-model", buildAdminRouterModelCardHtml, {
-      preserveOpen: true,
-      preserveScrollSelectors: ADMIN_CARD_TABLE_SCROLL_SEL
-    });
-  }
-
   /** Targeted admin card updates after /api/ui/state + /api/ui/tokens poll (no full panel innerHTML). */
   function patchAdminCardsFromPoll() {
     if (getViewMode() !== "summarized") return;
@@ -1765,9 +1870,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       for (var ai = 0; ai < visiblePoll.length; ai++) {
         onlyCardIds["admin-provider-" + visiblePoll[ai]] = true;
       }
-      if (!ctx.adminRoutingEditing) onlyCardIds["admin-routing-rules"] = true;
-      if (!ctx.adminFallbackEditing) onlyCardIds["admin-fallback-chain"] = true;
-      if (!ctx.adminRouterEditing) onlyCardIds["admin-router-model"] = true;
       var pollOps = ChimeraSettings.Summarized.Patch.diffSummarizedModels(prevModel, nextModel, {
         onlyCardIds: onlyCardIds,
         skipCardIds: summarizedPatchSkipCardIds()
@@ -1794,15 +1896,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     var visibleAdmin = adminVisibleProviderIds();
     for (var aj = 0; aj < visibleAdmin.length; aj++) {
       if (!patchAdminProviderCard(visibleAdmin[aj])) needRebuild = true;
-    }
-    if (!ctx.adminRoutingEditing) {
-      if (!patchAdminRoutingCard()) needRebuild = true;
-    }
-    if (!ctx.adminFallbackEditing) {
-      if (!patchAdminFallbackCard()) needRebuild = true;
-    }
-    if (!ctx.adminRouterEditing) {
-      if (!patchAdminRouterModelsCard()) needRebuild = true;
     }
     if (needRebuild) scheduleStoryRebuild();
     else {
@@ -6958,6 +7051,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       tokenListCache: ctx.tokenListCache,
       workspaceDrafts: ctx.workspaceDrafts,
       adminProviderSpecs: adminProviderSpecsFromVisible(),
+      virtualModelDrafts: ctx.virtualModelDrafts,
       adminRoutingEditing: ctx.adminRoutingEditing,
       adminFallbackEditing: ctx.adminFallbackEditing,
       adminRouterEditing: ctx.adminRouterEditing,
@@ -7043,26 +7137,17 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         return true;
       },
       adminProvidersSectionBreakHtml: buildAdminProvidersSectionBreakHtml,
-      adminRoutingSectionBreakHtml: function () {
-        return (
-          '<div class="sum-feed-section-head sum-feed-section-head--routing">' +
-          '<span class="sum-feed-section-title sum-section-label">Legacy global routing</span>' +
-          '<span class="muted sum-feed-section-hint">Deprecated — configure per virtual model above</span></div>'
-        );
-      },
       virtualModelsSectionBreakHtml: function (count) {
+        if (typeof ctx.buildVirtualModelsSectionBreakHtml === "function") {
+          return ctx.buildVirtualModelsSectionBreakHtml(count);
+        }
         if (typeof ctx.buildVirtualModelsSectionIntroHtml === "function") {
           return (
-            '<div class="sum-feed-section-head">' +
-            '<span class="material-symbols-outlined sum-feed-section-icon" aria-hidden="true">hub</span>' +
-            '<span class="sum-feed-section-title sum-section-label">Virtual models</span></div>' +
+            '<div class="sum-section-label sum-feed-section-title">Virtual models</div>' +
             ctx.buildVirtualModelsSectionIntroHtml(count)
           );
         }
-        return (
-          '<div class="sum-feed-section-head">' +
-          '<span class="sum-feed-section-title sum-section-label">Virtual models</span></div>'
-        );
+        return '<div class="sum-section-label sum-feed-section-title">Virtual models</div>';
       },
     };
   }
@@ -7081,12 +7166,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         return buildAdminProviderCardHtml(src.spec.id, src.spec.title, src.spec.avatar, src.spec.subtitle);
       case "virtual-model":
         return typeof buildVirtualModelCardHtml === "function" ? buildVirtualModelCardHtml(src.vm) : null;
-      case "admin-routing":
-        return buildAdminRoutingRulesCardHtml();
-      case "admin-fallback":
-        return buildAdminFallbackCardHtml();
-      case "admin-router-model":
-        return buildAdminRouterModelCardHtml();
+      case "virtual-model-draft":
+        return typeof buildVirtualModelDraftCardHtml === "function" ? buildVirtualModelDraftCardHtml(src.draft) : null;
       case "conversation":
         return buildConvCard(src);
       case "service":
@@ -7230,10 +7311,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   var buildAdminWorkflowsFeedSection = ctx.buildAdminWorkflowsFeedSection;
   var buildAdminUsersCardHtml = ctx.buildAdminUsersCardHtml;
   var buildAdminProviderCardHtml = ctx.buildAdminProviderCardHtml;
-  var buildAdminRoutingRulesCardHtml = ctx.buildAdminRoutingRulesCardHtml;
-  var buildAdminFallbackCardHtml = ctx.buildAdminFallbackCardHtml;
-  var buildAdminRouterModelCardHtml = ctx.buildAdminRouterModelCardHtml;
   var buildVirtualModelCardHtml = ctx.buildVirtualModelCardHtml;
+  var buildVirtualModelDraftCardHtml = ctx.buildVirtualModelDraftCardHtml;
   var buildWorkspaceDraftCardHtml = ctx.buildWorkspaceDraftCardHtml;
   var fallbackChainToYAML = ctx.fallbackChainToYAML;
   var parseFallbackChainInput = ctx.parseFallbackChainInput;
@@ -7261,9 +7340,6 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   ctx.patchGatewayOverviewCard = patchGatewayOverviewCard;
   ctx.patchAdminUsersCard = patchAdminUsersCard;
   ctx.patchAdminProviderCard = patchAdminProviderCard;
-  ctx.patchAdminRoutingCard = patchAdminRoutingCard;
-  ctx.patchAdminFallbackCard = patchAdminFallbackCard;
-  ctx.patchAdminRouterModelsCard = patchAdminRouterModelsCard;
   ctx.syncSummarizedModelCache = syncSummarizedModelCache;
   ctx.refreshAdminCardAfterEditToggle = refreshAdminCardAfterEditToggle;
   ctx.patchAdminCardsFromPoll = patchAdminCardsFromPoll;
@@ -7277,6 +7353,9 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
   ctx.syncUiStatePolling = syncUiStatePolling;
   ctx.syncChimeraBrokerProviderPolling = syncChimeraBrokerProviderPolling;
   ctx.adminPostJSON = adminPostJSON;
+  ctx.adminPutJSON = adminPutJSON;
+  ctx.fetchVirtualModelDetail = fetchVirtualModelDetail;
+  ctx.patchVirtualModelCard = patchVirtualModelCard;
   ctx.adminSetMessage = adminSetMessage;
   ctx.parseFallbackChainInput = parseFallbackChainInput;
   ctx.fallbackChainToYAML = fallbackChainToYAML;
