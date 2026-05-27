@@ -88,8 +88,8 @@ const (
 	DefaultEmbedListen     = "127.0.0.1:7750"
 	DefaultEmbedEndpoint   = "127.0.0.1:8090"
 	DefaultEmbedLogLevel   = "info"
-	DefaultEmbedModelPath  = "data/embedding/models/nomic-embed-text.gguf"
-	DefaultEmbedCacheDir   = "data/embedding/cache"
+	DefaultEmbedModelPath  = DefaultEmbedDataPath + "/models/nomic-embed-text.gguf"
+	DefaultEmbedCacheDir   = DefaultEmbedDataPath + "/cache"
 	DefaultEmbedCtxSize    = 2048
 	DefaultEmbedNGPULayers = 0
 	DefaultEmbedPooling    = "mean"
@@ -98,6 +98,7 @@ const (
 	InternalEmbeddingProvider = "internal"
 	DefaultInternalEmbedModel = InternalEmbeddingProvider + "/nomic-embed-text"
 	DefaultInternalEmbedDim   = 768
+	DefaultEmbedDataPath      = "data/embedding"
 
 	// Locus desktop environment variables.
 	EnvDesktopTrace  = "LOCUS_DESKTOP_TRACE"

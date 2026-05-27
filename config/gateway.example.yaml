@@ -148,6 +148,21 @@ conversation_merge:
   # session_attach_min_cosine: 0.18
   # session_short_follow_up_runes: 220
 
+# chimera-embed: local embedding runtime (llama-server in --embedding mode).
+#
+# When enabled, chimera-supervisor starts chimera-embed after vectorstore and rewires rag.embedding
+# to the local OpenAI-compatible /v1/embeddings endpoint. Enabled by default (set false to use broker/Ollama).
+# Run `make chimera-embed-install` and `make chimera-embed-configure`; see config/internal-embedding.example.yaml.
+internal_embedding:
+  enabled: true
+  provider: "internal"
+  model: "internal/nomic-embed-text"
+  dim: 768
+  base_url: "http://127.0.0.1:8090"
+  model_path: "../data/embedding/models/nomic-embed-text.gguf"
+  cache_dir: "../data/embedding/cache"
+  log_level: "info"
+
 # chimera-indexer: file watcher that ingests workspace files into vectorstore via the gateway.
 #
 # When supervised.enabled is true, chimera-supervisor starts the indexer after chimera-broker is
@@ -177,12 +192,12 @@ indexer:
 rag:
   # Master switch: ingest APIs, indexer APIs, chat-time retrieval, and vectorstore health checks.
   enabled: true
-  # How text is turned into vectors (usually via chimera-broker /v1/embeddings).
+  # How text is turned into vectors (chimera-embed + llama-server when internal_embedding.enabled).
   embedding:
-    # Defaults to broker.base_url when empty.
-    # base_url: ""
+    # Defaults to internal_embedding.base_url when internal embedding is on; broker.base_url otherwise.
+    # base_url: "http://127.0.0.1:8090"
     path: "/v1/embeddings"
-    model: "ollama/nomic-embed-text:latest"
+    model: "internal/nomic-embed-text"
     dim: 768
   # How documents are split before indexing.
   chunking:

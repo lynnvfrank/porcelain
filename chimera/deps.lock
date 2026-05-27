@@ -9,3 +9,7 @@ QDRANT_RELEASE=v1.14.1
 # BiFrost source — full git ref: tag, branch, or 40-char commit SHA
 BIFROST_GIT_URL=https://github.com/maximhq/bifrost.git
 BIFROST_GIT_REF=58076d50df0d48d47ad917da3f604cf787ec7708
+
+# llama.cpp release tag (build number) — prebuilt llama-server from releases + source checkout under .deps/llama.cpp
+LLAMA_CPP_RELEASE=b9318
+LLAMA_CPP_GIT_URL=https://github.com/ggml-org/llama.cpp.git

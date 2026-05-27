@@ -33,8 +33,12 @@ type internalEmbeddingDoc struct {
 }
 
 func (d internalEmbeddingDoc) effective() InternalEmbedding {
+	enabled := true
+	if d.Enabled != nil {
+		enabled = *d.Enabled
+	}
 	out := InternalEmbedding{
-		Enabled:   d.Enabled != nil && *d.Enabled,
+		Enabled:   enabled,
 		Provider:  strings.TrimSpace(d.Provider),
 		Model:     strings.TrimSpace(d.Model),
 		Dim:       d.Dim,
@@ -117,6 +121,24 @@ func UsesInternalProvider(modelID string, ie InternalEmbedding) bool {
 	return strings.EqualFold(prefix, ie.Provider)
 }
 
+func shouldRewireEmbeddingModelToInternal(modelID string) bool {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return true
+	}
+	lower := strings.ToLower(modelID)
+	if strings.HasPrefix(lower, "ollama/") {
+		return true
+	}
+	if modelID == defaultEmbeddingModel {
+		return true
+	}
+	if strings.EqualFold(providerPrefixFromModel(modelID), naming.InternalEmbeddingProvider) {
+		return true
+	}
+	return false
+}
+
 // applyInternalEmbeddingToRAG rewires rag.embedding to the local runtime when enabled.
 func applyInternalEmbeddingToRAG(rag *RAG, ie InternalEmbedding, brokerBaseURL string) {
 	if rag == nil || !ie.Enabled || !rag.Enabled {
@@ -126,15 +148,16 @@ func applyInternalEmbeddingToRAG(rag *RAG, ie InternalEmbedding, brokerBaseURL s
 	embBase := strings.TrimSuffix(strings.TrimSpace(rag.EmbeddingBaseURL), "/")
 	model := strings.TrimSpace(rag.EmbeddingModel)
 
-	switch {
-	case embBase == "" || embBase == brokerBase:
-		rag.EmbeddingBaseURL = ie.BaseURL
-	case strings.HasPrefix(strings.ToLower(model), "ollama/"):
-		rag.EmbeddingBaseURL = ie.BaseURL
-	}
-
-	if model == "" || strings.HasPrefix(strings.ToLower(model), "ollama/") {
+	if shouldRewireEmbeddingModelToInternal(model) {
 		rag.EmbeddingModel = ie.Model
+		rag.EmbeddingBaseURL = ie.BaseURL
+	} else {
+		switch {
+		case embBase == "" || embBase == brokerBase:
+			rag.EmbeddingBaseURL = ie.BaseURL
+		case strings.HasPrefix(strings.ToLower(model), "ollama/"):
+			rag.EmbeddingBaseURL = ie.BaseURL
+		}
 	}
 	if rag.EmbeddingDim <= 0 || rag.EmbeddingDim == defaultEmbeddingDim {
 		rag.EmbeddingDim = ie.Dim

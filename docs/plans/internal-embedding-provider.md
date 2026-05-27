@@ -2,7 +2,7 @@
 
 ## Summary
 
-Supervised **chimera-embed** wrapper launches **llama-server** in `--embedding` mode (GGUF **nomic-embed-text**, 768-dim). Gateway and indexer use the existing OpenAI-compatible **`POST /v1/embeddings`** client (`ragembed`); when `internal_embedding.enabled` is true, `rag.embedding` is rewired to the local backend instead of Ollama via chimera-broker.
+Supervised **chimera-embed** wrapper launches **llama-server** in `--embedding` mode (GGUF **nomic-embed-text**, 768-dim). Gateway and indexer use the existing OpenAI-compatible **`POST /v1/embeddings`** client (`ragembed`); when `internal_embedding.enabled` is true (the default), `rag.embedding` is rewired to the local backend instead of Ollama via chimera-broker.
 
 ## Runtime choice
 
@@ -16,7 +16,8 @@ Supervised **chimera-embed** wrapper launches **llama-server** in `--embedding` 
 
 - **nomic-embed-text** — Apache 2.0; redistribution of GGUF is operator/org policy.
 - Default path: operator-supplied **`internal_embedding.model_path`** (no weights vendored in repo).
-- Future: download-on-first-enable with checksum (org mirror friendly).
+- **llama-server** — pinned in `chimera/deps.lock` (`LLAMA_CPP_RELEASE`); installed via `make chimera-embed-install` into `chimera/bin/` (full runtime bundle on Windows).
+- Future: download-on-first-enable with checksum for GGUF weights (org mirror friendly).
 
 ## Config (`gateway.yaml`)
 
@@ -35,7 +36,7 @@ rag:
   enabled: true
   embedding:
     path: "/v1/embeddings"
-    model: "ollama/nomic-embed-text:latest"  # auto-rewired to internal/* when internal_embedding is on
+    model: "internal/nomic-embed-text"
     dim: 768
 ```
 
@@ -50,4 +51,4 @@ rag:
 
 ## Recommendation
 
-**Pilot behind flag in v0.3** — ship `internal_embedding.enabled: false` default; enable for operators with GGUF on disk and llama-server in `chimera/bin/`. Full wizard combobox entry can follow once pilot validates RAM/disk on target machines.
+**Default in v0.3** — `internal_embedding.enabled` defaults to **true** (omit the key or set `enabled: false` to use broker/Ollama). Operators need GGUF on disk at `model_path` and `llama-server` from `make chimera-embed-install`. Full wizard combobox entry can follow once pilot validates RAM/disk on target machines.

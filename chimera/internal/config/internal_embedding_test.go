@@ -6,10 +6,9 @@ import (
 )
 
 func TestInternalEmbedding_effectiveDefaults(t *testing.T) {
-	enabled := true
-	ie := internalEmbeddingDoc{Enabled: &enabled}.effective()
+	ie := internalEmbeddingDoc{}.effective()
 	if !ie.Enabled {
-		t.Fatal("expected enabled")
+		t.Fatal("expected enabled by default")
 	}
 	if ie.Provider != "internal" {
 		t.Fatalf("provider: %q", ie.Provider)
@@ -22,6 +21,13 @@ func TestInternalEmbedding_effectiveDefaults(t *testing.T) {
 	}
 	if ie.BaseURL != "http://127.0.0.1:8090" {
 		t.Fatalf("base_url: %q", ie.BaseURL)
+	}
+}
+
+func TestInternalEmbedding_effectiveExplicitDisable(t *testing.T) {
+	ie := internalEmbeddingDoc{Enabled: ptrBool(false)}.effective()
+	if ie.Enabled {
+		t.Fatal("expected disabled when explicitly false")
 	}
 }
 
@@ -39,6 +45,23 @@ func TestApplyInternalEmbeddingToRAG_replacesOllama(t *testing.T) {
 	}
 	if rag.EmbeddingModel != ie.Model {
 		t.Fatalf("model: got %q want %q", rag.EmbeddingModel, ie.Model)
+	}
+}
+
+func TestApplyInternalEmbeddingToRAG_replacesLegacyDefaultModel(t *testing.T) {
+	rag := RAG{
+		Enabled:          true,
+		EmbeddingBaseURL: "",
+		EmbeddingModel:   defaultEmbeddingModel,
+		EmbeddingDim:     defaultEmbeddingDim,
+	}
+	ie := internalEmbeddingDoc{}.effective()
+	applyInternalEmbeddingToRAG(&rag, ie, "http://127.0.0.1:8080")
+	if rag.EmbeddingModel != ie.Model {
+		t.Fatalf("model: got %q want %q", rag.EmbeddingModel, ie.Model)
+	}
+	if rag.EmbeddingDim != ie.Dim {
+		t.Fatalf("dim: got %d want %d", rag.EmbeddingDim, ie.Dim)
 	}
 }
 

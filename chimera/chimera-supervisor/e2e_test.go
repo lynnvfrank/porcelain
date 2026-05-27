@@ -118,6 +118,7 @@ func startSupervisorProcess(t *testing.T, supervisorBin, fakeWrapper string, arg
 	raw := "gateway:\n  semver: \"0.1.0\"\n  listen_port: 0\n  listen_host: \"127.0.0.1\"\n" +
 		"upstream:\n  base_url: \"http://127.0.0.1:8080\"\n  api_key_env: \"CHIMERA_BROKER_API_KEY\"\n" +
 		"health:\n  timeout_ms: 1000\n  chat_timeout_ms: 60000\n" +
+		"internal_embedding:\n  enabled: false\n" +
 		"paths:\n  tokens: \"" + strings.ReplaceAll(tokensPath, "\\", "/") + "\"\n  routing_policy: \"" + strings.ReplaceAll(routingPath, "\\", "/") + "\"\n" +
 		"routing:\n  fallback_chain:\n    - \"fake/model\"\n"
 	if err := os.WriteFile(gatewayPath, []byte(raw), 0o644); err != nil {

@@ -112,6 +112,8 @@ endef
 	chimera-supervisor-build chimera-supervisor-run chimera-supervisor-test chimera-supervisor-test-unit chimera-supervisor-test-e2e \
 	chimera-broker-install chimera-broker-build chimera-broker-run chimera-broker-test chimera-broker-test-unit chimera-broker-test-e2e \
 	chimera-vectorstore-install chimera-vectorstore-build chimera-vectorstore-run chimera-vectorstore-test chimera-vectorstore-test-unit chimera-vectorstore-test-e2e \
+	chimera-embed-install chimera-embed-build chimera-embed-run chimera-embed-configure chimera-embed-test chimera-embed-test-unit chimera-embed-test-e2e \
+	chimera-embed-clean chimera-embed-clean-install chimera-embed-clean-build chimera-embed-clean-configure chimera-embed-clean-run \
 	chimera-indexer-build chimera-indexer-run chimera-indexer-install chimera-indexer-configure chimera-indexer-test chimera-indexer-test-unit chimera-indexer-test-e2e \
 	locus-install locus-build locus-run locus-test locus-vet-if-enabled locus-test-if-enabled \
 	locus-test-unit-if-enabled locus-test-e2e-if-enabled \
@@ -228,6 +230,7 @@ chimera-build:
 chimera-configure:
 	@echo [STEP] Generating Chimera configuration
 	@$(GITBASH) scripts/chimera-configure.sh
+	@$(MAKE) --no-print-directory chimera-embed-configure
 
 chimera-run:
 	@echo [STEP] Running Chimera via supervisor
@@ -263,16 +266,16 @@ chimera-test-e2e:
 chimera-vet:
 	go vet ./chimera/... ./internal/...
 
-chimera-clean: chimera-gateway-clean chimera-supervisor-clean chimera-broker-clean chimera-vectorstore-clean chimera-indexer-clean
+chimera-clean: chimera-gateway-clean chimera-supervisor-clean chimera-broker-clean chimera-vectorstore-clean chimera-embed-clean chimera-indexer-clean
 	@$(GITBASH) -lc 'rm -rf dist'
 
-chimera-clean-install: chimera-gateway-clean-install chimera-supervisor-clean-install chimera-broker-clean-install chimera-vectorstore-clean-install chimera-indexer-clean-install
+chimera-clean-install: chimera-gateway-clean-install chimera-supervisor-clean-install chimera-broker-clean-install chimera-vectorstore-clean-install chimera-embed-clean-install chimera-indexer-clean-install
 
-chimera-clean-build: chimera-gateway-clean-build chimera-supervisor-clean-build chimera-broker-clean-build chimera-vectorstore-clean-build chimera-indexer-clean-build
+chimera-clean-build: chimera-gateway-clean-build chimera-supervisor-clean-build chimera-broker-clean-build chimera-vectorstore-clean-build chimera-embed-clean-build chimera-indexer-clean-build
 
-chimera-clean-configure: chimera-gateway-clean-configure chimera-indexer-clean-configure
+chimera-clean-configure: chimera-gateway-clean-configure chimera-embed-clean-configure chimera-indexer-clean-configure
 
-chimera-clean-run: chimera-gateway-clean-run chimera-supervisor-clean-run chimera-broker-clean-run chimera-vectorstore-clean-run chimera-indexer-clean-run
+chimera-clean-run: chimera-gateway-clean-run chimera-supervisor-clean-run chimera-broker-clean-run chimera-vectorstore-clean-run chimera-embed-clean-run chimera-indexer-clean-run
 
 # --- Chimera broker ---
 chimera-broker-install:
@@ -485,6 +488,11 @@ chimera-embed-build: chimera-embed-install
 	@go build -o $(CHIMERA_EMBED_BUILD_OUT) $(CHIMERA_CMD_EMBED)
 	@$(MAKE) stage-bin-dir
 	@$(GITBASH) -lc 'cp -f "$(CHIMERA_EMBED_BUILD_OUT)" "$(CHIMERA_EMBED_STAGE_OUT)"'
+	@$(GITBASH) scripts/chimera-embed-stage-runtime.sh "$(BIN_STAGE_DIR)"
+
+chimera-embed-configure:
+	$(call step_msg,Configuring Chimera embed data directories)
+	@$(GITBASH) scripts/chimera-embed-configure.sh
 
 chimera-embed-run:
 	@echo [STEP] Running Chimera embed
@@ -499,6 +507,20 @@ chimera-embed-test-unit:
 chimera-embed-test-e2e:
 	@echo [STEP] Running Chimera embed end-to-end tests
 	@go test $(CHIMERA_CMD_EMBED) $(RACE_GATEWAY) -run E2E -count=1
+
+chimera-embed-clean: chimera-embed-clean-build chimera-embed-clean-install chimera-embed-clean-configure chimera-embed-clean-run
+
+chimera-embed-clean-install:
+	$(GITBASH) scripts/clean-product.sh embed install
+
+chimera-embed-clean-build:
+	$(GITBASH) scripts/clean-product.sh embed build
+
+chimera-embed-clean-configure:
+	$(GITBASH) scripts/clean-product.sh embed configure
+
+chimera-embed-clean-run:
+	$(GITBASH) scripts/clean-product.sh embed run $(CONFIRM)
 
 # --- Locus ---
 locus-install:

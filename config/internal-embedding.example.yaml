@@ -1,0 +1,32 @@
+# Reference for gateway.yaml `internal_embedding` when using chimera-embed + llama-server.
+#
+# Merge these keys into config/gateway.yaml (or copy this file and include paths from there).
+# Run `make chimera-embed-configure` to create data/embedding/{models,cache}/.
+#
+# Requires:
+#   - llama-server in chimera/bin/ (make chimera-embed-install)
+#   - GGUF weights at model_path (operator-supplied; not vendored in repo)
+
+internal_embedding:
+  # On by default; set false to use broker/Ollama for /v1/embeddings instead.
+  enabled: true
+  # Model id prefix used in rag.embedding.model and indexer health (internal/nomic-embed-text).
+  provider: "internal"
+  model: "internal/nomic-embed-text"
+  dim: 768
+  # OpenAI-compatible embeddings URL served by llama-server (--embedding mode).
+  base_url: "http://127.0.0.1:8090"
+  # Paths relative to config/gateway.yaml unless absolute.
+  model_path: "../data/embedding/models/nomic-embed-text.gguf"
+  cache_dir: "../data/embedding/cache"
+  log_level: "info"
+
+# When internal_embedding.enabled is true, rag.embedding is auto-rewired unless you set
+# an explicit non-broker base_url and a non-Ollama model id. Typical rag block:
+#
+# rag:
+#   enabled: true
+#   embedding:
+#     path: "/v1/embeddings"
+#     model: "internal/nomic-embed-text"
+#     dim: 768

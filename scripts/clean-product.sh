@@ -14,7 +14,7 @@ cd "$ROOT"
 source "$ROOT/scripts/chimera-names.sh"
 
 # Single source of truth for clean.sh, clean-all.sh, and Makefile porcelain.
-CLEAN_PRODUCTS=(gateway supervisor broker vectorstore indexer desktop)
+CLEAN_PRODUCTS=(gateway supervisor broker vectorstore embed indexer desktop)
 
 PRODUCT="${1:-}"
 MODE="${2:-all}"
@@ -42,6 +42,9 @@ chimera_clean_run_confirm_msg() {
 		;;
 	vectorstore)
 		echo "chimera-vectorstore-clean-run: removes data/vectorstore/ — stop the stack first; re-run with CONFIRM=1"
+		;;
+	embed)
+		echo "chimera-embed-clean-run: removes data/embedding/ — stop the stack first; re-run with CONFIRM=1"
 		;;
 	indexer)
 		echo "chimera-indexer-clean-run: removes data/gateway/indexer.* — stop the stack first; re-run with CONFIRM=1"
@@ -200,6 +203,28 @@ vectorstore)
 	fi
 	if want run; then
 		rm_paths "data/vectorstore"
+	fi
+	;;
+embed)
+	if want build; then
+		rm_paths \
+			"chimera/bin/${CHIMERA_EMBED_BIN_BASE}" "chimera/bin/${CHIMERA_EMBED_BIN_BASE}.exe" \
+			"bin/${CHIMERA_EMBED_BIN_BASE}" "bin/${CHIMERA_EMBED_BIN_BASE}.exe"
+		bash "$ROOT/scripts/chimera-embed-clean-runtime.sh" "$ROOT/chimera/bin"
+		bash "$ROOT/scripts/chimera-embed-clean-runtime.sh" "$ROOT/bin"
+	fi
+	if want install; then
+		bash "$ROOT/scripts/chimera-embed-clean-runtime.sh" "$ROOT/chimera/bin"
+		bash "$ROOT/scripts/chimera-embed-clean-runtime.sh" "$ROOT/bin"
+		rm_paths \
+			"chimera/.deps/llama.cpp" \
+			".deps/llama.cpp"
+	fi
+	if want configure; then
+		: # internal_embedding lives in gateway.yaml; data dirs recreated by chimera-embed-configure
+	fi
+	if want run; then
+		rm_paths "data/embedding"
 	fi
 	;;
 indexer)
