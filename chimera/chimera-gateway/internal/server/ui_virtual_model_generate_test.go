@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -51,13 +52,13 @@ func TestUIVirtualModelGenerate_filtersBySessionTenantAvailability(t *testing.T)
 	if st == nil {
 		t.Fatal("operator store required")
 	}
-	if err := st.ReplaceProviderModelAvailability(t.Context(), "tenant-a", "groq", map[string]bool{
+	if err := st.ReplaceProviderModelAvailability(context.Background(), "tenant-a", "groq", map[string]bool{
 		"groq/free": true,
 		"groq/paid": false,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := rt.ReloadProviderModelAvailability(t.Context()); err != nil {
+	if err := rt.ReloadProviderModelAvailability(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -114,16 +115,16 @@ func TestUIVirtualModelGet_reportsFallbackUnavailable(t *testing.T) {
 	if st == nil {
 		t.Fatal("operator store required")
 	}
-	if err := st.SetVirtualModelFallback(t.Context(), "", 1, []string{"groq/free", "groq/paid"}); err != nil {
+	if err := st.SetVirtualModelFallback(context.Background(), "", 1, []string{"groq/free", "groq/paid"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.ReplaceProviderModelAvailability(t.Context(), "tenant-a", "groq", map[string]bool{
+	if err := st.ReplaceProviderModelAvailability(context.Background(), "tenant-a", "groq", map[string]bool{
 		"groq/free": true,
 		"groq/paid": false,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := rt.ReloadProviderModelAvailability(t.Context()); err != nil {
+	if err := rt.ReloadProviderModelAvailability(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 

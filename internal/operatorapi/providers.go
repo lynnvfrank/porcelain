@@ -90,11 +90,11 @@ type ProviderModelsUpdateRequest struct {
 
 // ProviderModelsApplyFreeTierResponse is POST /api/ui/providers/{provider_id}/models/apply-free-tier.
 type ProviderModelsApplyFreeTierResponse struct {
-	OK                   bool                 `json:"ok"`
-	ProviderID           string               `json:"provider_id"`
-	TenantID             string               `json:"tenant_id"`
-	Models               []ProviderModelEntry `json:"models"`
-	ModelsAvailableCount int                  `json:"models_available_count"`
-	ModelsUnavailableCount int                `json:"models_unavailable_count"`
-	Note                 string               `json:"note,omitempty"`
+	OK                     bool                 `json:"ok"`
+	ProviderID             string               `json:"provider_id"`
+	TenantID               string               `json:"tenant_id"`
+	Models                 []ProviderModelEntry `json:"models"`
+	ModelsAvailableCount   int                  `json:"models_available_count"`
+	ModelsUnavailableCount int                  `json:"models_unavailable_count"`
+	Note                   string               `json:"note,omitempty"`
 }
