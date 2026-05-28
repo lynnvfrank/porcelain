@@ -798,6 +798,8 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		return
 	}
 
+	rag.WriteResponseHeaders(w, clientModel, nil)
+
 	pr := chat.ProxyChatCompletion(ctx, w, res.UpstreamBaseURL, apiKey, clientModel, stream, raw, chatTimeout(res), routeLog, rt.Metrics(), rt.LimitsGuard(), chatOpts)
 	if pr.Stream {
 		return

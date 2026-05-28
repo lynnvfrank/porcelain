@@ -5,26 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Chimera</title>
   <script src="/ui/assets/embed-theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/ui/assets/theme-tokens.css" />
+  <link rel="stylesheet" href="/ui/assets/styles/shell.css" />
   <style>
     * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; overflow: hidden; }
+    html, body { height: 100%; margin: 0; overflow: hidden; }
     body {
       display: flex;
       flex-direction: column;
     }
-    #shell-top {
-      flex: 0 0 auto;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: #f0f0f0;
-      border-bottom: 1px solid #ccc;
-      padding: 0.35rem 0.5rem;
-      position: relative;
-      z-index: 2;
-    }
-    #shell-top .spacer { flex: 1 1 auto; }
     #btn-reload {
       flex: 0 0 auto;
       border: none;
@@ -34,13 +27,16 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: #333;
       border-radius: 4px;
     }
-    #btn-reload:hover { background: #e5e5e5; }
     #btn-reload .material-symbols-outlined {
+      display: inline-block;
       font-size: 1.25rem;
       line-height: 1;
+      transition: transform 0.55s ease;
+    }
+    #btn-reload:hover .material-symbols-outlined {
+      transform: rotate(45deg);
     }
     #btn-settings {
       flex: 0 0 auto;
@@ -51,20 +47,39 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: #333;
       border-radius: 4px;
       min-width: 2.1rem;
     }
-    #btn-settings:hover { background: #e5e5e5; }
     #btn-settings .settings-icon {
       display: inline-block;
-      font-size: 1.05rem;
+      font-size: 1.25rem;
       line-height: 1;
       font-weight: 600;
+      transition: transform 0.55s ease;
+    }
+    #btn-settings:hover .settings-icon {
+      transform: rotate(45deg);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #btn-reload .material-symbols-outlined,
+      #btn-settings .settings-icon {
+        transition: none;
+      }
+      #btn-reload:hover .material-symbols-outlined,
+      #btn-settings:hover .settings-icon {
+        transform: none;
+      }
     }
     #btn-settings .settings-icon--close { display: none; }
     #btn-settings.is-settings .settings-icon--gear { display: none; }
     #btn-settings.is-settings .settings-icon--close { display: inline-block; }
+    #shell-top {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
     #frame-wrap {
       flex: 1 1 auto;
       min-height: 0;
@@ -82,8 +97,13 @@
     }
   </style>
 </head>
-<body>
+<body class="shell-page">
   <header id="shell-top">
+    <nav id="shell-menu-chat" class="shell-menu" aria-label="Chat actions" hidden>
+      <button type="button" class="shell-menu__btn" id="shell-chat-new" title="Start a new conversation">New chat</button>
+      <button type="button" class="shell-menu__btn" id="shell-chat-copy-all" title="Copy conversation as Markdown">Copy chat</button>
+    </nav>
+    <nav id="shell-menu-settings" class="shell-menu" aria-label="Settings actions" hidden></nav>
     <span class="spacer" aria-hidden="true"></span>
     <button type="button" id="btn-reload" title="Reload (Shift+Click: reset cache)" aria-label="Reload (Shift+Click: reset cache)">
       <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
@@ -98,13 +118,17 @@
   </div>
   <script>
 (function () {
-  var DEFAULT_ROUTE = "/ui/pwa";
+  var DEFAULT_ROUTE = "/ui/chat";
   var SETTINGS_ROUTE = "/ui/settings?embed=1";
   var shellReturnRoute = DEFAULT_ROUTE;
   var origin = window.location.origin;
   var frame = document.getElementById("f-main");
   var reloadBtn = document.getElementById("btn-reload");
   var settingsBtn = document.getElementById("btn-settings");
+  var chatMenu = document.getElementById("shell-menu-chat");
+  var settingsMenu = document.getElementById("shell-menu-settings");
+  var chatNewBtn = document.getElementById("shell-chat-new");
+  var chatCopyAllBtn = document.getElementById("shell-chat-copy-all");
 
   function normalizeRoute(raw) {
     var s = String(raw || "").trim();
@@ -122,8 +146,16 @@
     var n = normalizeRoute(raw);
     return n || fallback;
   }
+  function routePath(route) {
+    var r = String(route || "");
+    var q = r.indexOf("?");
+    return q >= 0 ? r.slice(0, q) : r;
+  }
   function isSettingsRoute(route) {
-    return String(route || "").indexOf("/ui/settings") === 0;
+    return routePath(route).indexOf("/ui/settings") === 0;
+  }
+  function isChatRoute(route) {
+    return routePath(route) === "/ui/chat";
   }
   function updateSettingsButton(inSettings) {
     if (!settingsBtn) return;
@@ -135,6 +167,12 @@
       settingsBtn.title = "Open settings";
       settingsBtn.setAttribute("aria-label", "Open settings");
     }
+  }
+  function updateMenuBars(route) {
+    var chat = isChatRoute(route);
+    var settings = isSettingsRoute(route);
+    if (chatMenu) chatMenu.hidden = !chat;
+    if (settingsMenu) settingsMenu.hidden = !settings;
   }
   function currentRouteFromFrame() {
     try {
@@ -148,11 +186,60 @@
       return "";
     }
   }
+  function postChatAction(action) {
+    var w = frame && frame.contentWindow;
+    if (!w) return;
+    try {
+      w.postMessage({ type: "chimera-chat-action", action: action }, origin);
+    } catch (_e) {}
+  }
+  function legacyCopyText(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch (_e2) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function copyText(text) {
+    var t = String(text || "");
+    if (!t) return Promise.resolve(false);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(t).catch(function () {
+        return legacyCopyText(t);
+      });
+    }
+    return Promise.resolve(legacyCopyText(t));
+  }
+  function readChatTranscript() {
+    var w = frame && frame.contentWindow;
+    if (!w) return "";
+    try {
+      if (w.ChimeraChat && w.ChimeraChat.App && typeof w.ChimeraChat.App.getTranscriptText === "function") {
+        return String(w.ChimeraChat.App.getTranscriptText() || "");
+      }
+    } catch (_e) {}
+    return "";
+  }
+  function copyChatFromFrame() {
+    if (!isChatRoute(currentRouteFromFrame())) return;
+    var text = readChatTranscript().trim();
+    if (!text) return;
+    copyText(text);
+  }
   function navigateFrame(route) {
     var target = getSafeRoute(route, DEFAULT_ROUTE);
     if (!frame) return;
     frame.src = target;
     updateSettingsButton(isSettingsRoute(target));
+    updateMenuBars(target);
   }
   function notifySettingsActive() {
     var route = currentRouteFromFrame();
@@ -168,6 +255,7 @@
     frame.addEventListener("load", function () {
       var loadedRoute = getSafeRoute(currentRouteFromFrame(), DEFAULT_ROUTE);
       updateSettingsButton(isSettingsRoute(loadedRoute));
+      updateMenuBars(loadedRoute);
       notifySettingsActive();
     });
   }
@@ -248,6 +336,16 @@
       }
       shellReturnRoute = route;
       navigateFrame(SETTINGS_ROUTE);
+    });
+  }
+  if (chatNewBtn) {
+    chatNewBtn.addEventListener("click", function () {
+      postChatAction("new");
+    });
+  }
+  if (chatCopyAllBtn) {
+    chatCopyAllBtn.addEventListener("click", function () {
+      copyChatFromFrame();
     });
   }
 })();

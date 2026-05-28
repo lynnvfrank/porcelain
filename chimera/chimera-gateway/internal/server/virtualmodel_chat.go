@@ -187,6 +187,7 @@ func handleVirtualModelChat(
 
 	coords := vectorstore.Coords{TenantID: sessTenant, ProjectID: proj, FlavorID: flav}
 	collection := vectorstore.CollectionName(coords)
+	var ragHits []vectorstore.Hit
 	if !res.RAG.Enabled || rt.RAG() == nil {
 		if routeLog != nil {
 			routeLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
@@ -207,6 +208,7 @@ func handleVirtualModelChat(
 					"virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindVectorstore)
 			}
 		} else if ctxBlock := rag.FormatRetrievedContext(hits); ctxBlock != "" {
+			ragHits = hits
 			rag.InjectSystemMessage(raw, ctxBlock)
 			if routeLog != nil {
 				routeLog.Info("conversation RAG attached", "msg", naming.MsgConversationRagAttached,
@@ -246,6 +248,7 @@ func handleVirtualModelChat(
 			"virtual_model_id", virtualID, "clientModel", virtualID, "upstreamModel", initial,
 			"timeline_kind", naming.TimelineKindBroker)
 	}
+	rag.WriteResponseHeaders(w, initial, ragHits)
 	chat.WithVirtualModelFallback(ctx, w, initial, vmCtx.fallback, res.UpstreamBaseURL, apiKey, stream, raw,
 		chatTimeout(res), routeLog, rt.Metrics(), rt.LimitsGuard(), chatOpts)
 	return true

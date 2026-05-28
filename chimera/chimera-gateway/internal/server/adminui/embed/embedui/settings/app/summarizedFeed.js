@@ -6227,8 +6227,8 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         '<span class="sum-metrics' +
         (progressStack !== "" ? " sum-metrics--indexer-scope" : "") +
         '">' +
-        workspaceMetrics +
         progressStack +
+        workspaceMetrics +
         statusSpan +
         "</span>";
     }
