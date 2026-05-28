@@ -57,6 +57,13 @@
       font-weight: 600;
       transition: transform 0.55s ease;
     }
+    #btn-settings .material-symbols-outlined {
+      font-family: "Material Symbols Outlined";
+      font-weight: normal;
+      font-style: normal;
+      font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      -webkit-font-smoothing: antialiased;
+    }
     #btn-settings:hover .settings-icon {
       transform: rotate(45deg);
     }
@@ -110,7 +117,7 @@
     </button>
     <button type="button" id="btn-settings" title="Open settings" aria-label="Open settings">
       <span class="settings-icon settings-icon--gear" aria-hidden="true">&#9881;</span>
-      <span class="settings-icon settings-icon--close" aria-hidden="true">X</span>
+      <span class="material-symbols-outlined settings-icon settings-icon--close" aria-hidden="true">cancel</span>
     </button>
   </header>
   <div id="frame-wrap">

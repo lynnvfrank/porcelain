@@ -506,6 +506,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       }
       restoreSummarizedPanelUiState(psu, uiSave, { scroll: false });
       wireCollapsibleSummarizedPanel(psu);
+      mountSummarizedYamlEditors(psu);
       window.requestAnimationFrame(function () {
         restoreSummarizedPanelUiState(psu, uiSave, { scrollOnly: true });
       });
@@ -547,6 +548,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
 
     var panelUiSave = captureSummarizedPanelUiState(psu);
 
+    destroySummarizedYamlEditors(psu);
     psu.innerHTML = renderSummarizedHtmlFromModel(nextModel);
     ctx.lastSummarizedModel = nextModel;
     ctx.lastSummarizedAggregate = agg;
@@ -579,6 +581,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
       }
     } catch (eDet) {}
     wireCollapsibleSummarizedPanel(psu);
+    mountSummarizedYamlEditors(psu);
 
     restoreSummarizedPanelUiState(psu, panelUiSave, { scroll: false });
 
@@ -684,6 +687,24 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     refreshSummarizedPanel();
   };
 
+  function yamlEditorApi() {
+    return globalThis.ChimeraUI && globalThis.ChimeraUI.YamlEditorPanel
+      ? globalThis.ChimeraUI.YamlEditorPanel
+      : null;
+  }
+
+  function destroySummarizedYamlEditors(root) {
+    var api = yamlEditorApi();
+    if (api && typeof api.destroyIn === "function") api.destroyIn(root);
+  }
+
+  function mountSummarizedYamlEditors(root) {
+    var api = yamlEditorApi();
+    if (api && typeof api.mountAll === "function") {
+      api.mountAll(root || document.getElementById("panel-summarized"));
+    }
+  }
+
   /**
    * Replace a single summarized card by id without assigning #panel-summarized innerHTML.
    * @returns {boolean} true when the card was found and replaced
@@ -704,6 +725,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         cardUiSave = captureSummarizedPanelUiState(oldEl);
       }
     } catch (_eCardUi) {}
+    destroySummarizedYamlEditors(oldEl);
     var wrap = document.createElement("div");
     wrap.innerHTML = (typeof buildHtml === "function" ? buildHtml() : String(buildHtml || "")).trim();
     var newEl = wrap.firstElementChild;
@@ -730,6 +752,7 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
     if (newEl.classList && newEl.classList.contains("sum-card--collapsible")) {
       wireCollapsibleSummarizedPanel(newEl);
     }
+    mountSummarizedYamlEditors(newEl);
     return true;
   }
 
