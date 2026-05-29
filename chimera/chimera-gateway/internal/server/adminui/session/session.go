@@ -23,8 +23,8 @@ type Store struct {
 }
 
 type sessionRecord struct {
-	expiresAt time.Time
-	tenantID  string
+	expiresAt   time.Time
+	principalID string
 }
 
 func newStore(ttl time.Duration) *Store {
@@ -38,8 +38,8 @@ func newStore(ttl time.Duration) *Store {
 }
 
 // Issue creates a session id after the caller has validated the gateway token.
-// tenantID is the gateway api-keys.yaml tenant_id bound to the login token (may be empty).
-func (s *Store) Issue(tenantID string) (id string, err error) {
+// principalID is the durable operator identity (today: api-keys.yaml tenant_id at login).
+func (s *Store) Issue(principalID string) (id string, err error) {
 	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return "", err
@@ -48,8 +48,13 @@ func (s *Store) Issue(tenantID string) (id string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pruneLocked()
-	s.byID[id] = sessionRecord{expiresAt: time.Now().Add(s.ttl), tenantID: strings.TrimSpace(tenantID)}
+	s.byID[id] = sessionRecord{expiresAt: time.Now().Add(s.ttl), principalID: strings.TrimSpace(principalID)}
 	return id, nil
+}
+
+// PrincipalID returns the principal_id bound at Issue time, or "" when unknown/expired.
+func (s *Store) PrincipalID(id string) string {
+	return s.TenantID(id)
 }
 
 // TenantID returns the tenant_id bound at Issue time, or "" when unknown/expired.
@@ -64,7 +69,7 @@ func (s *Store) TenantID(id string) string {
 	if !ok || time.Now().After(rec.expiresAt) {
 		return ""
 	}
-	return rec.tenantID
+	return rec.principalID
 }
 
 // Valid reports whether id is a non-expired session.

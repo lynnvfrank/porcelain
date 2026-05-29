@@ -263,6 +263,13 @@ func (rt *Runtime) OperatorStore() *operatorstore.Store {
 	return rt.operator
 }
 
+// SetOperatorStoreForTest assigns the operator SQLite store (tests only).
+func (rt *Runtime) SetOperatorStoreForTest(store *operatorstore.Store) {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	rt.operator = store
+}
+
 // VirtualModels returns the in-memory virtual model registry, or nil when operator store is unavailable.
 func (rt *Runtime) VirtualModels() *virtualmodel.Registry {
 	rt.mu.RLock()

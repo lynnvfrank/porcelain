@@ -273,11 +273,8 @@ html[data-theme="design-01"] #panel-summarized .sg-op-section-head:has(+ .sg-op-
   margin-bottom: 0.65rem;
 }
 
-html[data-theme="design-01"] #panel-summarized {
-  max-width: var(--embed-container-max, 80rem);
-  margin-left: auto;
-  margin-right: auto;
-  box-sizing: border-box;
+html[data-theme="design-01"] .settings-feed-column {
+  --settings-feed-rail-max: var(--embed-container-max, 80rem);
 }
 
 html[data-theme="design-01"] #panel-summarized .sum-feed-section {

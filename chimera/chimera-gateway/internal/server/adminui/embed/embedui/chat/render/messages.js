@@ -11,8 +11,18 @@
           return String(s || "");
         };
 
-  var COPY_ICON_SVG =
-    '<svg class="sum-evlog__copy-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+  var COPY_ICON =
+    '<span class="material-symbols-outlined" aria-hidden="true">content_copy</span>';
+
+  var CHEVRON_ICON =
+    '<span class="material-symbols-outlined sg-op-chev-icon" aria-hidden="true">chevron_right</span>';
+
+  function formatRelevanceScore(raw) {
+    if (raw == null || raw === "") return "";
+    var n = Number(raw);
+    if (isNaN(n)) return "";
+    return String(Math.round(n * 100)) + "%";
+  }
 
   function md() {
     return globalThis.ChimeraChat &&
@@ -21,6 +31,24 @@
       typeof ChimeraChat.Render.Markdown.render === "function"
       ? ChimeraChat.Render.Markdown
       : null;
+  }
+
+  function renderCopyButton(copyText) {
+    return (
+      '<button type="button" class="chat-msg__copy-btn" data-copy-text="' +
+      esc(copyText) +
+      '" title="Copy message" aria-label="Copy message">' +
+      COPY_ICON +
+      "</button>"
+    );
+  }
+
+  function renderUserCopyFooter(copyText) {
+    return (
+      '<div class="chat-msg__bar-footer chat-msg__copy-footer">' +
+      renderCopyButton(copyText) +
+      "</div>"
+    );
   }
 
   function renderAssistantMarkdown(content) {
@@ -70,11 +98,12 @@
   }
 
   function renderScoreMeta(score) {
-    if (!score) return "";
+    var label = formatRelevanceScore(score);
+    if (!label) return "";
     return (
       '<span class="chat-embed-item__meta" title="Retrieval confidence score">' +
       '<span class="chat-embed-item__score">' +
-      esc(score) +
+      esc(label) +
       "</span>" +
       '<span class="material-symbols-outlined material-symbols-outlined--sm chat-embed-item__score-icon" aria-hidden="true">readiness_score</span>' +
       "</span>"
@@ -96,7 +125,7 @@
       var src = h.source != null ? String(h.source) : "source";
       var text = h.text != null ? String(h.text) : "";
       var langHint = h.language != null ? String(h.language) : "";
-      var score = h.score != null && !isNaN(Number(h.score)) ? Number(h.score).toFixed(3) : "";
+      var score = h.score != null && !isNaN(Number(h.score)) ? Number(h.score) : "";
       var body = snippetFn
         ? snippetFn(src, text, langHint)
         : '<pre class="chat-embed-item__snippet chat-embed-item__snippet--plain"><code>' + esc(text) + "</code></pre>";
@@ -104,6 +133,9 @@
         '<li class="chat-embed-item">' +
         "<details>" +
         '<summary class="chat-embed-item__summary">' +
+        '<span class="chat-embed-item__lead">' +
+        CHEVRON_ICON +
+        "</span>" +
         '<span class="chat-embed-item__source">' +
         esc(src) +
         "</span>" +
@@ -121,12 +153,16 @@
 
     var panelId = "chat-snippets-" + esc(msg.id);
     return (
-      '<hr class="chat-msg__divider" aria-hidden="true"><div class="chat-msg__footer">' +
+      '<div class="chat-msg__bar-footer chat-msg__snippets-footer">' +
       '<button type="button" class="chat-msg__snippets-toggle" aria-expanded="false" aria-controls="' +
       panelId +
-      '">Workspace Snippets (' +
+      '">' +
+      '<span class="chat-msg__snippets-toggle__lead">' +
+      CHEVRON_ICON +
+      "</span>" +
+      '<span class="chat-msg__snippets-toggle__label">Workspace Snippets (' +
       msg.ragHits.length +
-      ")</button>" +
+      ")</span></button>" +
       '<div class="chat-msg__snippets-panel" id="' +
       panelId +
       '" hidden><ul class="chat-embed-list">' +
@@ -152,16 +188,6 @@
     return cls;
   }
 
-  function renderCopyButton(copyText) {
-    return (
-      '<button type="button" class="sum-evlog__copy-btn chat-msg__copy" data-copy-text="' +
-      esc(copyText) +
-      '" title="Copy message" aria-label="Copy message">' +
-      COPY_ICON_SVG +
-      "</button>"
-    );
-  }
-
   function renderMessage(msg) {
     if (!msg) return "";
     var cls = "chat-msg chat-msg--assistant";
@@ -177,6 +203,13 @@
         '">Retry</button></div>';
     }
 
+    var headActions = "";
+    if (msg.role !== "user") {
+      headActions = '<div class="chat-msg__actions">' + renderCopyButton(copyText) + "</div>";
+    }
+
+    var userCopyFooter = msg.role === "user" ? renderUserCopyFooter(copyText) : "";
+
     return (
       '<article class="' +
       cls +
@@ -185,15 +218,15 @@
       '">' +
       '<div class="chat-msg__head">' +
       renderRoleHead(msg) +
-      '<div class="chat-msg__actions">' +
-      renderCopyButton(copyText) +
-      "</div></div>" +
+      headActions +
+      "</div>" +
       '<div class="' +
       bodyClass(msg) +
       '">' +
       renderBodyContent(msg) +
       "</div>" +
       (msg.role === "assistant" ? renderMessageFooter(msg) : "") +
+      userCopyFooter +
       retryBtn +
       "</article>"
     );

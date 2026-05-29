@@ -45,6 +45,11 @@ func (h *Handler) SessionOK(r *http.Request) bool {
 
 // SessionTenantID returns the api-keys.yaml tenant_id bound at UI login, or "" when absent.
 func (h *Handler) SessionTenantID(r *http.Request) string {
+	return h.SessionPrincipal(r)
+}
+
+// SessionPrincipal returns the durable operator principal_id bound at UI login, or "" when absent.
+func (h *Handler) SessionPrincipal(r *http.Request) string {
 	if h == nil || h.Opts == nil || h.Opts.Sessions == nil {
 		return ""
 	}
@@ -52,7 +57,7 @@ func (h *Handler) SessionTenantID(r *http.Request) string {
 	if err != nil || c.Value == "" {
 		return ""
 	}
-	return h.Opts.Sessions.TenantID(c.Value)
+	return h.Opts.Sessions.PrincipalID(c.Value)
 }
 
 // RequireAuthJSON wraps JSON API handlers with session auth.

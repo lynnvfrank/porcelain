@@ -4,7 +4,7 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway operator SQLite, chat/RAG persistence, gateway embed UI, admin UI session |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway operator shell (`/ui`), chat route (`/ui/chat`), operator SQLite |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Builds on [`operator-chat-ui.md`](operator-chat-ui.md) |
@@ -15,10 +15,10 @@ Operators should be able to return to past gateway chats days later: each saved 
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
-| [Phase 1 — Schema, session principal, and store](#phase-1--schema-session-principal-and-store) | Tables, indexes, store APIs, and UI session bound to `principal_id` | `todo` |
-| [Phase 2 — Persist turns on chat completion](#phase-2--persist-turns-on-chat-completion) | Gateway writes user, assistant, and error turns plus RAG hits (including dedup-cache replies) | `todo` |
-| [Phase 3 — History API](#phase-3--history-api) | List, detail, update title, flag, and delete—scoped to session principal | `todo` |
-| [Phase 4 — Chat UI history panel](#phase-4--chat-ui-history-panel) | Browse, flag, rename, delete, open, and copy saved threads | `todo` |
+| [Phase 1 — Schema, session principal, and store](#phase-1--schema-session-principal-and-store) | Tables, indexes, store APIs, and UI session bound to `principal_id` | `done` |
+| [Phase 2 — Persist turns on chat completion](#phase-2--persist-turns-on-chat-completion) | Gateway writes user, assistant, and error turns plus RAG hits (including dedup-cache replies) | `done` |
+| [Phase 3 — History API](#phase-3--history-api) | List, detail, update title, flag, and delete—scoped to session principal | `done` |
+| [Phase 4 — Chat UI history panel](#phase-4--chat-ui-history-panel) | Browse, flag, rename, delete, open, and copy saved threads | `done` |
 
 ---
 
@@ -128,7 +128,7 @@ Operators should be able to return to past gateway chats days later: each saved 
 - Delete removes conversation and all child turns/retrievals.
 - Flag toggle persists and affects filtered list.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -153,7 +153,7 @@ Operators should be able to return to past gateway chats days later: each saved 
 - Failed request in chat UI leaves `error` role row reloadable in history detail.
 - No broker `conversation.received` fields appear in SQLite.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -180,7 +180,7 @@ Operators should be able to return to past gateway chats days later: each saved 
 - Delete is permanent; list no longer returns the id.
 - Flag filter returns only flagged rows when `flagged=1`.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -208,7 +208,7 @@ Operators should be able to return to past gateway chats days later: each saved 
 - Renamed title appears in list and survives reload.
 - Delete removes thread from DB and UI; no lifecycle log content in panel.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 

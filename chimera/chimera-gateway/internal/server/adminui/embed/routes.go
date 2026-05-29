@@ -42,4 +42,5 @@ func Register(mux *http.ServeMux, h *handler.Handler) {
 	mux.HandleFunc("GET /ui/assets/settings/", h.RequireAuthPage(ServePathPrefix("embedui/settings/", "/ui/assets/settings/", "application/javascript; charset=utf-8")))
 	mux.HandleFunc("GET /ui/assets/gallery/", h.RequireAuthPage(ServePathPrefix("embedui/gallery/", "/ui/assets/gallery/", "application/javascript; charset=utf-8")))
 	mux.HandleFunc("GET /ui/assets/chat/", h.RequireAuthPage(ServePathPrefix("embedui/chat/", "/ui/assets/chat/", "application/javascript; charset=utf-8")))
+	mux.HandleFunc("GET /ui/assets/shell/", h.RequireAuthPage(ServePathPrefix("embedui/shell/", "/ui/assets/shell/", "application/javascript; charset=utf-8")))
 }

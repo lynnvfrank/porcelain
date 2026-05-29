@@ -136,6 +136,9 @@
         if (opts.workspace.flavor_id) {
           headers["X-Chimera-Flavor-Id"] = String(opts.workspace.flavor_id);
         }
+        if (opts.workspace.id != null) {
+          headers["X-Chimera-Workspace-Id"] = String(opts.workspace.id);
+        }
       }
       return fetch("/v1/chat/completions", {
         method: "POST",

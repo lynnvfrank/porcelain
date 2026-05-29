@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/chat"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/conversationhistory"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routing"
@@ -147,6 +148,7 @@ func handleVirtualModelChat(
 	apiKey string,
 	rtDur time.Duration,
 	chatOpts *chat.ProxyOpts,
+	histRec *conversationhistory.Recorder,
 ) bool {
 	vm := vmCtx.vm
 	if vm == nil {
@@ -236,14 +238,19 @@ func handleVirtualModelChat(
 				"statusCode", http.StatusServiceUnavailable, "errorType", "gateway_config",
 				"virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindBroker)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		errBody := map[string]any{
 			"error": map[string]any{
 				"message": "Could not resolve an initial upstream model for the virtual model (check routing policy and fallback chain).",
 				"type":    "gateway_config",
 			},
-		})
+		}
+		if histRec != nil {
+			histRec.SetRAGHits(ragHits)
+			histRec.PersistGatewayError(http.StatusServiceUnavailable, errBody)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(errBody)
 		return true
 	}
 	if routeLog != nil {
@@ -252,6 +259,9 @@ func handleVirtualModelChat(
 			"timeline_kind", naming.TimelineKindBroker)
 	}
 	rag.WriteResponseHeaders(w, initial, ragHits)
+	if histRec != nil {
+		histRec.SetRAGHits(ragHits)
+	}
 	if chatOpts == nil {
 		chatOpts = &chat.ProxyOpts{}
 	} else {

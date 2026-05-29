@@ -100,6 +100,8 @@ const (
 	HeaderUpstreamModelTarget = "X-Chimera-Upstream-Model"
 	// HeaderRAGHitsTarget is a JSON array of {source,text,score} retrieval hits for the turn.
 	HeaderRAGHitsTarget = "X-Chimera-RAG-Hits"
+	// HeaderWorkspaceRowIDTarget is the operator SQLite workspace row id active when chat started.
+	HeaderWorkspaceRowIDTarget = "X-Chimera-Workspace-Id"
 
 	// Config/file naming contracts.
 	PathsAPIKeysKeyTarget       = "api_keys"

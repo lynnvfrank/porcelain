@@ -114,6 +114,52 @@ func TestChatMarkdown_renderSafe_preservesCompleteMarkdown(t *testing.T) {
 	}
 }
 
+func TestChatMessages_renderMessage_userCopyFooter(t *testing.T) {
+	vm := goja.New()
+	loadChatMessages(t, vm)
+
+	out, err := vm.RunString(`
+		ChimeraChat.Render.Messages.renderMessage({
+			id: "u1",
+			role: "user",
+			content: "Hello operator"
+		})
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "chat-msg__copy-footer") {
+		t.Fatalf("expected user copy footer, got %q", got)
+	}
+	if strings.Contains(got, "chat-msg__actions") {
+		t.Fatalf("user message should not include head copy actions, got %q", got)
+	}
+}
+
+func TestChatMessages_renderMessage_assistantCopyInHead(t *testing.T) {
+	vm := goja.New()
+	loadChatMessages(t, vm)
+
+	out, err := vm.RunString(`
+		ChimeraChat.Render.Messages.renderMessage({
+			id: "a1",
+			role: "assistant",
+			content: "Hello back"
+		})
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "chat-msg__actions") {
+		t.Fatalf("expected assistant copy actions, got %q", got)
+	}
+	if strings.Contains(got, "chat-msg__copy-footer") {
+		t.Fatalf("assistant message should not include user copy footer, got %q", got)
+	}
+}
+
 func TestChatMessages_renderMessage_doesNotBleedIntoFooter(t *testing.T) {
 	vm := goja.New()
 	loadChatMessages(t, vm)
@@ -142,7 +188,19 @@ func TestChatMessages_renderMessage_doesNotBleedIntoFooter(t *testing.T) {
 	if !strings.Contains(got, "readiness_score") {
 		t.Fatalf("expected readiness_score icon in snippet summary, got %q", got)
 	}
-	footerIdx := strings.Index(got, "chat-msg__footer")
+	if !strings.Contains(got, "50%") {
+		t.Fatalf("expected percentage relevance score, got %q", got)
+	}
+	if !strings.Contains(got, "chevron_right") {
+		t.Fatalf("expected vm-style chevron icons, got %q", got)
+	}
+	if !strings.Contains(got, "chat-msg__bar-footer") {
+		t.Fatalf("expected shared bar footer, got %q", got)
+	}
+	footerIdx := strings.Index(got, "chat-msg__snippets-footer")
+	if footerIdx < 0 {
+		t.Fatalf("expected snippets footer, got %q", got)
+	}
 	footer := got[footerIdx:]
 	if strings.Contains(footer, "<strong>") {
 		t.Fatalf("footer should not inherit unclosed formatting, got %q", footer)

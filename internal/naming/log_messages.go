@@ -54,6 +54,7 @@ const (
 	MsgGatewayStartupConfigResolved             = "gateway.startup.config_resolved"
 	MsgGatewayOperatorWorkspacePathAdded        = "gateway.operator.workspace.path_added"
 	MsgGatewayOperatorWorkspacePathDeleted      = "gateway.operator.workspace.path_deleted"
+	MsgGatewayCatalogFallbackUnavailableModel   = "gateway.catalog.fallback_unavailable_model"
 	MsgBrokerHttpAccess                         = "broker.http.access"
 	MsgBrokerRateLimit                          = "broker.rate_limit"
 	MsgChatChimeraBrokerAvailableModels         = "chat.chimera-broker.available_models"

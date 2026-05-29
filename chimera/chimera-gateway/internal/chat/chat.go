@@ -559,6 +559,8 @@ type ProxyOpts struct {
 	// OnChatDelivery runs once after the proxied chat completion finishes writing to the client
 	// (success, error JSON, or stream end). elapsedMs is wall time for the proxy operation.
 	OnChatDelivery func(status int, stream bool, bytesToClient int64, elapsedMs int64)
+	// OnResponseCaptured runs once when the upstream response body is fully known (JSON or buffered SSE).
+	OnResponseCaptured func(statusCode int, upstreamModel string, stream bool, body []byte)
 	// SuppressChatDelivery skips the automatic OnChatDelivery callback in proxyChatCompletionPayload
 	// (used by WithVirtualModelFallback, which invokes OnChatDelivery once for the overall exchange).
 	SuppressChatDelivery bool
@@ -570,6 +572,13 @@ type ProxyOpts struct {
 	ModelAvailable func(upstreamModel string) bool
 	// VirtualModelID scopes routing.model.unavailable_skipped logs to a virtual model.
 	VirtualModelID string
+}
+
+func notifyResponseCaptured(opts *ProxyOpts, statusCode int, upstreamModel string, stream bool, body []byte) {
+	if opts == nil || opts.OnResponseCaptured == nil {
+		return
+	}
+	opts.OnResponseCaptured(statusCode, upstreamModel, stream, body)
 }
 
 func notifyUpstreamJSONSuccess(opts *ProxyOpts, statusCode int, upstreamModel string, jsonBody []byte) {
@@ -745,6 +754,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 		b, _ := io.ReadAll(resHTTP.Body)
 		logUpstreamChatResponse(log, url, resHTTP.StatusCode, upstreamModel, stream, b, resHTTP.Header, opts)
 		recordUpstreamMetrics(rec, upstreamModel, resHTTP.StatusCode, est)
+		notifyResponseCaptured(opts, resHTTP.StatusCode, upstreamModel, false, b)
 		res = ProxyResult{Status: resHTTP.StatusCode, JSONBody: b, DeliveryBytes: int64(len(b))}
 		return
 	}
@@ -768,6 +778,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 		}
 		logUpstreamChatResponse(log, url, resHTTP.StatusCode, upstreamModel, stream, wrap, resHTTP.Header, opts)
 		recordUpstreamMetrics(rec, upstreamModel, resHTTP.StatusCode, est)
+		notifyResponseCaptured(opts, resHTTP.StatusCode, upstreamModel, false, wrap)
 		res = ProxyResult{Status: resHTTP.StatusCode, JSONBody: wrap, DeliveryBytes: int64(len(wrap))}
 		return
 	}
@@ -788,14 +799,26 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 		var cw countWriter
 		cw.w = w
 		var tail streamUsageTail
-		upstream := io.TeeReader(resHTTP.Body, &tail)
+		var captureBuf bytes.Buffer
+		captureStream := opts != nil && opts.OnResponseCaptured != nil
+		upstream := io.Reader(resHTTP.Body)
+		if captureStream {
+			upstream = io.TeeReader(io.TeeReader(resHTTP.Body, &tail), &captureBuf)
+		} else {
+			upstream = io.TeeReader(resHTTP.Body, &tail)
+		}
 		if f, ok := w.(http.Flusher); ok {
 			_, _ = io.Copy(&flushWriter{w: &cw, f: f}, upstream)
 		} else {
 			_, _ = io.Copy(&cw, upstream)
 		}
+		streamBody := tail.bytes()
+		if captureStream {
+			streamBody = captureBuf.Bytes()
+		}
 		logUpstreamChatResponse(log, url, http.StatusOK, upstreamModel, stream, tail.bytes(), resHTTP.Header, opts)
 		recordUpstreamMetrics(rec, upstreamModel, http.StatusOK, est)
+		notifyResponseCaptured(opts, http.StatusOK, upstreamModel, true, streamBody)
 		res = ProxyResult{Stream: true, Status: http.StatusOK, DeliveryBytes: cw.n}
 		return
 	}
@@ -810,6 +833,7 @@ func proxyChatCompletionPayload(ctx context.Context, w http.ResponseWriter, base
 	logUpstreamChatResponse(log, url, resHTTP.StatusCode, upstreamModel, stream, b, resHTTP.Header, opts)
 	recordUpstreamMetrics(rec, upstreamModel, resHTTP.StatusCode, est)
 	notifyUpstreamJSONSuccess(opts, resHTTP.StatusCode, upstreamModel, b)
+	notifyResponseCaptured(opts, resHTTP.StatusCode, upstreamModel, false, b)
 	res = ProxyResult{Status: resHTTP.StatusCode, JSONBody: b, DeliveryBytes: int64(len(b))}
 	return
 }

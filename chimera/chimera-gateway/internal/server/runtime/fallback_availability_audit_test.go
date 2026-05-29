@@ -14,6 +14,7 @@ import (
 )
 
 func TestAuditConfiguredFallbackAvailability_warnsOnUnavailableChainModel(t *testing.T) {
+	resetFallbackAvailabilityAuditStateForTest()
 	ctx := context.Background()
 	rt := testRuntimeWithProviderAvailability(t)
 	t.Cleanup(func() { rt.CloseOperator() })
@@ -44,9 +45,60 @@ func TestAuditConfiguredFallbackAvailability_warnsOnUnavailableChainModel(t *tes
 	if !strings.Contains(out, "groq/paid") || !strings.Contains(out, "tenant-a") {
 		t.Fatalf("expected tenant+model in log, got: %s", out)
 	}
+
+	buf.Reset()
+	auditConfiguredFallbackAvailability(ctx, rt, res, log)
+	if strings.Contains(buf.String(), "gateway.catalog.fallback_unavailable_model") {
+		t.Fatalf("expected no repeat log on steady state, got: %s", buf.String())
+	}
+}
+
+func TestAuditConfiguredFallbackAvailability_logsAgainAfterTransition(t *testing.T) {
+	resetFallbackAvailabilityAuditStateForTest()
+	ctx := context.Background()
+	rt := testRuntimeWithProviderAvailability(t)
+	t.Cleanup(func() { rt.CloseOperator() })
+	st := rt.OperatorStore()
+
+	var buf bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	res, _, _ := rt.Snapshot()
+	res = config.CloneResolved(res)
+	res.FallbackChain = []string{"groq/free", "groq/paid"}
+
+	if err := st.ReplaceProviderModelAvailability(ctx, "tenant-a", "groq", map[string]bool{
+		"groq/free": true,
+		"groq/paid": true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := rt.ReloadProviderModelAvailability(ctx); err != nil {
+		t.Fatal(err)
+	}
+	auditConfiguredFallbackAvailability(ctx, rt, res, log)
+	if strings.Contains(buf.String(), "gateway.catalog.fallback_unavailable_model") {
+		t.Fatalf("unexpected log when all available: %s", buf.String())
+	}
+
+	if err := st.ReplaceProviderModelAvailability(ctx, "tenant-a", "groq", map[string]bool{
+		"groq/free": true,
+		"groq/paid": false,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := rt.ReloadProviderModelAvailability(ctx); err != nil {
+		t.Fatal(err)
+	}
+	buf.Reset()
+	auditConfiguredFallbackAvailability(ctx, rt, res, log)
+	if !strings.Contains(buf.String(), "gateway.catalog.fallback_unavailable_model") {
+		t.Fatalf("expected log after availability became unavailable, got: %s", buf.String())
+	}
 }
 
 func TestAuditConfiguredFallbackAvailability_skipsWhenAllAvailable(t *testing.T) {
+	resetFallbackAvailabilityAuditStateForTest()
 	ctx := context.Background()
 	rt := testRuntimeWithProviderAvailability(t)
 	t.Cleanup(func() { rt.CloseOperator() })

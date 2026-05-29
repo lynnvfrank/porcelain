@@ -9,6 +9,11 @@
     return "msg-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 9);
   }
 
+  /** Stable thread id sent as X-Chimera-Conversation-Id on every chat request. */
+  function newConversationId() {
+    return newId();
+  }
+
   function createMessage(role, content, extra) {
     extra = extra || {};
     return {
@@ -24,10 +29,51 @@
     };
   }
 
+  var AutoTitleMaxRunes = 80;
+
+  function isPunctuation(ch) {
+    if (!ch) return false;
+    var c = ch.codePointAt(0);
+    if (c >= 0x21 && c <= 0x2f) return true;
+    if (c >= 0x3a && c <= 0x40) return true;
+    if (c >= 0x5b && c <= 0x60) return true;
+    if (c >= 0x7b && c <= 0x7e) return true;
+    if (c >= 0xa1 && c <= 0xbf) return true;
+    if (c >= 0x2000 && c <= 0x206f) return true;
+    if (c >= 0x3000 && c <= 0x303f) return true;
+    return false;
+  }
+
+  function indexThroughFirstPunctuation(runes) {
+    for (var i = 0; i < runes.length; i++) {
+      if (isPunctuation(runes[i])) return i + 1;
+    }
+    return 0;
+  }
+
+  function autoTitleFromMessage(text) {
+    var s = String(text || "")
+      .trim()
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n");
+    s = s.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+    if (!s) return "";
+    var runes = Array.from(s);
+    var limit = AutoTitleMaxRunes;
+    var punctEnd = indexThroughFirstPunctuation(runes);
+    if (punctEnd > 0 && punctEnd < limit) limit = punctEnd;
+    if (runes.length <= limit) return s;
+    var out = runes.slice(0, limit).join("").trim();
+    if (!out) return "...";
+    if (punctEnd > 0 && limit === punctEnd) return out;
+    return out + "...";
+  }
+
   function createState() {
     return {
       messages: [],
       conversationId: "",
+      conversationTitle: "",
       selectedModel: "",
       selectedWorkspaceKey: "",
       inputHistory: [],
@@ -150,6 +196,9 @@
   globalThis.ChimeraChat = globalThis.ChimeraChat || {};
   globalThis.ChimeraChat.State = {
     newId: newId,
+    newConversationId: newConversationId,
+    autoTitleFromMessage: autoTitleFromMessage,
+    AutoTitleMaxRunes: AutoTitleMaxRunes,
     createMessage: createMessage,
     createState: createState,
     messagesForAPI: messagesForAPI,

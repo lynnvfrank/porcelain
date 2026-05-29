@@ -10,6 +10,7 @@
   var Scroll = globalThis.ChimeraChat.Scroll;
   var MsgRender = globalThis.ChimeraChat.Render.Messages;
   var InputRender = globalThis.ChimeraChat.Render.Input;
+  var HistoryClient = globalThis.ChimeraChat.HistoryClient;
 
   var state = State.createState();
   var models = [];
@@ -23,6 +24,16 @@
   var sendBtn = document.getElementById("chat-send");
 
   var scrollTracker = Scroll.createTracker(viewport);
+  var titleRoot = document.getElementById("chat-title-bar");
+  var titleBar =
+    globalThis.ChimeraChat.Render &&
+    ChimeraChat.Render.TitleBar &&
+    titleRoot
+      ? ChimeraChat.Render.TitleBar.mount({
+          root: titleRoot,
+          onSave: saveConversationTitle
+        })
+      : null;
   var composer = InputRender.mount({
     textarea: inputEl,
     onSubmit: submitMessage,
@@ -176,6 +187,76 @@
     if (last && last.role === "error") state.messages.pop();
   }
 
+  function ensureConversationId() {
+    if (String(state.conversationId || "").trim()) return state.conversationId;
+    state.conversationId = State.newConversationId();
+    return state.conversationId;
+  }
+
+  function notifyShell(data) {
+    if (window.parent === window) return;
+    try {
+      window.parent.postMessage(data, window.location.origin);
+    } catch (_e) {}
+  }
+
+  function refreshHistory() {
+    notifyShell({ type: "chimera-chat-state", action: "refresh-history" });
+  }
+
+  function syncShellActive() {
+    notifyShell({
+      type: "chimera-chat-state",
+      action: state.conversationId ? "set-active" : "clear-active",
+      conversationId: state.conversationId || ""
+    });
+  }
+
+  function syncTitleFromHistory() {
+    if (!titleBar || !state.conversationId) return;
+    var listFn = HistoryClient && HistoryClient.listConversations;
+    if (!listFn) return;
+    listFn({ limit: 100 })
+      .then(function (data) {
+        var rows = data && Array.isArray(data.conversations) ? data.conversations : [];
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          if (row && row.conversation_id === state.conversationId) {
+            var t = row.title || row.preview_text || "";
+            if (t) {
+              state.conversationTitle = t;
+              titleBar.setTitle(t);
+            }
+            return;
+          }
+        }
+      })
+      .catch(function () {});
+  }
+
+  function saveConversationTitle(title) {
+    title = String(title || "").trim();
+    if (!title) return;
+    state.conversationTitle = title;
+    if (titleBar) titleBar.setTitle(title);
+    if (!HistoryClient || !state.conversationId) return;
+    HistoryClient.patchTitle(state.conversationId, title)
+      .then(function () {
+        refreshHistory();
+      })
+      .catch(function (err) {
+        console.warn("title save:", err);
+      });
+  }
+
+  function maybeSetAutoTitle(text) {
+    if (state.conversationTitle || (titleBar && titleBar.getTitle())) return;
+    var auto = State.autoTitleFromMessage(text);
+    if (!auto) return;
+    state.conversationTitle = auto;
+    if (titleBar) titleBar.setTitle(auto);
+  }
+
   function sendUserText(text, opts) {
     opts = opts || {};
     text = String(text || "").trim();
@@ -191,6 +272,7 @@
     if (!isRetry) {
       var userMsg = State.createMessage("user", text);
       state.messages.push(userMsg);
+      maybeSetAutoTitle(text);
     }
 
     var assistant = State.createMessage("assistant", "", {
@@ -213,12 +295,13 @@
     setStreaming(true);
 
     var apiMessages = State.messagesForAPI(state.messages.slice(0, -1));
+    var conversationId = ensureConversationId();
 
     Gateway.chatCompletion({
       model: state.selectedModel,
       messages: apiMessages,
       stream: true,
-      conversationId: state.conversationId,
+      conversationId: conversationId,
       workspace: selectedWorkspace(),
       signal: state.abortController.signal
     })
@@ -253,11 +336,60 @@
         setStreaming(false);
         state.abortController = null;
         composer.focus();
+        refreshHistory();
+        syncTitleFromHistory();
       });
   }
 
   function submitMessage() {
     sendUserText(composer.getValue());
+  }
+
+  function turnsToMessages(turns) {
+    var out = [];
+    var list = Array.isArray(turns) ? turns : [];
+    for (var i = 0; i < list.length; i++) {
+      var t = list[i] || {};
+      var role = t.role || "";
+      if (role === "user") {
+        out.push(State.createMessage("user", t.content || ""));
+      } else if (role === "assistant") {
+        out.push(
+          State.createMessage("assistant", t.content || "", {
+            selectedModel: t.selected_model || "",
+            upstreamModel: t.resolved_model || t.selected_model || "",
+            ragHits: t.ragHits || null
+          })
+        );
+      } else if (role === "error") {
+        out.push(
+          State.createMessage("error", "", {
+            error: t.content || t.error_detail || "Error",
+            retryUserText: t.retryUserText || t.retry_user_text || ""
+          })
+        );
+      }
+    }
+    return out;
+  }
+
+  function openConversation(conversationId, opts) {
+    opts = opts || {};
+    if (!HistoryClient || !conversationId || state.isStreaming) return Promise.resolve();
+    return HistoryClient.loadTranscript(conversationId)
+      .then(function (data) {
+        state.conversationId = data.conversation_id || conversationId;
+        state.conversationTitle = data.title || data.preview_text || "";
+        state.messages = turnsToMessages(data.turns);
+        if (titleBar) titleBar.setTitle(state.conversationTitle);
+        syncShellActive();
+        paint();
+        scrollTracker.forceBottom();
+        if (opts.startEdit && titleBar) titleBar.startEdit();
+      })
+      .catch(function (err) {
+        alert(err && err.message ? err.message : String(err));
+      });
   }
 
   function newChat() {
@@ -267,9 +399,12 @@
       } catch (_e) {}
     }
     state.messages = [];
-    state.conversationId = "";
+    state.conversationId = State.newConversationId();
+    state.conversationTitle = "";
     setStreaming(false);
     composer.clear();
+    syncShellActive();
+    if (titleBar) titleBar.setTitle("");
     paint();
     composer.focus();
   }
@@ -300,7 +435,21 @@
     if (!data || data.type !== "chimera-chat-action") return;
     if (data.action === "new") newChat();
     if (data.action === "copy-all") copyAllConversation();
+    if (data.action === "open" && data.conversationId) {
+      openConversation(data.conversationId, { startEdit: !!data.startEdit }).then(finishEmbedBootstrap);
+    }
+    if (data.action === "deleted" && data.conversationId && state.conversationId === data.conversationId) {
+      newChat();
+    }
   });
+
+  var embedBootstrapped = false;
+  function finishEmbedBootstrap() {
+    if (embedBootstrapped || window.parent === window) return;
+    embedBootstrapped = true;
+    if (!state.conversationId) ensureConversationId();
+    syncShellActive();
+  }
 
   globalThis.ChimeraChat = globalThis.ChimeraChat || {};
   globalThis.ChimeraChat.App = {
@@ -313,7 +462,7 @@
     viewport.addEventListener("click", function (ev) {
       var t = ev.target;
       if (!t || !t.closest) return;
-      var copyBtn = t.closest(".chat-msg__copy");
+      var copyBtn = t.closest(".chat-msg__copy-btn");
       if (copyBtn) {
         copyText(copyBtn.getAttribute("data-copy-text") || "");
         return;
@@ -342,4 +491,10 @@
   refreshCatalogs();
   paint();
   composer.focus();
+  if (window.parent === window) {
+    ensureConversationId();
+    syncShellActive();
+  } else {
+    window.setTimeout(finishEmbedBootstrap, 500);
+  }
 })();
