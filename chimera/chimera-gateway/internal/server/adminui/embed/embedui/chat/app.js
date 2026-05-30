@@ -205,10 +205,11 @@
   }
 
   function syncShellActive() {
+    var hasTranscript = state.messages.length > 0;
     notifyShell({
       type: "chimera-chat-state",
-      action: state.conversationId ? "set-active" : "clear-active",
-      conversationId: state.conversationId || ""
+      action: hasTranscript && state.conversationId ? "set-active" : "clear-active",
+      conversationId: hasTranscript ? state.conversationId || "" : ""
     });
   }
 
@@ -285,6 +286,7 @@
 
     if (!opts.skipHistory) pushInputHistory(text);
     composer.clear();
+    syncShellActive();
 
     if (state.abortController) {
       try {
@@ -388,6 +390,10 @@
         if (opts.startEdit && titleBar) titleBar.startEdit();
       })
       .catch(function (err) {
+        if (err && err.status === 404) {
+          newChat();
+          return;
+        }
         alert(err && err.message ? err.message : String(err));
       });
   }

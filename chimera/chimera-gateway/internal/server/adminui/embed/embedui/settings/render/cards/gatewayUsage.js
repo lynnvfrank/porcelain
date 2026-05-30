@@ -25,6 +25,47 @@ globalThis.ChimeraSettings.Render.Cards.mountGatewayUsage = function (ctx) {
   var metricsRollupTableHtml = ctx.metricsRollupTableHtml;
   var metricsEventsTableHtml = ctx.metricsEventsTableHtml;
   var chimeraBrokerShortModelLabel = ctx.chimeraBrokerShortModelLabel;
+  var sgOpHealthPillHtml = ctx.sgOpHealthPillHtml;
+
+  function gatewayUsageRollupStatHtml(value, icon, title) {
+    return (
+      '<span class="sg-op-usage-rollup-stat" title="' +
+      escapeHtml(title) +
+      '">' +
+      escapeHtml(value) +
+      ' <span class="material-symbols-outlined material-symbols-outlined--sm sg-op-health-pill__icon" aria-hidden="true">' +
+      escapeHtml(icon) +
+      "</span></span>"
+    );
+  }
+
+  function gatewayUsageRollupMetricsHtml(periodLabel, agg, loading, rollupTitle) {
+    if (typeof sgOpHealthPillHtml !== "function") {
+      var tail = loading ? "…" : formatInt(agg.models) + " models · " + formatCompactTok(agg.tokens) + " tokens";
+      return (
+        '<span class="sum-metric" title="' +
+        escapeHtml(rollupTitle) +
+        '"><strong>' +
+        escapeHtml(periodLabel) +
+        "</strong> · " +
+        escapeHtml(tail) +
+        "</span>"
+      );
+    }
+    var modelsVal = loading ? "…" : formatInt(agg.models);
+    var tokVal = loading ? "…" : formatCompactTok(agg.tokens);
+    return (
+      '<span class="sg-op-health-pill sg-op-health-pill--metric sg-op-usage-rollup-tag" title="' +
+      escapeHtml(rollupTitle) +
+      '">' +
+      '<span class="sg-op-usage-rollup-period">' +
+      escapeHtml(periodLabel) +
+      "</span>" +
+      gatewayUsageRollupStatHtml(modelsVal, "network_intelligence", "Models") +
+      gatewayUsageRollupStatHtml(tokVal, "water_drop", "Tokens") +
+      "</span>"
+    );
+  }
 
   function buildGatewayUsageIntroHtml() {
     return (
@@ -81,18 +122,21 @@ globalThis.ChimeraSettings.Render.Cards.mountGatewayUsage = function (ctx) {
       escapeHtml(chimeraBrokerShortModelLabel(lastModel)) +
       "</code></span>";
 
-    var minTail = loading ? "…" : formatInt(minAgg.models) + " models · " + formatCompactTok(minAgg.tokens) + " tokens";
-    var dayTail = loading ? "…" : formatInt(dayAgg.models) + " models · " + formatCompactTok(dayAgg.tokens) + " tokens";
-    var minPillHtml = "<strong>minute</strong> · " + escapeHtml(minTail);
-    var dayPillHtml = "<strong>day</strong> · " + escapeHtml(dayTail);
-
     var metrics =
       '<span class="sum-metrics">' +
-      '<span class="sum-metric" title="Distinct upstream models · summed est. tokens (UTC minute rollup)">' +
-      minPillHtml +
-      '</span><span class="sum-metric" title="Distinct upstream models · summed est. tokens (UTC calendar day rollup)">' +
-      dayPillHtml +
-      "</span></span>";
+      gatewayUsageRollupMetricsHtml(
+        "minute",
+        minAgg,
+        loading,
+        "Distinct upstream models · summed est. tokens (UTC minute rollup)"
+      ) +
+      gatewayUsageRollupMetricsHtml(
+        "day",
+        dayAgg,
+        loading,
+        "Distinct upstream models · summed est. tokens (UTC calendar day rollup)"
+      ) +
+      "</span>";
 
     var introHtml = buildGatewayUsageIntroHtml();
 

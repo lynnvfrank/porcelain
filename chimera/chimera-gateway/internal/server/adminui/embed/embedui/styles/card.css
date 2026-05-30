@@ -634,6 +634,27 @@ a.sum-ext-link {
   margin-top: 0;
 }
 
+.sg-op-usage-rollup-tag {
+  gap: 0.5rem;
+}
+
+.sg-op-usage-rollup-tag .sg-op-usage-rollup-period {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.sg-op-usage-rollup-tag .sg-op-usage-rollup-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.sg-op-usage-rollup-tag .sg-op-usage-rollup-stat .sg-op-health-pill__icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
 /* Service card explainer strips — lighter tint of the same hue as avatar / body */
 .gw-svc-card-intro,
 .bf-card-intro,

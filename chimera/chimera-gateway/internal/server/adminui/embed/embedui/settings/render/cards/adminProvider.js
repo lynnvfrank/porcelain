@@ -251,15 +251,15 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminProvider = function (ctx) {
     if (isOllama) {
       metrics =
         '<span class="sum-metrics">' +
-        sgOpHealthPillHtml("models " + formatInt(modelCount), "metric") +
+        sgOpHealthPillHtml(formatInt(modelCount), "metric", { icon: "network_intelligence", title: "Models" }) +
         (editing ? sgOpHealthPillHtml("editing", "warn") : "") +
         adminProviderAvailabilityHtml(providerId) +
         "</span>";
     } else {
       metrics =
         '<span class="sum-metrics">' +
-        sgOpHealthPillHtml("keys " + formatInt(keyCount), "metric") +
-        sgOpHealthPillHtml("models " + formatInt(modelCount), "metric") +
+        sgOpHealthPillHtml(formatInt(keyCount), "metric", { icon: "key", title: "Keys" }) +
+        sgOpHealthPillHtml(formatInt(modelCount), "metric", { icon: "network_intelligence", title: "Models" }) +
         (editing ? sgOpHealthPillHtml("editing", "warn") : "") +
         adminProviderAvailabilityHtml(providerId) +
         "</span>";

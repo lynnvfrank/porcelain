@@ -4991,19 +4991,25 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
 
   function sgOpInsetWellOkFailHtml(okN, failN, prefix, opts) {
     opts = opts || {};
-    var lead = prefix ? escapeHtml(String(prefix)) + " " : "";
+    var lead = "";
+    if (opts.leadIcon) {
+      lead =
+        '<span class="material-symbols-outlined material-symbols-outlined--sm" aria-hidden="true">' +
+        escapeHtml(String(opts.leadIcon)) +
+        "</span> ";
+    } else if (prefix) {
+      lead = escapeHtml(String(prefix)) + " ";
+    }
     var titleAttr =
       opts.title != null && String(opts.title).trim() !== ""
         ? ' title="' + escapeHtml(String(opts.title)) + '"'
         : "";
-    var out =
-      '<span class="sg-op-inset-well"' +
-      titleAttr +
-      ">" +
-      lead +
-      escapeHtml(formatInt(okN)) +
-      ' <span class="material-symbols-outlined material-symbols-outlined--sm" aria-hidden="true">check_circle</span> ' +
-      escapeHtml(formatInt(failN));
+    var out = '<span class="sg-op-inset-well"' + titleAttr + ">" + lead;
+    if (opts.okIcon !== false) {
+      out +=
+        '<span class="material-symbols-outlined material-symbols-outlined--sm" aria-hidden="true">check_circle</span> ';
+    }
+    out += escapeHtml(formatInt(okN)) + " " + escapeHtml(formatInt(failN));
     if (opts.errorIcon !== false) {
       out += ' <span class="material-symbols-outlined material-symbols-outlined--sm" aria-hidden="true">error</span>';
     }
@@ -5131,8 +5137,16 @@ globalThis.ChimeraSettings.App.mountSummarizedFeed = function (ctx) {
         var vm = qdrCardModel;
         metrics =
           '<span class="sum-metrics" style="display:flex;flex-wrap:wrap;gap:0.35rem;justify-content:flex-end">' +
-          sgOpInsetWellOkFailHtml(vm.upsertOk || 0, vm.upsertFail || 0, "Upserts", { errorIcon: false }) +
-          sgOpInsetWellOkFailHtml(vm.searchOk || 0, vm.searchFail || 0, "Searches", { errorIcon: false }) +
+          sgOpInsetWellOkFailHtml(vm.upsertOk || 0, vm.upsertFail || 0, "", {
+            leadIcon: "database_upload",
+            title: "Upserts · success / fail (not HTTP 200)",
+            okIcon: false
+          }) +
+          sgOpInsetWellOkFailHtml(vm.searchOk || 0, vm.searchFail || 0, "", {
+            leadIcon: "database_search",
+            title: "Searches · success / fail (not HTTP 200)",
+            okIcon: false
+          }) +
           "</span>";
       } else {
         metrics = "";

@@ -956,7 +956,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     }
     return (
       '<div class="sg-op-virtual-models-section" id="sg-op-virtual-models-section">' +
-      ctx.operatorSectionHeadHtml("Virtual models", "route", {
+      ctx.operatorSectionHeadHtml("Virtual models", "network_intel_node", {
         actionHtml: addBtn
       }) +
       intro +

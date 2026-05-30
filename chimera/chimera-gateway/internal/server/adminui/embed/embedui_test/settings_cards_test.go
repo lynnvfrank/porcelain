@@ -210,7 +210,7 @@ func TestLogsCards_adminProvider_keyChipReflectsState(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := v.String()
-	for _, want := range []string{`id="admin-provider-groq"`, "keys 2", `id="admin-groq-key"`} {
+	for _, want := range []string{`id="admin-provider-groq"`, `aria-label="Keys: 2"`, `network_intelligence`, `id="admin-groq-key"`} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("missing %q in %q", want, html)
 		}
@@ -432,7 +432,8 @@ func TestLogsCards_adminProvider_modelsEditMode(t *testing.T) {
 	for _, want := range []string{
 		`data-admin-action="provider-models-configure"`,
 		"Configure model availability",
-		"models 1",
+		`aria-label="Models: 1"`,
+		"network_intelligence",
 		"sg-op-provider-model-list",
 		"sg-op-provider-model-toggle--readonly",
 		" disabled",
