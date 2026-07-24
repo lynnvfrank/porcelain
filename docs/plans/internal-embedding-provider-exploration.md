@@ -11,7 +11,7 @@
 
 ## At a glance
 
-Explore loading and running an embedding model inside the gateway stack to reduce reliance on external services like Ollama. This plan aims to provide an internal embedding capability, starting off by default and configurable via `gateway.yaml`. The goal is to expose an OpenAI-compatible `/embeddings` endpoint on localhost.
+Explore loading and running an embedding model inside the gateway stack to reduce reliance on external services like Ollama. This plan aims to provide an internal embedding capability, starting off by default and configurable via `chimera.yaml`. The goal is to expose an OpenAI-compatible `/embeddings` endpoint on localhost.
 
 | Phase                                                                            | Outcome                                                         | Status |
 |----------------------------------------------------------------------------------|-----------------------------------------------------------------|--------|

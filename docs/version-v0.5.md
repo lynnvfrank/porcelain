@@ -48,7 +48,7 @@ Authoritative **architecture and numbered requirements** remain in [`chimera.pla
 
 ### Desired state vs live state
 
-- **Desired state** — What the operator configured: provider keys, model availability, virtual model stacks, workspace rows, embedding model id, routing toggles, etc. (sources: operator SQLite, `gateway.yaml`, broker management API, `api-keys.yaml` as applicable).
+- **Desired state** — What the operator configured: provider keys, model availability, virtual model stacks, workspace rows, embedding model id, routing toggles, etc. (sources: operator SQLite, `chimera.yaml`, broker management API, `api-keys.yaml` as applicable).
 - **Live state** — What the running stack actually reflects after reload/sync, catalog polls, and child process health.
 - **Drift** — Documented differences (e.g. fallback chain references unavailable model, embedding model absent from catalog, indexer watching paths that fail materialize).
 

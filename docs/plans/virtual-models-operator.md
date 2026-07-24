@@ -14,7 +14,7 @@
 
 ## At a glance
 
-Today the gateway exposes exactly one virtual model id (`Chimera-<semver>`), hard-coded from `gateway.semver`, and all routing — fallback chain, routing-policy rules, and tool-router settings — is global in `gateway.yaml` and a single `routing-policy.yaml`. Operators should instead create **virtual models** from `/ui/logs` (like users and indexer workspaces): each model has its own identity, visibility, on/off switch, and routing stack. Routing rules become reusable definitions in the operator database; each virtual model attaches fallback (required), optional routing rules, and optional tool-router blocks with per-block toggles. Cards in the logs UI show configuration, usage, and scoped routing-decision streams.
+Today the gateway exposes exactly one virtual model id (`Chimera-<semver>`), hard-coded from `gateway.semver`, and all routing — fallback chain, routing-policy rules, and tool-router settings — is global in `chimera.yaml` and a single `routing-policy.yaml`. Operators should instead create **virtual models** from `/ui/logs` (like users and indexer workspaces): each model has its own identity, visibility, on/off switch, and routing stack. Routing rules become reusable definitions in the operator database; each virtual model attaches fallback (required), optional routing rules, and optional tool-router blocks with per-block toggles. Cards in the logs UI show configuration, usage, and scoped routing-decision streams.
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
@@ -35,9 +35,9 @@ Today the gateway exposes exactly one virtual model id (`Chimera-<semver>`), har
 | **Virtual model id** | `"Chimera-" + gateway.semver` (e.g. `Chimera-0.2.0`) | [`chimera/internal/config/config.go`](../../chimera/internal/config/config.go) → `Resolved.VirtualModelID` |
 | **Model listing** | One synthetic entry prepended to broker catalog | [`chimera-gateway/internal/server/server.go`](../../chimera/chimera-gateway/internal/server/server.go) `handleV1Models` |
 | **Chat routing** | If `body.model == VirtualModelID` → RAG (when enabled) → `Policy.PickInitialModel` → `WithVirtualModelFallback` | [`server.go`](../../chimera/chimera-gateway/internal/server/server.go), [`internal/routing/routing.go`](../../chimera/chimera-gateway/internal/routing/routing.go) |
-| **Fallback chain** | Global ordered list | `gateway.yaml` → `routing.fallback_chain` |
+| **Fallback chain** | Global ordered list | `chimera.yaml` → `routing.fallback_chain` |
 | **Routing rules** | Global YAML file | `paths.routing_policy` → `routing-policy.yaml` (`ambiguous_default_model`, ordered `rules[]`) |
-| **Tool router** | Global | `gateway.yaml` → `routing.router_models`, `routing.tool_router.{enabled, confidence_threshold}` |
+| **Tool router** | Global | `chimera.yaml` → `routing.router_models`, `routing.tool_router.{enabled, confidence_threshold}` |
 | **Operator UI** | Three global cards: Routing rules, Fallback chain, Router model | [`adminRouting.js`](../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminRouting.js), [`adminFallback.js`](../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminFallback.js), [`adminRouterModels.js`](../../chimera/chimera-gateway/internal/server/adminui/embed/embedui/logs/render/cards/adminRouterModels.js) |
 | **State API** | Single `virtual_model_id` in `GET /api/ui/state` | [`internal/operatorapi/state.go`](../../internal/operatorapi/state.go) |
 
@@ -108,7 +108,7 @@ Virtual model cards in `/ui/logs` let operators add/remove/enable/disable rule a
 
 **Acceptance**
 
-- Fresh operator DB + existing `gateway.yaml` / `routing-policy.yaml` → one virtual model row with equivalent routing after import.
+- Fresh operator DB + existing `chimera.yaml` / `routing-policy.yaml` → one virtual model row with equivalent routing after import.
 - Unit tests: CRUD round-trip, unique `model_id`, FK cascade on delete.
 
 **Status:** `done`
@@ -158,7 +158,7 @@ Virtual model cards in `/ui/logs` let operators add/remove/enable/disable rule a
   - `PUT /{id}/tool-router` — save router models + enabled + threshold.
   - `POST /{id}/routing/generate` — port of [`computeRoutingDraft`](../../chimera/chimera-gateway/internal/server/adminui/api/routing/handlers.go) scoped to VM (writes VM row, not global YAML).
   - `POST /{id}/routing/evaluate` — port of dry-run evaluate with VM id + VM fallback chain.
-- **`/api/ui/routing/*` global handlers:** deprecate writes to `gateway.yaml` / `routing-policy.yaml` (read-only or redirect to default VM) after Phase 4 UI lands.
+- **`/api/ui/routing/*` global handlers:** deprecate writes to `chimera.yaml` / `routing-policy.yaml` (read-only or redirect to default VM) after Phase 4 UI lands.
 - **`routing_rule_definitions` CRUD** (operator-only): list/create/update for catalog entries used when attaching rules to a VM.
 - OpenAPI-shaped types in [`internal/operatorapi`](../../internal/operatorapi) (`VirtualModelSummary`, `VirtualModelDetail`, …).
 
@@ -212,7 +212,7 @@ Virtual model cards in `/ui/logs` let operators add/remove/enable/disable rule a
   - `gateway.semver` still drives gateway version string but **no longer** defines the only virtual model id once DB is populated.
   - `routing.fallback_chain`, `paths.routing_policy`, and global tool-router keys marked **deprecated** (read for bootstrap import only).
 - Optional **export/import:** download VM as YAML bundle for gitops; out of scope unless needed for v1 ship.
-- Remove dual-write to `gateway.yaml` from generate handlers after one release with bootstrap.
+- Remove dual-write to `chimera.yaml` from generate handlers after one release with bootstrap.
 
 **Acceptance**
 

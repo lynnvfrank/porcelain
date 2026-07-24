@@ -160,7 +160,7 @@ This document pulls together **everything scoped to product v0.2** from `[chimer
 
 **Related planning / maintenance docs** (implementation detail, not normative product contract): `[plans/log-view-refactor.md](plans/log-view-refactor.md)`, `[plans/logs-ui-maintainability.md](plans/logs-ui-maintainability.md)`.
 
-**Optional:** `**conversation_merge`** in `gateway.yaml` (requires gateway metrics / SQLite) merges chat turns when no conversation id is sent — documented in `**[configuration.md](configuration.md)**` and § [v0.2.1](#v021--logging-correlation-logs-ui-optional-conversation-merge) below.
+**Optional:** `**conversation_merge`** in `chimera.yaml` (requires gateway metrics / SQLite) merges chat turns when no conversation id is sent — documented in `**[configuration.md](configuration.md)**` and § [v0.2.1](#v021--logging-correlation-logs-ui-optional-conversation-merge) below.
 
 ### Operator documentation (delta for v0.2)
 
@@ -272,7 +272,7 @@ Supervised BiFrost stdout/stderr is normalized in `internal/servicelogs/bifrostl
 
 - **Threshold:** Gateway `**rag.ingest.max_whole_file_bytes`** caps **single-request** whole-file ingest; effective ceiling is also exposed on `**GET /v1/indexer/config`** so `**chimera-indexer**` can choose **whole** vs **chunked** transport (`transport`: `**whole`**  `**chunked**` in structured logs — `[indexer.md](indexer.md)`).
 - **Flow:** Chunked uploads use the `**/v1/ingest/session`** HTTP surface (session lifecycle + per-chunk writes + completion); correlates with `**index_run_id**` / ingest logging like simple ingest (`[plans/log-presentation-layer.md](plans/log-presentation-layer.md)` activity log).
-- **Operator story:** Large workspace files still index without blowing HTTP body limits; tune `**max_whole_file_bytes`** in `**gateway.yaml**` (and optional indexer YAML override per `[indexer.md](indexer.md)`).
+- **Operator story:** Large workspace files still index without blowing HTTP body limits; tune `**max_whole_file_bytes`** in `**chimera.yaml**` (and optional indexer YAML override per `[indexer.md](indexer.md)`).
 
 ### Themes: conversation headers and Continue templates
 
@@ -354,7 +354,7 @@ This is the **current** system the gateway plan targets for **v0.2** — the anc
 
 Operator-oriented summary of what landed in each **patch** on the v0.2 line (configuration knobs, HTTP surfaces, UI routes). Normative behavior across the line remains summarized above in **Gateway and stack** and companion plans.
 
-The virtual model id stays `**Chimera-<gateway.semver>`** (set in `config/gateway.yaml`); example configs may show an older patch until you bump semver locally.
+The virtual model id stays `**Chimera-<gateway.semver>`** (set in `config/chimera.yaml`); example configs may show an older patch until you bump semver locally.
 
 **Deeper references (beyond this section)**
 
@@ -373,7 +373,7 @@ The virtual model id stays `**Chimera-<gateway.semver>`** (set in `config/gatewa
 
 **Theme:** Gateway-mediated **retrieval-augmented generation** with **Qdrant**, **ingestion**, **indexer-facing REST**, and the `chimera-indexer` workspace indexer binary.
 
-**Configuration (`config/gateway.yaml`)**
+**Configuration (`config/chimera.yaml`)**
 
 - `rag.enabled` and `rag.*`: Qdrant URL (optional API key), embedding path/model/dimension, chunk size/overlap, retrieval **top_k** and score threshold, ingest size limits (including `max_whole_file_bytes` vs chunked session ingest).
 
@@ -422,7 +422,7 @@ The virtual model id stays `**Chimera-<gateway.semver>`** (set in `config/gatewa
 - Views: **Detailed**, **Summary**, **Conversations**, **Subsystems**.
 - `wrapResponse` logging fix so logged **statusCode** matches the handler outcome on early errors.
 
-**Optional conversation merge (`conversation_merge` in `gateway.yaml`)**
+**Optional conversation merge (`conversation_merge` in `chimera.yaml`)**
 
 - When enabled (requires **gateway metrics** / SQLite migrations): merges chat turns into an existing session using **embedding similarity** and recent-window rules when `X-Chimera-Conversation-Id` is absent. Schema and defaults are documented in `config/gateway.example.yaml` and `[configuration.md](configuration.md)`.
 

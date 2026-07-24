@@ -30,7 +30,7 @@ Large IDE clients (e.g. Cline Act mode) send multi‑thousand‑token prompts. T
 
 ### Problem observed (2026‑05‑24)
 
-Operator session with Cline → `Chimera-0.2.0` → fallback chain length 11 (`config/gateway.yaml`):
+Operator session with Cline → `Chimera-0.2.0` → fallback chain length 11 (`config/chimera.yaml`):
 
 1. RAG attaches 8 vector hits (~15–16k estimated tokens after injection).
 2. Attempts 1–7: **local TPM guard** blocks (request ~16k vs Groq TPM caps 6k–12k).
@@ -238,7 +238,7 @@ Resolve before or during implementation; remove this section when closed.
 2. **`max_prompt_tokens` for `compound-mini`:** [config\catalog-available.snapshot.yaml](config\catalog-available.snapshot.yaml)#678-681 says that the context is 131072
 3. **Global `max_body_bytes` in defaults:** Ship `3500000` (~3.5 MB Groq rule of thumb from tokencount discussion)
 4. **Schema migration:** There are no users and no legacy support is required.
-5. **Context deny on last chain entry:** Stay consistent and use the 400 error that the context is too large. 
+5. **Context deny on last chain entry:** Stay consistent and use the 400 error that the context is too large.
 6. **Ollama context defaults:** Make a chimera/cmd that lists all the models `ollama list` and captures details about the models `ollama show <MODEL_ID>` if that is not provided from bifrost, ollama running locally on default port, or running the binary.
 
 ---
@@ -261,7 +261,7 @@ Resolve before or during implementation; remove this section when closed.
 
 - [`config/provider-model-limits.yaml`](../../config/provider-model-limits.yaml) — live quotas (extend with context fields)
 - [`config/catalog-available.snapshot.yaml`](../../config/catalog-available.snapshot.yaml) — `context_length` source for seeding
-- [`config/gateway.yaml`](../../config/gateway.yaml) — `routing.fallback_chain` (11 entries; Ollama last)
+- [`config/chimera.yaml`](../../config/chimera.yaml) — `routing.fallback_chain` (11 entries; Ollama last)
 
 ### Tests to extend
 

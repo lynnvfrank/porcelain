@@ -235,7 +235,7 @@ func handleSetupCompletePOST(rt *Runtime, log *slog.Logger) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		gatewayPath, err := config.ResolveGatewayConfigPath()
+		gatewayPath, err := config.ResolveChimeraConfigPath()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -245,7 +245,7 @@ func handleSetupCompletePOST(rt *Runtime, log *slog.Logger) http.HandlerFunc {
 			LoginMode:  body.LoginMode,
 		}, firstsetup.Options{
 			TokensPath:  tokStore.Path(),
-			GatewayPath: gatewayPath,
+			ChimeraYAMLPath: gatewayPath,
 			DotenvPath:  ".env",
 			EnvKey:      naming.EnvGatewayTokenTarget,
 		})

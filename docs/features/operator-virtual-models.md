@@ -29,7 +29,7 @@ Operators create **virtual models** in operator SQLite—each with a client-faci
 
 **Invariants**
 
-- Virtual models persist in **operator SQLite** (`virtual_models` and attachment tables); not in `gateway.yaml` for new config.
+- Virtual models persist in **operator SQLite** (`virtual_models` and attachment tables); not in `chimera.yaml` for new config.
 - Client protocol unchanged: callers send one `model` string on chat/completions.
 - Each VM compiles routing policy into `routing.InMemoryPolicy` at registry reload.
 - Fallback walk skips unavailable models (provider availability), quota/context limits, and retriable upstream errors.

@@ -28,15 +28,16 @@ func TestKnownEmbeddingDim(t *testing.T) {
 	}
 }
 
-func TestPatchGatewayYAMLBytesWithEmbeddingModel(t *testing.T) {
+func TestPatchChimeraYAMLBytesWithEmbeddingModel(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	gw := filepath.Join(dir, "gateway.yaml")
-	raw := `gateway: { listen_port: 3000 }
-paths: { tokens: "./t.yaml" }
+	gw := filepath.Join(dir, "chimera.yaml")
+	raw := `gateway:
+  listen_port: 3000
+  auth: { api_keys: "./t.yaml" }
 vectorstore:
   url: "http://127.0.0.1:6333"
-rag:
+search:
   enabled: true
   embedding:
     model: "old-model"
@@ -45,7 +46,7 @@ rag:
 	if err := os.WriteFile(gw, []byte(raw), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	out, err := PatchGatewayYAMLBytesWithEmbeddingModel([]byte(raw), "ollama/nomic-embed-text:latest", 768)
+	out, err := PatchChimeraYAMLBytesWithEmbeddingModel([]byte(raw), "ollama/nomic-embed-text:latest", 768)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +54,7 @@ rag:
 	if err := os.WriteFile(patched, out, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	res, err := LoadGatewayYAML(patched, nil)
+	res, err := LoadChimeraYAML(patched, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,10 +64,10 @@ rag:
 	if res.RAG.EmbeddingDim != 768 {
 		t.Fatalf("dim=%d", res.RAG.EmbeddingDim)
 	}
-	if err := WriteGatewayEmbeddingModel(gw, "groq/custom-embed", 1024); err != nil {
+	if err := WriteChimeraEmbeddingModel(gw, "groq/custom-embed", 1024); err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := LoadGatewayYAML(gw, nil)
+	loaded, err := LoadChimeraYAML(gw, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,9 +76,9 @@ rag:
 	}
 }
 
-func TestPatchGatewayYAMLBytesWithEmbeddingModel_rejectsEmpty(t *testing.T) {
+func TestPatchChimeraYAMLBytesWithEmbeddingModel_rejectsEmpty(t *testing.T) {
 	t.Parallel()
-	_, err := PatchGatewayYAMLBytesWithEmbeddingModel([]byte("rag: {}\n"), "  ", 768)
+	_, err := PatchChimeraYAMLBytesWithEmbeddingModel([]byte("search: {}\n"), "  ", 768)
 	if err == nil || !strings.Contains(err.Error(), "required") {
 		t.Fatalf("err=%v", err)
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui/handler"
 	"github.com/lynn/porcelain/chimera/chimera-indexer/adapter"
+	gwconfig "github.com/lynn/porcelain/chimera/internal/config"
 	"github.com/lynn/porcelain/internal/operatorapi"
 	"gopkg.in/yaml.v3"
 )
@@ -114,30 +115,25 @@ func handleIndexerConfigGET(h *handler.Handler, w http.ResponseWriter, r *http.R
 		http.Error(w, "no config", http.StatusInternalServerError)
 		return
 	}
-	path := strings.TrimSpace(res.IndexerSupervisedConfigPath)
+	fc, err := gwconfig.EffectiveIndexerFileConfig(res)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	}
+	raw, err := yaml.Marshal(&fc)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	}
+	path := strings.TrimSpace(res.IndexerOverlayPath)
 	if path == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": "indexer supervised config path not configured"})
-		return
-	}
-	if err := adapter.EnsureSupervisedConfigFile(path); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-		return
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-		return
-	}
-	stripped, err := stripRootsFromSupervisedYAML(raw)
-	yamlOut := string(stripped)
-	if err != nil {
-		yamlOut = string(raw)
+		// Default overlay beside chimera.yaml
+		base := filepath.Dir(res.ChimeraYAMLPath)
+		path = filepath.Join(base, "indexer.yaml")
 	}
 	ctx := r.Context()
 	st := h.RT.OperatorStore()
@@ -151,10 +147,10 @@ func handleIndexerConfigGET(h *handler.Handler, w http.ResponseWriter, r *http.R
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(operatorapi.IndexerConfigResponse{
 		Path:              path,
-		YAML:              yamlOut,
+		YAML:              string(raw),
 		Roots:             rootsFlat,
 		Workspaces:        workspacesNested,
-		SupervisedEnabled: res.IndexerSupervisedEnabled,
+		SupervisedEnabled: res.IndexerEnabled,
 		OperatorStore:     st != nil,
 	})
 }
@@ -170,12 +166,10 @@ func handleIndexerConfigPUT(h *handler.Handler, w http.ResponseWriter, r *http.R
 		http.Error(w, "no config", http.StatusInternalServerError)
 		return
 	}
-	path := strings.TrimSpace(res.IndexerSupervisedConfigPath)
+	path := strings.TrimSpace(res.IndexerOverlayPath)
 	if path == "" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": "indexer supervised config path not configured"})
-		return
+		base := filepath.Dir(res.ChimeraYAMLPath)
+		path = filepath.Join(base, "indexer.yaml")
 	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxIndexerConfigYAMLBytes+1<<12))
 	var body struct {
@@ -216,6 +210,14 @@ func handleIndexerConfigPUT(h *handler.Handler, w http.ResponseWriter, r *http.R
 		return
 	}
 	if err := os.WriteFile(path, out, 0o644); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+		return
+	}
+	// Rematerialize so supervised indexer hot-reloads the merged effective config.
+	res.IndexerOverlayPath = path
+	if _, err := gwconfig.MaterializeIndexerConfig(res); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})

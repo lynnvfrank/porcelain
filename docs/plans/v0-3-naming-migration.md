@@ -153,10 +153,10 @@ The `Product naming` and `Credential file naming` themes in [version-v0.3.md](..
 
 | Contract | Canonical value |
 |----------|-----------------|
-| Gateway config env | `CHIMERA_GATEWAY_CONFIG` (default `./config/gateway.yaml`) |
+| Gateway config env | `CHIMERA_GATEWAY_CONFIG` (default `./config/chimera.yaml`) |
 | Gateway URL or token env | `CHIMERA_GATEWAY_URL`, `CHIMERA_GATEWAY_TOKEN` |
 | Upstream API key env | `CHIMERA_BROKER_API_KEY` |
-| Credentials path in gateway.yaml | `paths.api_keys: "./api-keys.yaml"` |
+| Credentials path in chimera.yaml | `paths.api_keys: "./api-keys.yaml"` |
 | Indexer config or sync state | `~/.locus/indexer.config.yaml`, `.locus/indexer.sync-state.json` |
 | Personal bundle binaries | `chimera-supervisor[.exe]`, `locus-desktop[.exe]` |
 | Archive or binary prefix | `chimera` (GoReleaser project); gateway binary `chimera-gateway` |
@@ -361,7 +361,7 @@ Breaking changes for operators upgrading to v0.3 naming (hard cut only).
 
 - `config/tokens.yaml` → `config/api-keys.yaml`
 - `config/tokens.example.yaml` → `config/api-keys.example.yaml`
-- In `gateway.yaml`: `paths.api_keys: "./api-keys.yaml"`
+- In `chimera.yaml`: `paths.api_keys: "./api-keys.yaml"`
 - Schema: top-level `api_keys`; per-row field `secret`
 
 ### Environment variables

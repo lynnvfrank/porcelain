@@ -37,7 +37,7 @@ func TestUIVirtualModelGenerate_filtersBySessionTenantAvailability(t *testing.T)
 	t.Cleanup(broker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	writeGateway(t, gwPath, broker.URL, []string{"groq/free"}, "")
 	tokPath := filepath.Join(dir, naming.APIKeysFileTarget)
 	writeTokens(t, tokPath, "gw-vm-gen", "tenant-a")
@@ -102,7 +102,7 @@ func TestUIVirtualModelGet_reportsFallbackUnavailable(t *testing.T) {
 	t.Cleanup(broker.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	writeGateway(t, gwPath, broker.URL, []string{"groq/free", "groq/paid"}, "")
 	tokPath := filepath.Join(dir, naming.APIKeysFileTarget)
 	writeTokens(t, tokPath, "gw-vm-get", "tenant-a")

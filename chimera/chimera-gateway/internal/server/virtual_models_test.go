@@ -43,7 +43,7 @@ func TestVirtualModels_twoModelsDifferentRouting(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	writeGateway(t, gwPath, up.URL, []string{"groq/fast", "groq/slow"}, "")
 	tokPath := filepath.Join(dir, naming.APIKeysFileTarget)
 	writeTokens(t, tokPath, "tok", "tenant")
@@ -121,7 +121,7 @@ func TestVirtualModels_listIncludesBootstrapped(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	writeGateway(t, gwPath, up.URL, []string{"groq/x"}, "")
 	tokPath := filepath.Join(dir, naming.APIKeysFileTarget)
 	writeTokens(t, tokPath, "tok", "t1")
@@ -169,7 +169,7 @@ func TestVirtualModels_disabledRejected(t *testing.T) {
 	t.Cleanup(up.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	writeGateway(t, gwPath, up.URL, []string{"groq/x"}, "")
 	tokPath := filepath.Join(dir, naming.APIKeysFileTarget)
 	writeTokens(t, tokPath, "tok", "t1")

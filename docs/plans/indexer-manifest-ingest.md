@@ -413,7 +413,7 @@ Implement **Phase 1 of the sync-state SQLite plan** before or in parallel with P
 
 1. **File bytes for expansion tools** — Should `GET /v1/rag/context` read only from **Qdrant chunk overlap**, **indexer `read-segment`**, or **gateway LRU cache** with indexer fallback? Recommendation: indexer read for line-accurate windows; Qdrant neighbors for quick adjacent chunks; cache in gateway with `content_sha256` key.
 
-2. **Coherence and tooling toggles** — Per-workspace columns on `workspaces` (`coherence_mode`, `tooling_enabled`) vs global `gateway.yaml` `rag.coherence` / `rag.tooling`? Recommendation: global defaults in YAML + optional per-workspace override in `workspaces.metadata_json` when UI needs it.
+2. **Coherence and tooling toggles** — Per-workspace columns on `workspaces` (`coherence_mode`, `tooling_enabled`) vs global `chimera.yaml` `rag.coherence` / `rag.tooling`? Recommendation: global defaults in YAML + optional per-workspace override in `workspaces.metadata_json` when UI needs it.
 
 3. **Sync-state fields** — Store `chunk_schema` and `chunk_count` in indexer sync SQLite row to detect manifest upgrades without full hash change? Recommendation: yes; bump forces re-ingest when gateway increments schema.
 

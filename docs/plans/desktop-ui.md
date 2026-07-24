@@ -55,7 +55,7 @@ This document plans a **cross-platform desktop shell** that wraps a **system web
    - **Displays current values** for BiFrost **Groq**, **Gemini**, and **Ollama** (as surfaced by the gateway from BiFrost’s management API — key metadata **masked**, Ollama base URL as plain text).
    - **Edits per row** — One row (or card) per concern: Groq API key, Gemini API key, Ollama base URL. User saves **one row at a time** (explicit Save per row); avoids losing half-completed multi-field forms.
    - **Inline errors** — Each row shows validation/API errors **next to that row** (HTTP 4xx/5xx from BiFrost or gateway BFF mapped to readable text). No silent failure.
-5. **VS Code Continue snippet** — On the control panel (or a dedicated subsection), show a **copy-ready** configuration block: gateway **base URL**, **Bearer token** placeholder or instructions to paste the user’s token, and **model id** guidance aligned with [`vscode-continue/`](../vscode-continue/) (e.g. virtual `chimera-<semver>` from [`config/gateway.yaml`](../config/gateway.yaml)). User copies into Continue `config.json` / YAML.
+5. **VS Code Continue snippet** — On the control panel (or a dedicated subsection), show a **copy-ready** configuration block: gateway **base URL**, **Bearer token** placeholder or instructions to paste the user’s token, and **model id** guidance aligned with [`vscode-continue/`](../vscode-continue/) (e.g. virtual `chimera-<semver>` from [`config/chimera.yaml`](../config/chimera.yaml)). User copies into Continue `config.json` / YAML.
 
 **BiFrost prerequisite (phase 1)**
 
@@ -91,7 +91,7 @@ Everything **not** required to satisfy phase 1 above, including but not limited 
 **Single executable, not a single file for the whole product**
 
 - The **user-facing launcher** is **one** `chimera` binary that, in **desktop mode**, starts everything that belongs in-process and via the existing **supervisor** (optional **Qdrant** and **BiFrost** subprocesses, plus the **Go HTTP gateway**).
-- A **release** for end users is still a **bundle**: that executable **plus** the other programs the supervisor runs (`bifrost-http`, optional **Qdrant** binary), **configuration** (`config/gateway.yaml`, tokens, `bifrost.config.json`, etc.), and **data directories** as documented in installation / [`supervisor.md`](../supervisor.md). Installers (future) ship this layout; nothing requires stuffing BiFrost or Qdrant *into* the same PE/ELF file.
+- A **release** for end users is still a **bundle**: that executable **plus** the other programs the supervisor runs (`bifrost-http`, optional **Qdrant** binary), **configuration** (`config/chimera.yaml`, tokens, `bifrost.config.json`, etc.), and **data directories** as documented in installation / [`supervisor.md`](../supervisor.md). Installers (future) ship this layout; nothing requires stuffing BiFrost or Qdrant *into* the same PE/ELF file.
 
 **Headless vs desktop (same binary)**
 
@@ -161,7 +161,7 @@ Optional **Refresh** control to re-fetch state from BiFrost without full page re
 
 - **No token in query strings** for navigation.
 - **httpOnly** session cookie for admin UI; **CSRF** consideration for state-changing `POST`: use **SameSite**, or anti-CSRF token in form body / header for phase 1 if using cookie session.
-- **localhost-only** by default; document that remote access requires **HTTPS** and tighter binding (`listen_host` in [`gateway.yaml`](../config/gateway.yaml)).
+- **localhost-only** by default; document that remote access requires **HTTPS** and tighter binding (`listen_host` in [`chimera.yaml`](../config/chimera.yaml)).
 
 ---
 

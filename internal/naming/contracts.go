@@ -77,7 +77,7 @@ const (
 	TargetHeaderPrefix = "X-Chimera"
 
 	// Environment-variable contracts.
-	EnvGatewayConfigTarget        = "CHIMERA_GATEWAY_CONFIG"
+	EnvChimeraConfigTarget        = "CHIMERA_CONFIG"
 	EnvBrokerAPIKeyTarget         = "CHIMERA_BROKER_API_KEY"
 	EnvGatewayURLTarget           = "CHIMERA_GATEWAY_URL"
 	EnvGatewayTokenTarget         = "CHIMERA_GATEWAY_TOKEN"
@@ -106,10 +106,10 @@ const (
 	// Config/file naming contracts.
 	PathsAPIKeysKeyTarget       = "api_keys"
 	APIKeysFileTarget           = "api-keys.yaml"
-	GatewayConfigFileTarget     = "gateway.yaml"
-	GatewayConfigDirTarget      = "config"
+	ChimeraConfigFileTarget     = "chimera.yaml"
+	ChimeraConfigDirTarget      = "config"
 	RoutingPolicyFileTarget     = "routing-policy.yaml"
-	DefaultGatewayConfigRelPath = "config/gateway.yaml"
+	DefaultChimeraConfigRelPath = "config/chimera.yaml"
 
 	// Local hidden state directories.
 	IndexerHiddenStateDirTarget = ".locus"

@@ -18,7 +18,7 @@ Operator configuration and durable UI data live in a single **SQLite** database 
 ## Operator-visible behavior
 
 - Workspace rows, virtual models, provider toggles, and saved chat threads survive gateway restarts.
-- Settings cards reflect DB state; saving does not rewrite `gateway.yaml` for workspaces or virtual models.
+- Settings cards reflect DB state; saving does not rewrite `chimera.yaml` for workspaces or virtual models.
 - First-run bootstrap may seed virtual models and provider availability from YAML (see store bootstrap helpers).
 
 ## System behavior and contracts

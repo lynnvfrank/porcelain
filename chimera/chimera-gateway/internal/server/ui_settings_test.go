@@ -36,7 +36,7 @@ func chimeraBrokerStubForUILogs(t *testing.T) *httptest.Server {
 func runtimeForUILogs(t *testing.T, chimeraBrokerURL string) *Runtime {
 	t.Helper()
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	writeGateway(t, gwPath, chimeraBrokerURL, []string{"m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "gw-ui-secret", "t1")

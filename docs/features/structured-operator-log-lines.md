@@ -56,7 +56,7 @@ The settings event log and conversation timelines consume these normalized lines
 | Writer hook | `*line.NewWriter(io.Writer, func(string) []byte)` |
 | Reorder | `line.ReorderNormalizedJSON([]byte) []byte` |
 | Slug catalog | `internal/operatorcopy/messages.yaml` → generated constants |
-| Ingest | Supervisor `LogSink` tees child stdout/stderr through service `*line.NewWriter` into `servicelogs.Store` |
+| Ingest | Supervisor `LogSink` tees child stdout/stderr through service `*line.NewWriter` into `servicelogs.Store`, filtered by **`supervisor.log_level`** (collector gate; `LOG_LEVEL` env overrides the gate) |
 
 ## Code map
 

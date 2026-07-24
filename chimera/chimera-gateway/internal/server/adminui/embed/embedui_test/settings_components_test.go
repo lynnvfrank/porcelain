@@ -1573,7 +1573,7 @@ func TestLogsDerive_gatewayCardModel_kvCountersHideRow(t *testing.T) {
 		}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{
 			"msg": "gateway.startup.listening", "addr": ":8080", "broker": "http://bifrost", "chimera_broker_data": "/data/b",
-			"vectorstore_supervised": true, "indexer_supervised": true, "config": "/x/gateway.yaml",
+			"vectorstore_supervised": true, "indexer_supervised": true, "config": "/x/chimera.yaml",
 		}}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{"msg": "gateway.auth.reloaded", "count": 2}}},
 		{"parsed": map[string]any{"rawFlat": map[string]any{"msg": "routing.policy.reloaded", "rules": 5}}},

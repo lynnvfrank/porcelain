@@ -43,7 +43,7 @@ func setupRAGChatServer(t *testing.T) (string, *capturedReqs, *Runtime) {
 	t.Cleanup(upstream.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	writeGateway(t, gwPath, upstream.URL, []string{"groq/m"}, "http://127.0.0.1:1")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "rag-tok", "tenantR")
@@ -193,7 +193,7 @@ func TestVirtualModelChat_NoContextWhenRAGDisabled(t *testing.T) {
 	t.Cleanup(upstream.Close)
 
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	writeGateway(t, gwPath, upstream.URL, []string{"groq/m"}, "")
 	tokPath := filepath.Join(dir, "api-keys.yaml")
 	writeTokens(t, tokPath, "tok", "ten")

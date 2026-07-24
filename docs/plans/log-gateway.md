@@ -154,8 +154,8 @@ Stable dotted slugs across gateway-emitted lines. Every `slog.Info/Warn/Error/De
 | `gateway.shutdown.http` | `cmd/chimera/serve.go` `http shutdown` | Warn → **Info** | Headline: **"gateway http shutdown"**. KV: `err` (optional). |
 | `gateway.shutdown.child_force_kill` | `cmd/chimera/serve.go` `did not exit after context cancel; forcing kill`; `{name} kill failed` reuses slug with `detail=kill_send_failed` | Warn | KV: `child` (`qdrant` \| `bifrost` \| `indexer`), `pid`, `timeout`, optional `detail`. |
 | `gateway.shutdown.child_stuck` | `cmd/chimera/serve.go` `still has not exited after forced kill` | Warn | KV: `child`. |
-| `gateway.config.reloaded` | `internal/server/runtime.go` `reloaded gateway.yaml` | Info | KV: `path`. |
-| `gateway.config.reload_failed` | `internal/server/runtime.go` `failed to reload gateway.yaml` | Error | KV: `path`, `err`. |
+| `gateway.config.reloaded` | `internal/server/runtime.go` `reloaded chimera.yaml` | Info | KV: `path`. |
+| `gateway.config.reload_failed` | `internal/server/runtime.go` `failed to reload chimera.yaml` | Error | KV: `path`, `err`. |
 | `gateway.config.missing` | `internal/server/runtime.go` `gateway config missing` | Error | KV: `path`, `err`. |
 | `gateway.rag.init_failed` | `internal/server/runtime.go` `rag init failed` | **Warn** | KV: `err`. Distinct from `rag.config.invalid` (YAML); this is runtime attach failure. |
 | `gateway.metrics.disabled_after_error` | `internal/gatewaymetrics/store.go` `gateway metrics disabled after write error` | Error | KV: `step`, `err`. |
@@ -190,7 +190,7 @@ Stable **`msg`** prefix for **gateway-issued client access** (Bearer / Continue 
 | `gateway.auth.read_failed` | `internal/tokens/tokens.go` `read tokens yaml` | Error | KV: `path`, `err`. |
 | `gateway.auth.parse_failed` | `internal/tokens/tokens.go` `failed to parse tokens yaml` | Error | KV: `path`, `err`. |
 | `gateway.auth.append_failed` | `internal/server/ui_tokens.go` `append token` / `internal/server/ui_bootstrap.go` `setup append token` | Error | KV: `err`, **`surface`** (`ui` \| `bootstrap`). **Single slug** for both code paths (replaces separate `ui.tokens.*` rows). |
-| `gateway.auth.upstream_api_key.autogen` | `internal/config/upstream_api_key.go` `wrote auto-generated upstream.api_key to gateway.yaml` | Info | KV: `path`. Upstream-facing API key material in `gateway.yaml`, distinct from per-tenant client rows in the credential YAML file. |
+| `gateway.auth.upstream_api_key.autogen` | `internal/config/upstream_api_key.go` `wrote auto-generated upstream.api_key to chimera.yaml` | Info | KV: `path`. Upstream-facing API key material in `chimera.yaml`, distinct from per-tenant client rows in the credential YAML file. |
 
 ### Routing / providers / chat (`routing.*`, `chat.*`)
 

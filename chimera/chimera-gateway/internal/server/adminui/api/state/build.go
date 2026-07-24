@@ -45,13 +45,13 @@ func BuildResponse(ctx context.Context, tenantID string, publicBaseURL string, r
 			vectorstoreState = "up"
 		}
 	}
-	idxScope := res.IndexerSupervisedEnabled && (res.RAG.Enabled || res.IndexerSupervisedStartWhenRAGDisabled)
+	idxScope := res.IndexerEnabled
 	indexerWorker := "disabled"
 	indexerDeclaredState := ""
 	indexerLastHeartbeatAt := ""
 	indexerLastLogAt := ""
 	indexerDetail := ""
-	if res.IndexerSupervisedEnabled {
+	if res.IndexerEnabled {
 		if !idxScope {
 			indexerWorker = "not_running_out_of_scope"
 		} else {

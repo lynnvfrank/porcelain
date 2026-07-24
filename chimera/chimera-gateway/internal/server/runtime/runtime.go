@@ -29,7 +29,7 @@ import (
 // Runtime mirrors src/runtime.ts RuntimeState.
 type Runtime struct {
 	log                   *slog.Logger
-	gatewayPath           string
+	chimeraYAMLPath       string
 	mu                    sync.RWMutex
 	gatewayMtime          time.Time
 	freeTierMtime         time.Time
@@ -81,18 +81,18 @@ type IndexerSupervisorStatus struct {
 	UpdatedAt       time.Time
 }
 
-func NewRuntime(gatewayPath string, log *slog.Logger) (*Runtime, error) {
-	return NewRuntimeWithBrokerOverride(gatewayPath, log, "")
+func NewRuntime(chimeraYAMLPath string, log *slog.Logger) (*Runtime, error) {
+	return NewRuntimeWithBrokerOverride(chimeraYAMLPath, log, "")
 }
 
 // NewRuntimeWithBrokerOverride loads gateway config; if brokerBaseURLOverride is set (e.g. http://127.0.0.1:8080),
 // it replaces upstream.base_url and health probe URL on every reload (supervised chimera-broker).
-func NewRuntimeWithBrokerOverride(gatewayPath string, log *slog.Logger, brokerBaseURLOverride string) (*Runtime, error) {
-	res, err := config.LoadGatewayYAML(gatewayPath, log)
+func NewRuntimeWithBrokerOverride(chimeraYAMLPath string, log *slog.Logger, brokerBaseURLOverride string) (*Runtime, error) {
+	res, err := config.LoadChimeraYAML(chimeraYAMLPath, log)
 	if err != nil {
 		return nil, err
 	}
-	res, err = config.EnsureGeneratedUpstreamAPIKey(gatewayPath, res, log)
+	res, err = config.EnsureGeneratedUpstreamAPIKey(chimeraYAMLPath, res, log)
 	if err != nil {
 		return nil, err
 	}
@@ -100,10 +100,15 @@ func NewRuntimeWithBrokerOverride(gatewayPath string, log *slog.Logger, brokerBa
 		res = config.CloneResolved(res)
 		config.PatchResolvedUpstream(res, brokerBaseURLOverride)
 	}
+	if res.IndexerEnabled {
+		if _, err := config.MaterializeIndexerConfig(res); err != nil && log != nil {
+			log.Warn("indexer config materialize failed", "msg", "gateway.indexer.materialize_failed", "err", err)
+		}
+	}
 	rt := &Runtime{
 		corpusStaleStore:      corpusstale.NewStore(),
 		log:                   log,
-		gatewayPath:           gatewayPath,
+		chimeraYAMLPath:       chimeraYAMLPath,
 		brokerBaseURLOverride: brokerBaseURLOverride,
 		resolved:              res,
 		tokens:                tokens.NewStore(res.TokensPath, log),
@@ -154,7 +159,7 @@ func NewRuntimeWithBrokerOverride(gatewayPath string, log *slog.Logger, brokerBa
 			rt.rag = s
 		}
 	}
-	if st, err := os.Stat(gatewayPath); err == nil {
+	if st, err := os.Stat(chimeraYAMLPath); err == nil {
 		rt.gatewayMtime = st.ModTime()
 	}
 	if res != nil && res.ProviderFreeTierPath != "" {
@@ -178,10 +183,10 @@ func (rt *Runtime) Sync() {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	gst, err := os.Stat(rt.gatewayPath)
+	gst, err := os.Stat(rt.chimeraYAMLPath)
 	if err != nil {
 		if rt.log != nil {
-			rt.log.Error("gateway config missing", "msg", "gateway.config.missing", "path", rt.gatewayPath, "err", err)
+			rt.log.Error("gateway config missing", "msg", "gateway.config.missing", "path", rt.chimeraYAMLPath, "err", err)
 		}
 		return
 	}
@@ -200,10 +205,10 @@ func (rt *Runtime) Sync() {
 	}
 
 	prev := rt.resolved
-	next, err := config.LoadGatewayYAML(rt.gatewayPath, rt.log)
+	next, err := config.LoadChimeraYAML(rt.chimeraYAMLPath, rt.log)
 	if err != nil {
 		if rt.log != nil {
-			rt.log.Error("failed to reload gateway config", "msg", "gateway.config.reload_failed", "path", rt.gatewayPath, "config_file", naming.GatewayConfigFileTarget, "err", err)
+			rt.log.Error("failed to reload chimera config", "msg", "gateway.config.reload_failed", "path", rt.chimeraYAMLPath, "config_file", naming.ChimeraConfigFileTarget, "err", err)
 		}
 		return
 	}
@@ -224,8 +229,13 @@ func (rt *Runtime) Sync() {
 	if ragServiceConfigChanged(prev, next) {
 		rt.rebuildRAGLocked()
 	}
+	if next.IndexerEnabled {
+		if _, err := config.MaterializeIndexerConfig(next); err != nil && rt.log != nil {
+			rt.log.Warn("indexer config materialize failed", "msg", "gateway.indexer.materialize_failed", "err", err)
+		}
+	}
 	if rt.log != nil {
-		rt.log.Info("reloaded gateway config", "msg", "gateway.config.reloaded", "path", rt.gatewayPath, "config_file", naming.GatewayConfigFileTarget)
+		rt.log.Info("reloaded chimera config", "msg", "gateway.config.reloaded", "path", rt.chimeraYAMLPath, "config_file", naming.ChimeraConfigFileTarget)
 	}
 }
 
@@ -235,11 +245,11 @@ func (rt *Runtime) Snapshot() (*config.Resolved, *tokens.Store) {
 	return rt.resolved, rt.tokens
 }
 
-// GatewayPath returns the on-disk gateway.yaml path loaded by this runtime.
-func (rt *Runtime) GatewayPath() string {
+// GatewayPath returns the on-disk chimera.yaml path loaded by this runtime.
+func (rt *Runtime) ChimeraYAMLPath() string {
 	rt.mu.RLock()
 	defer rt.mu.RUnlock()
-	return rt.gatewayPath
+	return rt.chimeraYAMLPath
 }
 
 func ragServiceConfigChanged(prev, next *config.Resolved) bool {
@@ -286,7 +296,7 @@ func (rt *Runtime) rebuildRAGLocked() {
 }
 
 // ReloadRAG rebuilds the in-memory RAG service from the current resolved config.
-// Call after mutating gateway.yaml when Sync may not yet observe a new mtime.
+// Call after mutating chimera.yaml when Sync may not yet observe a new mtime.
 func (rt *Runtime) ReloadRAG() {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()

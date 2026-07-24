@@ -4,11 +4,11 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | `chimera-supervisor`, gateway config, indexer, naming contracts, operator docs |
-| **Status** | `draft` |
+| **Status** | `shipped` |
 | **Targets** | Chimera supervised stack (locus-desktop / chimera-supervisor) |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | None — complements [`locus-desktop-supervisor-contract.md`](locus-desktop-supervisor-contract.md); aligns with v0.4 harness YAML-vs-SQLite ownership |
-| **As-built** | None — link feature records when shipped (see [Feature records on ship](#feature-records-on-ship)) |
+| **As-built** | [`chimera-stack-config`](../features/chimera-stack-config.md), [`product-naming-contract`](../features/product-naming-contract.md), [`locus-desktop-supervisor`](../features/locus-desktop-supervisor.md), [`indexer`](../features/indexer.md), [`gateway-rag-ingest-and-retrieval`](../features/gateway-rag-ingest-and-retrieval.md), [`structured-operator-log-lines`](../features/structured-operator-log-lines.md) |
 
 ## At a glance
 
@@ -16,18 +16,18 @@ Operators configure the whole supervised Chimera stack in one file (`chimera.yam
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
-| [Phase 1 — Rename and path resolution](#phase-1--rename-and-path-resolution) | Stack config is `chimera.yaml` / `CHIMERA_CONFIG` with legacy fallback | `todo` |
-| [Phase 2 — Supervisor section and launch list](#phase-2--supervisor-section-and-launch-list) | Explicit `supervisor.services`; suite `enabled` on every service; indexer no longer a special toggle | `todo` |
-| [Phase 3 — Emit vs collector log levels](#phase-3--emit-vs-collector-log-levels) | Per-service emit levels; `supervisor.log_level` gates the shared log feed | `todo` |
-| [Phase 4 — Nested schema and search rename](#phase-4--nested-schema-and-search-rename) | Clear ownership for timeouts, auth, metrics, broker models; `rag` → `search` with retrieval defaults | `todo` |
-| [Phase 5 — Indexer inline config and overlay](#phase-5--indexer-inline-config-and-overlay) | Indexer tuning in `chimera.yaml` with optional overlay; materialize for supervised child | `todo` |
-| [Phase 6 — Docs and feature records](#phase-6--docs-and-feature-records) | Operator docs + shipped feature records / contract updates | `todo` |
+| [Phase 1 — Rename and path resolution](#phase-1--rename-and-path-resolution) | Stack config is `chimera.yaml` / `CHIMERA_CONFIG` (legacy removed) | `done` |
+| [Phase 2 — Supervisor section and launch list](#phase-2--supervisor-section-and-launch-list) | Explicit `supervisor.services`; suite `enabled` on every service; indexer no longer a special toggle | `done` |
+| [Phase 3 — Emit vs collector log levels](#phase-3--emit-vs-collector-log-levels) | Per-service emit levels; `supervisor.log_level` gates the shared log feed | `done` |
+| [Phase 4 — Nested schema and search rename](#phase-4--nested-schema-and-search-rename) | Clear ownership for timeouts, auth, metrics, broker models; `rag` → `search` with retrieval defaults | `done` |
+| [Phase 5 — Indexer inline config and overlay](#phase-5--indexer-inline-config-and-overlay) | Indexer tuning in `chimera.yaml` with optional overlay; materialize for supervised child | `done` |
+| [Phase 6 — Docs and feature records](#phase-6--docs-and-feature-records) | Operator docs + shipped feature records / contract updates | `done` |
 
 ---
 
 ## Background
 
-Today’s `gateway.yaml` name understates that the file configures broker, vectorstore, indexer supervision, and RAG. The indexer is the only service with an explicit supervised enable flag; others start by convention. The supervisor’s log ring filters all children using `gateway.log_level`, so setting `vectorstore.log_level: debug` has no effect in `/ui/logs`. Top-level `paths`, `health`, `metrics`, and `rag` mix unrelated concerns. v0.4 virtual-model harness plans move per-VM retrieval into SQLite while keeping a global RAG/search gate in YAML — this redesign names that split clearly.
+Today’s `chimera.yaml` name understates that the file configures broker, vectorstore, indexer supervision, and RAG. The indexer is the only service with an explicit supervised enable flag; others start by convention. The supervisor’s log ring filters all children using `gateway.log_level`, so setting `vectorstore.log_level: debug` has no effect in `/ui/logs`. Top-level `paths`, `health`, `metrics`, and `rag` mix unrelated concerns. v0.4 virtual-model harness plans move per-VM retrieval into SQLite while keeping a global RAG/search gate in YAML — this redesign names that split clearly.
 
 **Related docs:** [`configuration.md`](../configuration.md), [`supervisor.md`](../supervisor.md), [`indexer.md`](../indexer.md), [`features/product-naming-contract.md`](../features/product-naming-contract.md), [`features/locus-desktop-supervisor.md`](../features/locus-desktop-supervisor.md), [`features/gateway-rag-ingest-and-retrieval.md`](../features/gateway-rag-ingest-and-retrieval.md), [`virtual-model-turn-harness.md`](virtual-model-turn-harness.md), [`virtual-model-harness-retrieval.md`](virtual-model-harness-retrieval.md).
 
@@ -108,15 +108,16 @@ HTTP `/v1/rag/*` routes unchanged in this plan (YAML `search` rename only).
 
 **Deliverables**
 
-- Rename `config/gateway.yaml` / `gateway.example.yaml` → `chimera.yaml` / `chimera.example.yaml`.
-- Naming constants: `ChimeraConfigFileTarget`, `DefaultChimeraConfigRelPath`, prefer `CHIMERA_CONFIG`; keep `CHIMERA_GATEWAY_CONFIG` as deprecated alias.
-- Resolve order: `CHIMERA_CONFIG` → legacy env → `./config/chimera.yaml` → fallback `./config/gateway.yaml` with rename hint.
+- Rename `config/chimera.yaml` / `gateway.example.yaml` → `chimera.yaml` / `chimera.example.yaml`.
+- Naming constants: `ChimeraConfigFileTarget`, `DefaultChimeraConfigRelPath`, `CHIMERA_CONFIG` only.
+- Resolve order: `CHIMERA_CONFIG` → `./config/chimera.yaml`.
+- **Hard cut:** no `chimera.yaml` / `CHIMERA_GATEWAY_CONFIG` fallback (legacy removed).
 - Update configure/release/clean scripts and loader call sites (`LoadChimeraYAML` or alias).
 
 **Acceptance**
 
-- Fresh clone: `make` configure produces `config/chimera.yaml`; locus-desktop / supervisor start with no `gateway.yaml`.
-- Legacy `CHIMERA_GATEWAY_CONFIG` and leftover `gateway.yaml` still load for one release.
+- Fresh clone: `make` configure produces `config/chimera.yaml`; locus-desktop / supervisor start with no `chimera.yaml`.
+- Only `CHIMERA_CONFIG` / `chimera.yaml` load; leftover `chimera.yaml` is ignored.
 
 **Status:** `todo`
 

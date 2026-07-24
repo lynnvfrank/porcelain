@@ -28,7 +28,7 @@ Operators need fine-grained, **tenant-scoped** control over which upstream model
 
 ## Background
 
-**Problem.** Today the gateway exposes every model chimera-broker returns from its merged catalog (optionally intersected with a global free-tier allowlist via `routing.filter_free_tier_models` in `gateway.yaml`). Operators cannot hide specific models per tenant without editing YAML or using a coarse global filter. Virtual-model fallback chains and routing rules can reference models the operator does not want exposed, and there is no per-provider UI to curate the catalog.
+**Problem.** Today the gateway exposes every model chimera-broker returns from its merged catalog (optionally intersected with a global free-tier allowlist via `routing.filter_free_tier_models` in `chimera.yaml`). Operators cannot hide specific models per tenant without editing YAML or using a coarse global filter. Virtual-model fallback chains and routing rules can reference models the operator does not want exposed, and there is no per-provider UI to curate the catalog.
 
 **Desired behavior.**
 
@@ -56,7 +56,7 @@ Operators need fine-grained, **tenant-scoped** control over which upstream model
 | Legacy `routing.filter_free_tier_models` | **Remove** — do not keep as an additional filter or migration path; operator availability is the sole catalog filter. |
 | Ollama free-tier assist | **No-op** — all Ollama models are assumed free tier; hide or disable the free-tier button on the Ollama card (no availability changes when pressed). |
 | Tenant scope | **Per `tenant_id`** — availability rows are scoped like virtual models; UI session and `GET /v1/models` resolve availability for the authenticated tenant (API token `tenant_id` / UI session principal). |
-| Bootstrap | **Seed from YAML** — on first migration, populate each tenant’s availability from `config/provider-free-tier.yaml` (paths from `gateway.yaml` → `paths.provider_free_tier`): matching broker model ids → available, non-matching → unavailable; Ollama models → all available. |
+| Bootstrap | **Seed from YAML** — on first migration, populate each tenant’s availability from `config/provider-free-tier.yaml` (paths from `chimera.yaml` → `paths.provider_free_tier`): matching broker model ids → available, non-matching → unavailable; Ollama models → all available. |
 
 ---
 
@@ -118,7 +118,7 @@ Touch points:
 | `internal/server/server.go` `handleV1Models` | Filter `data` by availability snapshot |
 | `internal/server/catalog/availablemodels.go` `BuildSnapshot` | Same filter so health/auditors see the operator-facing catalog |
 | `internal/server/catalog/models_filter.go` | Add `FilterOpenAIModelDataByAvailability`; remove free-tier filter from catalog/routing (YAML retained for assist + bootstrap only) |
-| `internal/config/config.go` / `gateway.yaml` | Remove or ignore `routing.filter_free_tier_models` |
+| `internal/config/config.go` / `chimera.yaml` | Remove or ignore `routing.filter_free_tier_models` |
 | `internal/routinggen` + `adminui/api/routing/handlers.go` `computeRoutingDraft` | Pool = available models only |
 | `adminui/api/virtualmodels/handlers.go` `handleGeneratePOST` | Same pool semantics |
 | `internal/chat/chat.go` `WithVirtualModelFallback` + routing policy pickers | Skip unavailable ids before attempt; log warning with virtual model scope |

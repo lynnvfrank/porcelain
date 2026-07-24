@@ -11,6 +11,7 @@ Durable contracts for new binaries, wrappers, and cross-cutting integration — 
 | Feature | Summary | Areas | Status |
 |---------|---------|-------|--------|
 | [Chimera wrapper binary contract](chimera-wrapper-binary-contract.md) | Shared `/healthz`, `/readyz`, lifecycle, exit codes, metrics for `chimera-*` wrappers | `internal/wrapper`, broker, vectorstore, gateway, indexer | `current` |
+| [Chimera stack config](chimera-stack-config.md) | `chimera.yaml` suite vs launch, emit vs collector logs, search platform, indexer materialize | config, supervisor, naming | `current` |
 | [Structured operator log lines](structured-operator-log-lines.md) | JSON line schema, `*line` normalizers, lossless supervisor reorder | `wrapper/line`, servicelogs, settings UI | `current` |
 | [Product naming contract](product-naming-contract.md) | Binary basenames, `CHIMERA__*` / `BROKER__*` env, `X-Chimera-*` headers | `internal/naming`, scripts | `current` |
 | [Locus desktop ↔ supervisor](locus-desktop-supervisor.md) | Connect-first launch, readiness handshake, shutdown ownership | `locus-desktop`, `chimera-supervisor` | `partial` |

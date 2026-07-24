@@ -182,10 +182,10 @@ func NewMux(rt *Runtime, log *slog.Logger, overlay *StatusOverlay, ui *UIOptions
 			}
 		}
 
-		idxScope := res.IndexerSupervisedEnabled && (res.RAG.Enabled || res.IndexerSupervisedStartWhenRAGDisabled)
+		idxScope := res.IndexerEnabled
 		idxConfig := "disabled"
 		idxWorker := "—"
-		if res.IndexerSupervisedEnabled {
+		if res.IndexerEnabled {
 			idxConfig = "enabled"
 			if !idxScope {
 				idxWorker = "not running (out of scope)"
@@ -466,7 +466,7 @@ func writeMergedModelsResponse(w http.ResponseWriter, ctx context.Context, rt *R
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": map[string]any{
-				"message": "Missing chimera-broker API key (set " + res.UpstreamAPIKeyEnv + " or broker.api_key in " + naming.GatewayConfigFileTarget + ")",
+				"message": "Missing chimera-broker API key (set " + res.UpstreamAPIKeyEnv + " or broker.api_key in " + naming.ChimeraConfigFileTarget + ")",
 				"type":    "gateway_config",
 			},
 		})
@@ -622,7 +622,7 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 		w.WriteHeader(http.StatusServiceUnavailable)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"error": map[string]any{
-				"message": "Missing chimera-broker API key (set " + res.UpstreamAPIKeyEnv + " or broker.api_key in " + naming.GatewayConfigFileTarget + ")",
+				"message": "Missing chimera-broker API key (set " + res.UpstreamAPIKeyEnv + " or broker.api_key in " + naming.ChimeraConfigFileTarget + ")",
 				"type":    "gateway_config",
 			},
 		})

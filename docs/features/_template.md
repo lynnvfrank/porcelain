@@ -50,7 +50,7 @@ Only surfaces adjacent features or agents need when modifying this area:
 |---------|--------|
 | HTTP routes | `GET /api/ui/…` — purpose |
 | Headers | `X-Chimera-…` — meaning |
-| Config | `gateway.yaml` keys |
+| Config | `chimera.yaml` keys |
 | Events / SSE | … |
 
 ## Code map

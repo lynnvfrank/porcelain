@@ -12,13 +12,13 @@
 
 ## At a glance
 
-Virtual models in operator SQLite are the routing source of truth today, but `gateway.yaml` still carries a legacy `routing:` block, a global `routing-policy.yaml` path, YAML bootstrap import, and unused `/api/ui/routing/*` admin endpoints. This plan removes those surfaces completely so operators configure fallback chains, routing rules, and tool routers only on virtual model cards—or chat directly with upstream provider model ids when no virtual model is defined.
+Virtual models in operator SQLite are the routing source of truth today, but `chimera.yaml` still carries a legacy `routing:` block, a global `routing-policy.yaml` path, YAML bootstrap import, and unused `/api/ui/routing/*` admin endpoints. This plan removes those surfaces completely so operators configure fallback chains, routing rules, and tool routers only on virtual model cards—or chat directly with upstream provider model ids when no virtual model is defined.
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
 | [Phase 1 — Delete legacy admin API and gallery UI](#phase-1--delete-legacy-admin-api-and-gallery-ui) | No `/api/ui/routing/*` routes; gallery no longer references global YAML writers | `done` |
 | [Phase 2 — Remove runtime YAML routing paths](#phase-2--remove-runtime-yaml-routing-paths) | Chat and catalog resolve VMs from SQLite only; direct upstream ids work without YAML | `done` |
-| [Phase 3 — Remove config and file artifacts](#phase-3--remove-config-and-file-artifacts) | `gateway.yaml` has no `routing:` or `paths.routing_policy`; `Resolved` trimmed | `done` |
+| [Phase 3 — Remove config and file artifacts](#phase-3--remove-config-and-file-artifacts) | `chimera.yaml` has no `routing:` or `paths.routing_policy`; `Resolved` trimmed | `done` |
 | [Phase 4 — Tooling, tests, and docs](#phase-4--tooling-tests-and-docs) | CLI audits, tests, and operator docs match VM-only routing | `done` |
 
 ---
@@ -31,8 +31,8 @@ Virtual models in operator SQLite are the routing source of truth today, but `ga
 
 | Surface | Location | Runtime effect today |
 |---------|----------|----------------------|
-| `routing.fallback_chain`, `router_models`, `tool_router`, `filter_free_tier_models` | `config/gateway.yaml` | Parsed into `config.Resolved`; **not** used for chat after bootstrap import |
-| `paths.routing_policy` → `routing-policy.yaml` | `gateway.yaml` | Loaded as global `routing.Policy`; only used by legacy YAML shim |
+| `routing.fallback_chain`, `router_models`, `tool_router`, `filter_free_tier_models` | `config/chimera.yaml` | Parsed into `config.Resolved`; **not** used for chat after bootstrap import |
+| `paths.routing_policy` → `routing-policy.yaml` | `chimera.yaml` | Loaded as global `routing.Policy`; only used by legacy YAML shim |
 | Bootstrap import | `operatorstore/bootstrap.go` | On empty operator DB, inserts one `Chimera-<semver>` VM from YAML |
 | Legacy chat shim | `virtualmodel_chat.go` `resolveVirtualModelChat` | Falls back to YAML when `body.model == Chimera-<semver>` and registry miss |
 | Legacy admin API | `adminui/api/routing/` | Eight `POST /api/ui/routing/*` handlers that write YAML |
@@ -44,7 +44,7 @@ Virtual models in operator SQLite are the routing source of truth today, but `ga
 
 - **Virtual model defined** → client sends VM `model_id`; gateway applies that VM's fallback, policy, and tool router.
 - **No virtual model** → client sends an upstream id (`groq/...`, `gemini/...`, `ollama/...`); gateway proxies directly to chimera-broker with no fallback walk or tool-router slimming.
-- **Fresh install** → operator DB starts with **zero** virtual models; no auto-import from `gateway.yaml`.
+- **Fresh install** → operator DB starts with **zero** virtual models; no auto-import from `chimera.yaml`.
 
 **Related docs:** [`operator-virtual-models.md`](../features/operator-virtual-models.md), [`gateway-chat-routing-pipeline.md`](../features/gateway-chat-routing-pipeline.md), [`operator-provider-model-availability.md`](../features/operator-provider-model-availability.md), [`configuration.md`](../configuration.md).
 
@@ -93,7 +93,7 @@ Virtual models in operator SQLite are the routing source of truth today, but `ga
 **Acceptance**
 
 - Fresh operator DB + gateway start → **zero** virtual model rows.
-- `POST /v1/chat/completions` with upstream id (e.g. `groq/llama-3.1-8b-instant`) succeeds without any `routing:` in `gateway.yaml`.
+- `POST /v1/chat/completions` with upstream id (e.g. `groq/llama-3.1-8b-instant`) succeeds without any `routing:` in `chimera.yaml`.
 - `POST /v1/chat/completions` with a VM id uses SQLite routing stack; YAML edits do not affect behavior.
 - Request for unknown model id that is not a VM falls through to direct upstream (broker error if id invalid)—no YAML magic.
 - Integration tests cover: direct upstream chat; VM chat with distinct fallback chains.
@@ -104,7 +104,7 @@ Virtual models in operator SQLite are the routing source of truth today, but `ga
 
 ## Phase 3 — Remove config and file artifacts
 
-**Goal.** `gateway.yaml` no longer documents or loads global routing keys; repo examples match VM-only routing.
+**Goal.** `chimera.yaml` no longer documents or loads global routing keys; repo examples match VM-only routing.
 
 **Deliverables**
 
@@ -115,7 +115,7 @@ Virtual models in operator SQLite are the routing source of truth today, but `ga
   - `gatewayDoc.Routing` struct and empty-chain startup warning
   - `ShouldApplyFreeTierCatalogFilter()` (dead code)
 - Delete or narrow `chimera/internal/config/gateway_fallback.go` and associated tests (`gateway_fallback_test.go`) to helpers still needed elsewhere, or remove entirely.
-- Remove `routing:` block and `paths.routing_policy` from `config/gateway.example.yaml` and `config/gateway.yaml`.
+- Remove `routing:` block and `paths.routing_policy` from `config/gateway.example.yaml` and `config/chimera.yaml`.
 - Remove or archive `config/routing-policy.yaml` and `config/routing-policy.example.yaml` if present; update any Makefile targets that reference them.
 - Remove `paths.routing_policy` from gateway paths table in docs.
 - Trim startup/status logging that references `VirtualModelID` as the sole virtual model (`server.go`, `status.go`, `ui_bootstrap.go`)—prefer first bootstrap VM from registry or omit when none.
@@ -136,7 +136,7 @@ Virtual models in operator SQLite are the routing source of truth today, but `ga
 
 **Deliverables**
 
-- **`catalog-write-limits`:** stop calling `cataloglimits.LoadFallbackChain(gateway.yaml)`; accept explicit `--ensure` model list, catalog snapshot, or optional operator SQLite VM chains.
+- **`catalog-write-limits`:** stop calling `cataloglimits.LoadFallbackChain(chimera.yaml)`; accept explicit `--ensure` model list, catalog snapshot, or optional operator SQLite VM chains.
 - Delete `cataloglimits.LoadFallbackChain` if unused after CLI update.
 - Update [`configuration.md`](../configuration.md): remove global routing tables; document VM-only routing and direct upstream ids.
 - Update [`operator-virtual-models.md`](../features/operator-virtual-models.md): remove "Legacy YAML" row; state bootstrap no longer imports YAML; note fresh installs start with zero VMs.
@@ -150,7 +150,7 @@ Virtual models in operator SQLite are the routing source of truth today, but `ga
 
 **Acceptance**
 
-- No doc tells operators to edit `routing.fallback_chain` in `gateway.yaml` for live routing.
+- No doc tells operators to edit `routing.fallback_chain` in `chimera.yaml` for live routing.
 - `make` / CLI tools do not require `routing.fallback_chain` in gateway config.
 - Feature records are consistent with code; plan status → `shipped`.
 
@@ -187,4 +187,4 @@ Resolved for this plan:
   - [`configuration.md`](../configuration.md)
   - [`operator-virtual-models.md`](../features/operator-virtual-models.md)
   - [`gateway-chat-routing-pipeline.md`](../features/gateway-chat-routing-pipeline.md)
-- Prior plan: [`virtual-models-operator.md`](virtual-models-operator.md) Phase 5 deliverable *"Remove dual-write to gateway.yaml from generate handlers after one release with bootstrap"*
+- Prior plan: [`virtual-models-operator.md`](virtual-models-operator.md) Phase 5 deliverable *"Remove dual-write to chimera.yaml from generate handlers after one release with bootstrap"*

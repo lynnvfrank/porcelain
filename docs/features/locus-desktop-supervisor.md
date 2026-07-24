@@ -7,7 +7,7 @@
 | **Status** | `partial` |
 | **Introduced** | v0.4 desktop/supervisor boundary |
 | **Originated from** | [`plans/locus-desktop-supervisor-contract.md`](../plans/locus-desktop-supervisor-contract.md) |
-| **Related features** | [Chimera wrapper binary contract](chimera-wrapper-binary-contract.md), [Structured operator log lines](structured-operator-log-lines.md) |
+| **Related features** | [Chimera wrapper binary contract](chimera-wrapper-binary-contract.md), [Structured operator log lines](structured-operator-log-lines.md), [Chimera stack config](chimera-stack-config.md) |
 | **Depends on** | Wrapper health/readiness endpoints on supervisor control plane |
 | **Last updated** | See git history |
 
@@ -24,7 +24,7 @@ Double-clicking `locus-desktop` opens the gateway operator UI in a webview after
 **Process ownership**
 
 - `locus-desktop` — window lifecycle, folder picker bridges, external URL open, startup UX.
-- `chimera-supervisor` — spawns `chimera-gateway`, `chimera-broker`, `chimera-vectorstore`, optional `chimera-indexer`; exposes control HTTP plane.
+- `chimera-supervisor` — spawns children listed in `supervisor.services` (default: all suite-enabled services among gateway, broker, vectorstore, indexer); exposes control HTTP plane. Collector log gate is `supervisor.log_level`.
 
 **Startup**
 

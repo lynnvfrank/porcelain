@@ -41,7 +41,7 @@ func mustRuntimeLog(t *testing.T, gwPath string, log *slog.Logger) *Runtime {
 	return rt
 }
 
-// writeGateway writes a minimal gateway.yaml for tests. When qdrantURL is non-empty, RAG is enabled.
+// writeGateway writes a minimal chimera.yaml for tests. When qdrantURL is non-empty, search is enabled.
 // chain is ignored (virtual models are seeded via seedChimeraTestVM); kept for call-site compatibility.
 func writeGateway(t *testing.T, path, upstream string, chain []string, qdrantURL string) {
 	t.Helper()
@@ -51,12 +51,12 @@ func writeGateway(t *testing.T, path, upstream string, chain []string, qdrantURL
 		semver = "0.2.0"
 	}
 	raw := "gateway:\n  semver: \"" + semver + "\"\n  listen_port: 0\n  listen_host: \"127.0.0.1\"\n" +
-		"broker:\n  base_url: \"" + upstream + "\"\n  api_key_env: \"" + naming.EnvBrokerAPIKeyTarget + "\"\n" +
-		"health:\n  timeout_ms: 2000\n  chat_timeout_ms: 60000\n" +
-		"paths:\n  tokens: \"./" + naming.APIKeysFileTarget + "\"\n"
+		"  timeouts:\n    broker_ms: 2000\n    chat_ms: 60000\n" +
+		"  auth:\n    api_keys: \"./" + naming.APIKeysFileTarget + "\"\n" +
+		"broker:\n  url: \"" + upstream + "\"\n  api_key_env: \"" + naming.EnvBrokerAPIKeyTarget + "\"\n"
 	if qdrantURL != "" {
 		raw += "vectorstore:\n  url: \"" + qdrantURL + "\"\n" +
-			"rag:\n  enabled: true\n" +
+			"search:\n  enabled: true\n" +
 			"  embedding:\n    model: \"test-embed\"\n    dim: 8\n" +
 			"  chunking:\n    size: 128\n    overlap: 32\n" +
 			"  ingest:\n    max_bytes: 10485760\n" +
@@ -113,7 +113,7 @@ func writeRouting(t *testing.T, path, model string, minChars int) {
 func runtimeForCatalogTest(t *testing.T, upstreamURL string) *Runtime {
 	t.Helper()
 	dir := t.TempDir()
-	gwPath := filepath.Join(dir, naming.GatewayConfigFileTarget)
+	gwPath := filepath.Join(dir, naming.ChimeraConfigFileTarget)
 	tokPath := filepath.Join(dir, naming.APIKeysFileTarget)
 	writeGateway(t, gwPath, upstreamURL, []string{"m"}, "")
 	writeTokens(t, tokPath, "tok", "tenant")

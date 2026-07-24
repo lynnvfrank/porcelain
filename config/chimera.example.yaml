@@ -1,0 +1,77 @@
+# Copy to `chimera.yaml` and edit. Full reference: docs/configuration.md
+#
+# Supervised-stack config for chimera-supervisor / locus-desktop.
+# Virtual models and workspaces live in operator SQLite (/ui/settings), not here.
+
+supervisor:
+  listen: "127.0.0.1:7710"
+  log_json: true
+  # Collector gate for ring buffer + /ui logs (independent of per-service emit levels).
+  log_level: "info"
+  # Omit to launch every suite-enabled service (vectorstore, broker, gateway, indexer).
+  # services: [vectorstore, broker, gateway, indexer]
+
+gateway:
+  enabled: true
+  semver: "0.2.0"
+  listen_host: "127.0.0.1"
+  listen_port: 3000
+  # Gateway process emit level (not the shared log collector gate).
+  log_level: "info"
+  timeouts:
+    broker_ms: 5000
+    chat_ms: 300000
+  catalog:
+    poll_ms: 30000
+  auth:
+    api_keys: "./api-keys.yaml"
+  metrics:
+    enabled: true
+
+broker:
+  enabled: true
+  url: "http://127.0.0.1:8080"
+  api_key_env: "CHIMERA_BROKER_API_KEY"
+  log_level: "info"
+  models:
+    free_tier: "./provider-free-tier.yaml"
+    limits: "./provider-model-limits.yaml"
+
+vectorstore:
+  enabled: true
+  url: "http://127.0.0.1:6333"
+  log_level: "info"
+
+indexer:
+  enabled: true
+  # Optional last-wins overlay (UI PUT writes here when set; default indexer.yaml beside this file).
+  # config_path: "indexer.yaml"
+  log_level: "info"
+  job_skip_log: debug
+  job_ingest_log: debug
+  scope_status_poll_ms: -1
+  storage_stats_poll_ms: -1
+
+# Search platform (ingest + retrieval). HTTP routes remain /v1/rag/*.
+# retrieval_defaults seed new virtual models; per-VM retrieval overrides live in SQLite (v0.4).
+search:
+  enabled: true
+  embedding:
+    path: "/v1/embeddings"
+    model: "ollama/nomic-embed-text:latest"
+    dim: 768
+  chunking:
+    size: 512
+    overlap: 128
+  ingest:
+    max_bytes: 10485760
+  retrieval_defaults:
+    top_k: 8
+    score_threshold: 0.50
+  defaults:
+    project_id: "default"
+    flavor_id: ""
+  coherence:
+    mode: warn
+  tooling:
+    enabled: true

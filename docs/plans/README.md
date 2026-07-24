@@ -20,6 +20,7 @@ These plans are complete. Read the linked feature record for as-built behavior.
 
 | Plan | Feature record(s) |
 |------|-------------------|
+| [chimera-stack-config.md](chimera-stack-config.md) | [chimera-stack-config](../features/chimera-stack-config.md), [product naming](../features/product-naming-contract.md), [locus-desktop-supervisor](../features/locus-desktop-supervisor.md) |
 | [indexer.md](indexer.md) | [indexer](../features/indexer.md), [workspaces](../features/indexer-workspaces.md), [ingest pipeline](../features/indexer-ingest-pipeline.md), [health/logs](../features/indexer-health-and-operator-logs.md), [gateway RAG](../features/gateway-rag-ingest-and-retrieval.md) |
 | [indexer-workspaces-sqlite-gateway-api.md](indexer-workspaces-sqlite-gateway-api.md) | [indexer-workspaces](../features/indexer-workspaces.md) |
 | [indexer-workspaces-accurate-reporting.md](indexer-workspaces-accurate-reporting.md) | [indexer-workspaces](../features/indexer-workspaces.md), [health/logs](../features/indexer-health-and-operator-logs.md) |
@@ -63,7 +64,6 @@ Create a feature record when implementation ships.
 
 | Plan | Summary |
 |------|---------|
-| [chimera-stack-config.md](chimera-stack-config.md) | Rename to `chimera.yaml`; suite vs launch; emit vs collector logs; `search` platform; indexer inline config |
 | [virtual-model-turn-harness.md](virtual-model-turn-harness.md) | **v0.4 umbrella** — index, module table, resolved decisions for per-VM turn harness |
 | [virtual-model-harness-runtime.md](virtual-model-harness-runtime.md) | Stage registry + turn envelope |
 | [virtual-model-harness-settings.md](virtual-model-harness-settings.md) | VM module toggles (SQLite, API, settings UI) |

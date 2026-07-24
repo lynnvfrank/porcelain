@@ -1,13 +1,13 @@
 # Installation
 
-This document covers **installing toolchains and third-party binaries** so you can build and run Chimera Gateway from source. It does **not** cover gateway configuration (api keys, `gateway.yaml`, provider keys) or verifying that the server is healthy — see [configuration.md](configuration.md) and the **Execution** section in the repo [README.md](../README.md).
+This document covers **installing toolchains and third-party binaries** so you can build and run Chimera Gateway from source. It does **not** cover gateway configuration (api keys, `chimera.yaml`, provider keys) or verifying that the server is healthy — see [configuration.md](configuration.md) and the **Execution** section in the repo [README.md](../README.md).
 
 ## What gets installed
 
 From a clean clone you typically need:
 
 1. **Language runtimes and build driver** on your machine — **Go** (to build this repo and BiFrost’s Go code), **Node.js** (BiFrost’s UI is built with `npm`; `make chimera-install` runs that step), **Git** (clone BiFrost), **GNU Make**, and a **C compiler for CGO** (`gcc` or `clang` on `PATH`) because BiFrost’s `bifrost-http` binary is built with **CGO** enabled.
-2. **BiFrost** — a checkout under `.deps/bifrost` and a compiled `bifrost-http` binary copied to `./bin/bifrost-http`. The gateway talks to BiFrost over HTTP (upstream URL in `gateway.yaml` when you configure it later).
+2. **BiFrost** — a checkout under `.deps/bifrost` and a compiled `bifrost-http` binary copied to `./bin/bifrost-http`. The gateway talks to BiFrost over HTTP (upstream URL in `chimera.yaml` when you configure it later).
 3. **Qdrant** (optional for the full local stack) — a prebuilt `./bin/qdrant` binary downloaded from GitHub releases, matching the version pinned in `chimera/deps.lock`, plus a **source tree** under `.deps/qdrant` at the same pin (for local reference only; the supervised process still uses `./bin/qdrant`).
 
 Pinned versions live in `chimera/deps.lock` (single place to bump them). The important keys are `BIFROST_GIT_URL`, `BIFROST_GIT_REF` (commit, tag, or branch), and `QDRANT_RELEASE`. `scripts/install.sh` (via `make chimera-install`) and `scripts/deps-lock.sh` read that file; always treat `chimera/deps.lock` as the source of truth for exact pins.
@@ -161,7 +161,7 @@ $env:CHIMERA_ADMINUI_ROOT = "$PWD\chimera\chimera-gateway\internal\server\adminu
 make locus-desktop-run
 ```
 
-Edit files under `embedui/`, then refresh `/ui/settings` in the browser or desktop webview. The gateway only enables disk mode when **`CHIMERA_ADMINUI_ROOT` is valid** and the gateway **listen address is loopback** (see `gateway.yaml` `listen_host`).
+Edit files under `embedui/`, then refresh `/ui/settings` in the browser or desktop webview. The gateway only enables disk mode when **`CHIMERA_ADMINUI_ROOT` is valid** and the gateway **listen address is loopback** (see `chimera.yaml` `listen_host`).
 
 You still need `make chimera-gateway-build` when changing Go handlers or running `make operator-contracts-generate` after `internal/naming` edits.
 
@@ -169,5 +169,5 @@ Details: [`plans/adminui-filesystem-dev-mode.md`](plans/adminui-filesystem-dev-m
 
 ## Next steps
 
-- **Configuration** (environment file, `config/api-keys.yaml`, `config/gateway.yaml`, `config/bifrost.config.json`): [configuration.md](configuration.md).
+- **Configuration** (environment file, `config/api-keys.yaml`, `config/chimera.yaml`, `config/bifrost.config.json`): [configuration.md](configuration.md).
 - **Running** BiFrost and the gateway together (`chimera serve`, local binaries): [supervisor.md](supervisor.md).

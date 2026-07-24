@@ -42,7 +42,7 @@ Design notes for the root [Makefile](../Makefile) and bash-driven scripts. **The
 | No `make doctor`; no duplicate meta-targets (`ci`, etc.) | **Done** |
 | PowerShell twin for every `scripts/*.sh` | **Optional / not important** — install uses bash; `install-make.ps1` exists for make only |
 | Separate `gui/` module targets (`vet-gui`, `test-gui`, `SKIP_GUI`) | **Superseded** — webview lives in `cmd/chimera` with `vet-desktop` / `SKIP_DESKTOP` |
-| Richer `chimera-status` (read ports from `gateway.yaml`) | **Optional follow-up** |
+| Richer `chimera-status` (read ports from `chimera.yaml`) | **Optional follow-up** |
 
 ---
 
@@ -95,7 +95,7 @@ These appeared in older versions of this plan; the product moved to **webview + 
 | Concern | Makefile role |
 |--------|----------------|
 | Toolchain + BiFrost/Qdrant pins | `make chimera-install` (or `make install` for desktop OS deps too) |
-| `config/gateway.yaml`, `.env`, `tokens.yaml` | `make configure` copies `gateway.example.yaml` → `gateway.yaml` if missing; copy `env.example` → `.env` yourself; `tokens.yaml` via `/ui/setup` or manual copy |
+| `config/chimera.yaml`, `.env`, `tokens.yaml` | `make configure` copies `gateway.example.yaml` → `chimera.yaml` if missing; copy `env.example` → `.env` yourself; `tokens.yaml` via `/ui/setup` or manual copy |
 | Run stack | `chimera-supervisor-run`, `chimera-serve`, `chimera-start` / `stop` / `status`, `logs` |
 | Local gate before commit | `make precommit` |
 

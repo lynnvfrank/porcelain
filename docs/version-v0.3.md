@@ -83,7 +83,7 @@ These names are **roles**, not four separate shipping binaries unless noted:
 **Concrete deltas already modeled on `origin/feat/chimera-branding`:**
 
 - **README** title and lede: **“Chimera: Intelligent Routing & Memory Layer”**; first paragraph states membership in **Porcelain** and assigns Chimera (not “the gateway” generically) as the component that owns BiFrost-facing behavior, RAG, and `chimera serve` supervision wording where updated.
-- **Config table copy:** **Chimera** substitutes for “Chimera” where it describes **client auth** (`tokens.yaml`), `gateway.yaml` (“Chimera listen + upstream”), `.env` (Chimera↔BiFrost key line), and **desktop** install note (“admin UI for Chimera”).
+- **Config table copy:** **Chimera** substitutes for “Chimera” where it describes **client auth** (`tokens.yaml`), `chimera.yaml` (“Chimera listen + upstream”), `.env` (Chimera↔BiFrost key line), and **desktop** install note (“admin UI for Chimera”).
 - `**cmd/chimera/gateway.go`:** structured startup logs use `Chimera (go) listening` (and bootstrap variant) instead of `chimera (go) listening`.
 
 ### Scope buckets
@@ -128,7 +128,7 @@ Treat this theme as satisfied when **first-touch** operator docs and UI consiste
 | Current                                                               | v0.3 target                                                                           |
 |-----------------------------------------------------------------------|---------------------------------------------------------------------------------------|
 | `config/tokens.example.yaml`                                          | `config/api-keys.example.yaml`                                                        |
-| Operator copy / runtime file `tokens.yaml` (path from `gateway.yaml`) | `api-keys.yaml` (recommended default filename; operators may still use a custom path) |
+| Operator copy / runtime file `tokens.yaml` (path from `chimera.yaml`) | `api-keys.yaml` (recommended default filename; operators may still use a custom path) |
 
 
 Comments in the example file should tell operators to copy to `api-keys.yaml` and to reload on mtime, matching today’s behavior.
@@ -150,7 +150,7 @@ api_keys:
 
 ### Gateway config path key
 
-In `gateway.yaml`, the path that points at this file should use `paths.api_keys` (replacing `paths.tokens`) so the operator-facing key matches the document (`api_keys`). Example: `api_keys: "./api-keys.yaml"` under `paths:`.
+In `chimera.yaml`, the path that points at this file should use `paths.api_keys` (replacing `paths.tokens`) so the operator-facing key matches the document (`api_keys`). Example: `api_keys: "./api-keys.yaml"` under `paths:`.
 
 ### Implementation notes
 
@@ -160,7 +160,7 @@ In `gateway.yaml`, the path that points at this file should use `paths.api_keys`
 **Acceptance**
 
 - Example and runtime credential files use `api-keys.yaml`, `api_keys`, and `secret` where implemented.
-- `gateway.yaml` uses `paths.api_keys` for current behavior.
+- `chimera.yaml` uses `paths.api_keys` for current behavior.
 - Docs and logs reserve "token" for tokenizer/model-token usage except in explicitly historical notes.
 
 **Status:** `done`
@@ -197,7 +197,7 @@ In `gateway.yaml`, the path that points at this file should use `paths.api_keys`
 
 ### Operator model (config + lifecycle)
 
-- **Start when configured:** Mirror the **indexer** mental model—an **internal embedding** capability is **off by default** and **starts with supervision** (or an explicit enable + health gate) when `gateway.yaml` (or a dedicated stanza) says so, so idle installs do not pay RAM or disk for weights they do not use.
+- **Start when configured:** Mirror the **indexer** mental model—an **internal embedding** capability is **off by default** and **starts with supervision** (or an explicit enable + health gate) when `chimera.yaml` (or a dedicated stanza) says so, so idle installs do not pay RAM or disk for weights they do not use.
 - **Configuration surface:** When enabled, the operator sets:
   - A reserved **internal provider name** (string used wherever embedding “provider” is selected today—wizard, indexer client, metrics labels).
   - The **embedding model id** (and, if needed, **revision** / **quantization** tag) the runtime should load.
@@ -371,7 +371,7 @@ Each row in **operator SQLite** (same store family as workspaces; see [`plans/in
 | **enabled**     | `true`   | Disabled models hidden from catalog and rejected on chat    |
 | **visibility**  | `public` | `private` limits catalog and chat to the creating principal |
 
-**Bootstrap:** on first open of an empty operator DB, import the legacy stack — one public enabled model with id `Chimera-<semver>`, current `routing.fallback_chain`, `routing-policy.yaml`, and global tool-router settings from `gateway.yaml`.
+**Bootstrap:** on first open of an empty operator DB, import the legacy stack — one public enabled model with id `Chimera-<semver>`, current `routing.fallback_chain`, `routing-policy.yaml`, and global tool-router settings from `chimera.yaml`.
 
 ### Per-model routing stack
 
@@ -438,7 +438,7 @@ v1 may store a monolithic **policy YAML** per virtual model for fastest parity w
   - Optional action: **Save key** — when pressed, **upsert** into a **dotenv** file (project/agreed path): if `CHIMERA_GATEWAY_TOKEN` is **not** already defined, set it to this key; if already defined, do **not** overwrite without an explicit future “replace” flow (this plan: **only set when absent**).
 3. User guidance: copy and/or save, then **close** the application.
 4. On next launch, the user either:
-  - Pastes the key into the app when prompted, or  
+  - Pastes the key into the app when prompted, or
   - Relies on `CHIMERA_GATEWAY_TOKEN` being read from the environment / dotenv load order as implemented.
 
 **Acceptance**
@@ -480,7 +480,7 @@ v1 may store a monolithic **policy YAML** per virtual model for fastest parity w
   - When a key is **added** or **removed**, poll **chimera-broker provider health** and the live **`/v1/models`** catalog for that provider.
   - Display a **count of models discovered** for that provider configuration.
   - Optionally apply **free-tier availability** assist (Groq/Gemini) or rely on bootstrap seeding from `provider-free-tier.yaml`.
-  - Whenever the **model count** or availability set changes, regenerate the **virtual model** routing stack (`POST /api/ui/virtual-models/{id}/routing/generate`) — not legacy global `gateway.yaml` routing alone.
+  - Whenever the **model count** or availability set changes, regenerate the **virtual model** routing stack (`POST /api/ui/virtual-models/{id}/routing/generate`) — not legacy global `chimera.yaml` routing alone.
   - **Do not** block setup on per-model live probes (chat/embed ping). Runtime already **skips and logs** unavailable or failing upstream models at use time. Richer validation, operator **alerts**, and **self-healing configuration** are scoped in [`version-v0.5.md`](version-v0.5.md).
 - **Back** → welcome. **Continue** → step 3.
 
@@ -537,7 +537,7 @@ v1 may store a monolithic **policy YAML** per virtual model for fastest parity w
     2. Run search **across configured indexes** (same semantics as production search for the scopes defined in step 5).
     3. **Zero results:** show that explicitly; add **notes/warnings** based on indexer state (idle, error, no chunks, etc.).
     4. **Multiple results:**
-      - First block: **summary** — total hits across workspaces; **number of distinct workspaces** with a match.  
+      - First block: **summary** — total hits across workspaces; **number of distinct workspaces** with a match.
       - Second block: **details** — file paths and **short excerpts**.
   - Below: **indexer run log** view — **same content and live updates** as the dedicated **log** page in the app so users see progress and errors.
 - **Back** → step 5. **Finish** → **main multi-tab** application view.

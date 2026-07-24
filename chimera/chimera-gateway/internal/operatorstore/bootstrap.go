@@ -41,7 +41,7 @@ func seedRoutingRuleCatalog(ctx context.Context, s *Store) error {
 		"Route long user turns via min_message_chars")
 }
 
-// BootstrapVirtualModels seeds operator SQLite on first open. Legacy gateway.yaml routing
+// BootstrapVirtualModels seeds operator SQLite on first open. Legacy file-based routing
 // import was removed; operators create virtual models in settings (or tests seed rows explicitly).
 func BootstrapVirtualModels(ctx context.Context, s *Store, res *config.Resolved, log *slog.Logger) error {
 	if s == nil {

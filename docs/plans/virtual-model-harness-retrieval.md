@@ -18,7 +18,7 @@ Each virtual model applies its own retrieval settings to the request's **project
 |-------|---------|--------|
 | [Phase 1 — Per-virtual-model retrieval](#phase-1--per-virtual-model-retrieval) | VM config drives retrieval; evidence compression with summarize | `todo` |
 
-**Depends on:** [runtime](virtual-model-harness-runtime.md), [settings](virtual-model-harness-settings.md)  
+**Depends on:** [runtime](virtual-model-harness-runtime.md), [settings](virtual-model-harness-settings.md)
 **Blocks:** [evaluator escalation](virtual-model-harness-evaluator-escalation.md) (re-retrieve uses retrieval config)
 
 ---
@@ -40,7 +40,7 @@ RAG today uses gateway-global `top_k` and `score_floor` ([`gateway-rag-ingest-an
 **Deliverables**
 
 - Retrieval module config: `top_k`, `score_floor`, `max_context_chars`, `compress_strategy` (`none` \| `truncate` \| `summarize`), `summarize_model_id`, `skip_if` (`empty_query`, `no_workspace`, intent tags).
-- Harness retrieval stage reads VM config instead of only global `gateway.yaml` defaults.
+- Harness retrieval stage reads VM config instead of only global `chimera.yaml` defaults.
 - **`EvidenceCompressor` interface** in `internal/harness/evidence/`:
   - `Compress(ctx, hits, budget, cfg) (EvidenceBlock, error)`
 - Implementations:

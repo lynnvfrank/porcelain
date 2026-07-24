@@ -13,31 +13,21 @@ chunks locally.
 
 ## Supervised mode (`chimera-supervisor` / desktop)
 
-When `indexer.supervised.enabled: true` is set in `config/gateway.yaml`
-(and RAG is enabled, or `start_when_rag_disabled: true`), `chimera-supervisor`
-starts `chimera-indexer` as a child process after the broker is healthy. The child
-inherits the parent environment and receives `CHIMERA_GATEWAY_URL` pointing
-at this gateway instance; set `CHIMERA_GATEWAY_TOKEN` in the environment so
-ingest can authenticate.
+When `indexer` is suite-enabled and listed in `supervisor.services` (default: all
+enabled services, including indexer), `chimera-supervisor` starts `chimera-indexer`
+after broker/gateway as configured. The child inherits the parent environment and
+receives `CHIMERA_GATEWAY_URL`; set `CHIMERA_GATEWAY_TOKEN` for ingest auth.
 
-- **Single config file:** `indexer.supervised.config_path` (default:
-  `../data/gateway/indexer.supervised.yaml` relative to `gateway.yaml`) is
-  passed as `--config` (highest merge layer). The file holds **indexer tuning
-  only** (timeouts, workers, ignores, and so on). **Watch directories** are
-  **not** read from YAML `roots:` in supervised mode; they come from the
-  gateway **`GET /v1/indexer/workspaces`** (operator SQLite), managed in the
-  settings UI (`/ui/settings`). The indexer **polls** that API every
-  `workspaces_poll_interval_ms` (default **30s**) and applies path add/remove
-  **in-process** (same `index_run_id`, same `RunWatchers` loop). When the
-  supervised YAML file changes on disk, the process reloads **tuning only**
-  in-process (debounced)—**no** desktop restart. Legacy `roots:` in an existing
-  `indexer.supervised.yaml` are imported into operator SQLite once at gateway
-  startup when the workspace table is empty.
-- **Standalone `chimera-indexer`** (no `--config`): unchanged—roots come from
-  merged YAML and optional `--root` as before.
-- **Logs:** stderr/stdout are teed into the same ring buffer as BiFrost/Qdrant;
-  open `/ui/settings` and filter source `indexer`.
-- **Structured stderr:** supervised indexer passes `--log-json` by default (JSON **slog** on stderr). Set `indexer.supervised.log_json: false` to opt out.
+- **Config:** Tuning lives under `indexer:` in `config/chimera.yaml` (same keys as
+  standalone `indexer.yaml`). Optional `indexer.config_path` is a last-wins overlay.
+  The supervisor **materializes** the merged YAML to `data/gateway/indexer.materialized.yaml`
+  and passes that as `--config`. Watch directories come from **`GET /v1/indexer/workspaces`**
+  (operator SQLite / `/ui/settings`), not YAML `roots:`.
+- **Search gate:** Ingest/retrieval APIs still require `search.enabled: true` (legacy `rag.enabled`).
+- **Standalone `chimera-indexer`** (no supervised materialize): roots from merged YAML / `--root`.
+- **Logs:** teed into the supervisor ring; filter source `indexer`. Emit level =
+  `indexer.log_level`; collector gate = `supervisor.log_level`.
+- **Structured stderr:** `--log-json` by default; set `indexer.log_json: false` to opt out.
 
 ### Structured operator logs (`--log-json`)
 
@@ -152,7 +142,7 @@ those fields; `--log-level` overrides `log_level`. `CHIMERA_GATEWAY_TOKEN` is al
 YAML).
 
 ```yaml
-# Chimera Gateway base URL (default listen_port is 3000 in config/gateway.yaml).
+# Chimera Gateway base URL (default listen_port is 3000 in config/chimera.yaml).
 # Do not point this at BiFrost (8080) — chimera-indexer talks to the gateway.
 gateway_url: "http://127.0.0.1:3000"
 roots:
@@ -302,10 +292,10 @@ debounce 750 ms).
 
 On each workspace poll (~30s), the indexer compares the normalized on-disk hash of each sync-state row to the last ingested `content_sha256`. Drift is logged once per source at DEBUG as `indexer.coherence.stale` and pushed to the gateway via `PUT /v1/indexer/corpus/stale` (scoped by tenant + `X-Chimera-Project` + `X-Chimera-Flavor-Id`).
 
-Gateway config (`gateway.yaml`):
+Gateway config (`chimera.yaml`):
 
 ```yaml
-rag:
+search:
   coherence:
     mode: warn   # off | warn | strict (default warn)
 ```
@@ -320,7 +310,7 @@ Operators can inspect stale sources at `GET /v1/indexer/corpus/stale` (indexer t
 
 ## Workspace expansion tools (manifest Phase 7)
 
-When `rag.tooling.enabled` is true (default), authenticated clients may call:
+When `search.tooling.enabled` is true (default), authenticated clients may call:
 
 | Endpoint | Purpose |
 |----------|---------|
@@ -335,7 +325,7 @@ Logical tool names (same parameters as REST):
 - **workspace_adjacent_chunks** — `{ point_id, radius }`
 - **workspace_read_lines** — `{ source, start_line, end_line, content_sha256? }`
 
-Cache: `rag.tooling.expansion_cache_ttl_seconds` (default 300), `expansion_cache_max_entries` (default 256).
+Cache: `search.tooling.expansion_cache_ttl_seconds` (default 300), `expansion_cache_max_entries` (default 256).
 
 ## Troubleshooting: memory and handles (Windows)
 

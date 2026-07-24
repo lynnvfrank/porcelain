@@ -45,7 +45,7 @@ Putting **roots** and **tuning** in the same file means every workspace add/remo
 
 **Deliverables**
 
-- New gateway config fields (names illustrative; finalize in implementation): e.g. `operator.sqlite_path` defaulting to something like `../data/gateway/operator.sqlite` relative to `gateway.yaml` (same path-resolution style as `metrics.sqlite_path`), **distinct** from `metrics.sqlite_path`.
+- New gateway config fields (names illustrative; finalize in implementation): e.g. `operator.sqlite_path` defaulting to something like `../data/gateway/operator.sqlite` relative to `chimera.yaml` (same path-resolution style as `metrics.sqlite_path`), **distinct** from `metrics.sqlite_path`.
 - SQL migrations under a gateway-owned directory (e.g. `porcelain/migrations/chimera-gateway/operator/`) with versioned `NNNNNN_*.sql` files; startup open + migrate pattern aligned with existing metrics migration discipline.
 - **Normalized schema (decided):**
   - **`workspaces`** — one row per logical workspace: **`id INTEGER PRIMARY KEY AUTOINCREMENT`** (no operator-supplied workspace id), `tenant_id`, `project_id`, `flavor_id`, timestamps.

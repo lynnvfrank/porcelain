@@ -48,7 +48,7 @@ Operators define **indexer workspaces**—a project, flavor, and one or more abs
 **Persistence**
 
 - Migrations under `migrations/chimera-gateway/operator/` (workspaces tables in early operator migrations).
-- Gateway config: `operator.sqlite_path` (default under `data/gateway/` relative to `gateway.yaml`).
+- Gateway config: `operator.sqlite_path` (default under `data/gateway/` relative to `chimera.yaml`).
 
 ## Interfaces
 
