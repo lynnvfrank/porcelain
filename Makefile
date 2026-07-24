@@ -632,6 +632,21 @@ contracts-check:
 	@go test ./internal/operatorcopy/... -run TestGeneratedOperatorCopyJSMatchesFile -count=1
 	@go test ./internal/naming/... -run 'TestGeneratedLogMessagesGoMatchesFile|TestLogMessageConstsHaveRegistryEntry' -count=1
 	@$(GITBASH) scripts/operatorcopy-msg-audit.sh
+	@echo [STEP] Checking operator UI fonts match icons.txt
+	@python3 scripts/adminui-fonts-sync.py check
+
+# --- Operator UI fonts (hand-maintained icons.txt; not required for normal builds) ---
+
+adminui-fonts-fetch:
+	$(call step_msg,Fetching operator UI font sources into chimera/.deps)
+	@$(GITBASH) scripts/adminui-fonts-fetch.sh
+
+adminui-fonts: adminui-fonts-fetch
+	$(call step_msg,Subsetting operator UI fonts from embedui/fonts/icons.txt)
+	@python3 scripts/adminui-fonts-sync.py sync
+
+adminui-fonts-check:
+	@python3 scripts/adminui-fonts-sync.py check
 
 # Supervisor log normalization fidelity (docs/plans/log-supervisor-normalization-fidelity.md).
 test-log-fidelity:

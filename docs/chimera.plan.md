@@ -33,7 +33,7 @@ Future scope only; shipped behavior lives in version docs and feature records.
 | **v0.1.1** | Tool router, metrics, provider quotas | [version-v0.1.1.md](version-v0.1.1.md) |
 | **v0.2** | RAG ingest/retrieval, indexer REST, Qdrant, workspace indexer | [version-v0.2.md](version-v0.2.md) |
 | **v0.3** | Branding, onboarding, operator virtual models, SQLite operator store, desktop shell | [version-v0.3.md](version-v0.3.md) |
-| **v0.4** | Ensemble (“heavy thinking”), triggers, escalation, paste-back | [version-v0.4.md](version-v0.4.md) |
+| **v0.4** | Virtual model turn harness (per-VM stages, retrieval, workspace tools, evaluator/escalation) | [version-v0.4.md](version-v0.4.md) |
 | **v0.5** | Gateway MCP (optional); conversation archive ingestion | — |
 | **v0.7** | TLS, trust stores, `/health` hardening, rate limits, audit/redaction | — |
 | **v0.8** | Queues and priority scheduling under load | — |
@@ -221,19 +221,21 @@ As-built: [gateway-rag-ingest-and-retrieval](features/gateway-rag-ingest-and-ret
 
 ---
 
-### Ensemble orchestration (future — v0.4)
+### Ensemble orchestration (future — v0.4 harness)
 
-1. **Two-phase ensemble** — N parallel drafts, then critique/synthesize → one answer; default N = 3; cap by available backends.
-2. **Ensemble triggers** — Automatic + manual `//deep` (trimmed); virtual-model-only; gateway may strip `//deep` upstream.
-3. **Ensemble integration** — Orchestration in gateway; upstream executes parallel calls.
+Ensemble is implemented as **evaluator `multi_draft` mode** inside the virtual model turn harness — not a standalone feature.
 
-Detail: [version-v0.4.md](version-v0.4.md).
+1. **Multi-draft evaluator** — N parallel drafts, then critique/synthesize → one answer; default N = 3; cap by available backends.
+2. **Depth triggers** — Per-virtual-model rules (complexity, optional message/header flag); replaces fixed `//deep` on a single semver id.
+3. **Harness integration** — Orchestration in gateway; upstream executes parallel calls; escalation module handles failures.
+
+Detail: [`version-v0.4.md`](version-v0.4.md), [`plans/virtual-model-harness-advanced-modules.md`](plans/virtual-model-harness-advanced-modules.md).
 
 ---
 
-### External human escalation (future — v0.4)
+### External human escalation (future — v0.4 harness)
 
-When internal routing cannot satisfy policy, the gateway may use **human-in-the-loop** copy/paste to an external UI — not an API integration to that vendor.
+When internal routing cannot satisfy policy, the gateway may use **human-in-the-loop** copy/paste to an external UI — implemented as the harness **escalation `human` target** ([`plans/virtual-model-harness-advanced-modules.md`](plans/virtual-model-harness-advanced-modules.md)).
 
 1. **Configurable external surfaces** — Name + URL entries in configuration.
 2. **Privacy disclosure** — Escalation responses disclose that task or context may leave the operator stack.

@@ -63,6 +63,17 @@ Create a feature record when implementation ships.
 
 | Plan | Summary |
 |------|---------|
+| [chimera-stack-config.md](chimera-stack-config.md) | Rename to `chimera.yaml`; suite vs launch; emit vs collector logs; `search` platform; indexer inline config |
+| [virtual-model-turn-harness.md](virtual-model-turn-harness.md) | **v0.4 umbrella** — index, module table, resolved decisions for per-VM turn harness |
+| [virtual-model-harness-runtime.md](virtual-model-harness-runtime.md) | Stage registry + turn envelope |
+| [virtual-model-harness-settings.md](virtual-model-harness-settings.md) | VM module toggles (SQLite, API, settings UI) |
+| [virtual-model-harness-retrieval.md](virtual-model-harness-retrieval.md) | Per-VM retrieval + pluggable evidence compression |
+| [virtual-model-harness-workspace-policy.md](virtual-model-harness-workspace-policy.md) | Workspace policy + meta-policy (project/flavor scope) |
+| [virtual-model-harness-intent.md](virtual-model-harness-intent.md) | Intent classification + evaluate API |
+| [virtual-model-harness-evaluator-escalation.md](virtual-model-harness-evaluator-escalation.md) | Evaluator single-pass + escalation v1; flexible streaming |
+| [virtual-model-harness-workspace-tools.md](virtual-model-harness-workspace-tools.md) | Gateway workspace file tools (gateway-injected declarations) |
+| [virtual-model-harness-observability.md](virtual-model-harness-observability.md) | Harness timeline in settings logs and chat |
+| [virtual-model-harness-advanced-modules.md](virtual-model-harness-advanced-modules.md) | Multi-draft evaluator + human escalation |
 | [indexer-embedding-model-and-workspace-purge.md](indexer-embedding-model-and-workspace-purge.md) | Operator embedding model selector on indexer card; workspace delete drops vector collection |
 | [operator-workspace-search.md](operator-workspace-search.md) | Direct workspace search API, `/ui/search`, ribbon nav |
 | [embedui-settings-card-cleanup.md](embedui-settings-card-cleanup.md) | Settings feed and card component refactor for consistency |

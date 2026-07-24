@@ -74,6 +74,7 @@ echo "  make catalog-available                alias for catalog-fetch-available"
 echo "  make catalog-limits                   seed context_window in provider-model-limits.yaml"
 echo "  make catalog-calculate                intersection of free and available models"
 echo "  make contracts-[generate|check]       generate|check data type and log msg contracts"
+echo "  make adminui-fonts[-fetch|-check]     subset|fetch|check operator UI fonts (icons.txt)"
 echo
 echo "  make release-install                  install GoReleaser + release hook deps"
 echo "  make release-build                    cross-platform release archives (dist/)"

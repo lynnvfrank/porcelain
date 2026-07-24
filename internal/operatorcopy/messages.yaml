@@ -225,6 +225,15 @@ messages:
     shape: chat.request
     metrics_counter: chatReq
     gallery_preview: Chat completion request accepted and prepared for upstream routing.
+  - slug: harness.stage.started
+    summary: Virtual model harness stage started.
+    gallery_preview: Harness pipeline stage started.
+  - slug: harness.stage.completed
+    summary: Virtual model harness stage completed.
+    gallery_preview: Harness pipeline stage completed.
+  - slug: harness.turn.completed
+    summary: Virtual model harness turn completed with redacted envelope summary.
+    gallery_preview: Harness turn completed.
   - slug: conversation.rag.span
     formatter: rag_collection
     gallery_preview: RAG retrieval span recorded for this conversation turn (links retrieval to the chat scope).

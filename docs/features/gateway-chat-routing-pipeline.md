@@ -119,9 +119,9 @@ Until a registry lands, add stages by extending the ordered calls in `handleVirt
 | Concern | Location |
 |---------|----------|
 | Chat HTTP entry | `internal/server/server.go` — `handleV1Chat` |
-| VM pipeline orchestration | `internal/server/virtualmodel_chat.go` — `handleVirtualModelChat` |
-| Tool router transform | `internal/transform/toolrouter.go` |
-| RAG inject | `internal/server/virtualmodel_chat.go` + `internal/rag/` |
+| VM pipeline orchestration | `internal/server/virtualmodel_chat.go` — `handleVirtualModelChat`; stages in `internal/harness/` |
+| Tool router transform | `internal/transform/toolrouter.go`; harness stage `ToolRouterStage` |
+| RAG inject | `internal/harness/stages.go` — `RetrievalStage`; `internal/rag/` |
 | Policy compile | `internal/routing/inmemory.go`, `internal/routing/routing.go` |
 | VM registry | `internal/virtualmodel/registry.go` |
 | Fallback loop | `internal/chat/chat.go` — `WithVirtualModelFallback`, `shouldRetryVirtualModelFallback` |
@@ -132,6 +132,7 @@ Until a registry lands, add stages by extending the ordered calls in `handleVirt
 ## Verification
 
 ```bash
+go test ./chimera/chimera-gateway/internal/harness/...
 go test ./chimera/chimera-gateway/internal/chat/... -run VirtualModelFallback
 go test ./chimera/chimera-gateway/internal/transform/...
 go test ./chimera/chimera-gateway/internal/virtualmodel/...

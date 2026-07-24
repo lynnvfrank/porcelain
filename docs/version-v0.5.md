@@ -32,7 +32,7 @@ The same train ships **actionable operator alerts** built from recurring upstrea
 
 **v0.5** is the **operator autonomy** milestone: Chimera should help operators **recover from misconfiguration** and **reach a known-good state** without reading every YAML file or spelunking logs. The gateway already skips failing models and logs routing decisions; v0.5 **closes the loop** by turning repeated failures into **alerts with next steps**, and by letting a model **read what a page means** and **call the same APIs** the settings UI uses.
 
-This builds on v0.4’s in-app configuration, workspace lifecycle, and search themes. v0.5 does **not** replace human review for destructive actions (purge, key rotation, embedding model changes) — confirmations and audit logs remain required.
+This builds on v0.4’s **virtual model turn harness** (orchestration depth, per-VM retrieval, workspace tools). v0.5 adds **MCP tool backends**, operator desired-state, and deferred configuration/search themes. v0.5 does **not** replace human review for destructive actions (purge, key rotation, embedding model changes) — confirmations and audit logs remain required.
 
 **Companion docs:** [`chimera.plan.md`](chimera.plan.md), [`configuration.md`](configuration.md), [`version-v0.3.md`](version-v0.3.md) (setup wizard + deferred validation), [`version-v0.4.md`](version-v0.4.md), [`plans/_template.md`](plans/_template.md).
 
@@ -219,7 +219,7 @@ Each guide should include, at minimum:
 
 ## See also
 
-- [`version-v0.4.md`](version-v0.4.md) — previous version (ensemble, RAG scope, purge theme, in-app settings)
+- [`version-v0.4.md`](version-v0.4.md) — previous version (virtual model turn harness)
 - [`version-v0.3.md`](version-v0.3.md) — setup wizard; light-touch provider validation
 - [`chimera.plan.md`](chimera.plan.md) — product roadmap and requirements
 - [`configuration.md`](configuration.md) — configuration reference

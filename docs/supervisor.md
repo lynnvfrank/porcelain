@@ -68,7 +68,7 @@ After login: app shell **`/ui`**, settings and event log **`/ui/settings`**. See
 1. `make chimera-install` and `make chimera-supervisor-build`.
 2. Run `make chimera-supervisor-run`; confirm supervisor `/readyz` and gateway `/health`.
 3. Open `/ui/login` (or use `locus-desktop`).
-4. SIGINT the supervisor; confirm wrapper children exit (no orphan upstream processes).
+4. SIGINT the supervisor; confirm wrapper children exit (no orphan upstream processes — including `bifrost-http` under `chimera-broker`). On force-stop paths, supervisor uses process-tree kill (Windows `taskkill /T`; Unix PPID walk).
 
 ## Related docs
 

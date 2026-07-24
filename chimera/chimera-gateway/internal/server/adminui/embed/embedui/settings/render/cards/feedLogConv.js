@@ -141,9 +141,13 @@ globalThis.ChimeraSettings.Render.Cards.mountFeedLogConv = function (ctx) {
   }
 
   function materialIconHtml(name) {
+    var glyph =
+      globalThis.ChimeraMaterialIcons && typeof ChimeraMaterialIcons.char === "function"
+        ? ChimeraMaterialIcons.char(name)
+        : escapeHtml(String(name || ""));
     return (
       '<span class="material-symbols-outlined material-symbols-outlined--sm" aria-hidden="true">' +
-      escapeHtml(String(name || "")) +
+      glyph +
       "</span>"
     );
   }

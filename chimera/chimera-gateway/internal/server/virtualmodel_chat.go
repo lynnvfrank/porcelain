@@ -11,13 +11,10 @@ import (
 
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/chat"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/conversationhistory"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/transform"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/virtualmodel"
 	"github.com/lynn/porcelain/chimera/internal/config"
-	"github.com/lynn/porcelain/internal/naming"
 )
 
 func virtualModelsForCatalog(rt *Runtime, principalID string) []*virtualmodel.Resolved {
@@ -136,115 +133,54 @@ func handleVirtualModelChat(
 	virtualID := vm.ModelID
 	routeLog = routeLogWithVirtualModel(routeLog, virtualID)
 
-	th := vmCtx.toolThresh
-	if headerThresh > 0 {
-		th = headerThresh
-	}
-	raw, trSum := transform.ApplyToolRouter(ctx, raw, transform.Config{
-		Enabled:      vmCtx.toolEnabled && !skipToolRouter,
-		RouterModels: vmCtx.routerModels,
-		Threshold:    th,
-		BaseURL:      res.UpstreamBaseURL,
-		APIKey:       apiKey,
-		HTTPTimeout:  rtDur,
-		Log:          routeLog,
-		OnAttempt: func(model string, err error) {
-			rt.NoteToolRouterAttempt(model, err)
-		},
-	})
-	if routeLog != nil && trSum.Ran {
-		errStr := ""
-		if trSum.Err != nil {
-			errStr = trSum.Err.Error()
-			if len(errStr) > 300 {
-				errStr = errStr[:300] + "…"
-			}
-		}
-		routeLog.Debug("conversation tool router", "msg", naming.MsgConversationToolRouter,
-			"tools_before", trSum.ToolsBefore, "tools_after", trSum.ToolsAfter,
-			"router_model", trSum.RouterModel, "virtual_model_id", virtualID,
-			"err", errStr, "timeline_kind", naming.TimelineKindBroker)
-	}
-
-	coords := vectorstore.Coords{TenantID: sessTenant, ProjectID: proj, FlavorID: flav}
-	collection := vectorstore.CollectionName(coords)
-	var ragHits []vectorstore.Hit
-	if !res.RAG.Enabled || rt.RAG() == nil {
-		if routeLog != nil {
-			routeLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
-				"reason", "disabled", "virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindVectorstore)
-		}
-	} else if q := rag.LastUserText(raw["messages"]); strings.TrimSpace(q) == "" {
-		if routeLog != nil {
-			routeLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
-				"reason", "empty_query", "virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindVectorstore)
-		}
-	} else {
-		hits, rerr := rt.RAG().Retrieve(ctx, rag.RetrieveRequest{
-			Coords: coords, Query: q, RequestID: rid, ConversationID: cid, TurnIndex: turnIdx, LifecycleLog: routeLog,
-		})
-		if rerr != nil {
-			if routeLog != nil {
-				routeLog.Warn("rag retrieve failed; proceeding without context", "msg", "rag.retrieve.error", "err", rerr,
-					"virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindVectorstore)
-			}
-		} else if ctxBlock := rag.FormatRetrievedContext(hits); ctxBlock != "" {
-			ragHits = hits
-			rag.InjectSystemMessage(raw, ctxBlock)
-			if routeLog != nil {
-				routeLog.Info("conversation RAG attached", "msg", naming.MsgConversationRagAttached,
-					"virtual_model_id", virtualID, "tenant", coords.TenantID, "project", coords.ProjectID,
-					"flavor", coords.FlavorID, "hits", len(hits), "collection", collection,
-					"timeline_kind", naming.TimelineKindVectorstore)
-			}
-		}
-	}
-
-	emitConversationRequestWitness(routeLog, res, raw)
-
 	tenantSnap := rt.ProviderModelAvailability(sessTenant)
 	modelAvailable := func(id string) bool { return tenantSnap.IsAvailable(id) }
 
-	initial, _ := virtualmodel.PickInitialModelWithAvailability(vm, raw, routeLog, modelAvailable)
-	if initial == "" {
-		if routeLog != nil {
-			routeLog.Warn("conversation errored", "msg", naming.MsgConversationErrored,
-				"statusCode", http.StatusServiceUnavailable, "errorType", "gateway_config",
-				"virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindBroker)
+	tc := &harness.TurnContext{
+		W:                w,
+		Resolved:         res,
+		Stack: harness.VMStack{
+			VM:           vm,
+			Fallback:     vmCtx.fallback,
+			ToolEnabled:  vmCtx.toolEnabled,
+			RouterModels: vmCtx.routerModels,
+			ToolThresh:   vmCtx.toolThresh,
+		},
+		Stream:           stream,
+		SkipToolRouter:   skipToolRouter,
+		HeaderToolThresh: headerThresh,
+		RouteLog:         routeLog,
+		ConversationID:   cid,
+		TurnIndex:        turnIdx,
+		RequestID:        rid,
+		TenantID:         sessTenant,
+		ProjectID:        proj,
+		FlavorID:         flav,
+		APIKey:           apiKey,
+		Timeout:          rtDur,
+		ChatOpts:         chatOpts,
+		HistRec:          histRec,
+		RAG:              rt.RAG(),
+		Metrics:          rt.Metrics(),
+		LimitsGuard:      rt.LimitsGuard(),
+		ModelAvailable:   modelAvailable,
+		OnToolRouterAttempt: func(model string, err error) {
+			rt.NoteToolRouterAttempt(model, err)
+		},
+		EmitRequestWitness: emitConversationRequestWitness,
+	}
+
+	err := harness.DefaultRunner().Run(ctx, tc, harness.Body(raw))
+	if err != nil {
+		var abort *harness.AbortError
+		if errors.As(err, &abort) {
+			if tc.Envelope != nil {
+				harness.LogTurnCompleted(tc, tc.Envelope, abort.Status)
+			}
+			harness.HandleAbort(w, abort)
+			return true
 		}
-		errBody := map[string]any{
-			"error": map[string]any{
-				"message": "Could not resolve an initial upstream model for the virtual model (check routing policy and fallback chain).",
-				"type":    "gateway_config",
-			},
-		}
-		if histRec != nil {
-			histRec.SetRAGHits(ragHits)
-			histRec.PersistGatewayError(http.StatusServiceUnavailable, errBody)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		_ = json.NewEncoder(w).Encode(errBody)
-		return true
+		return false
 	}
-	if routeLog != nil {
-		routeLog.Info("chat routing resolved", "msg", "chat.routing.resolved",
-			"virtual_model_id", virtualID, "clientModel", virtualID, "upstreamModel", initial,
-			"timeline_kind", naming.TimelineKindBroker)
-	}
-	rag.WriteResponseHeaders(w, initial, ragHits)
-	if histRec != nil {
-		histRec.SetRAGHits(ragHits)
-	}
-	if chatOpts == nil {
-		chatOpts = &chat.ProxyOpts{}
-	} else {
-		cp := *chatOpts
-		chatOpts = &cp
-	}
-	chatOpts.ModelAvailable = modelAvailable
-	chatOpts.VirtualModelID = virtualID
-	chat.WithVirtualModelFallback(ctx, w, initial, vmCtx.fallback, res.UpstreamBaseURL, apiKey, stream, raw,
-		chatTimeout(res), routeLog, rt.Metrics(), rt.LimitsGuard(), chatOpts)
 	return true
 }

@@ -1,0 +1,111 @@
+package harness
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/lynn/porcelain/internal/naming"
+)
+
+// Runner executes registered harness stages in order.
+type Runner struct {
+	stages []Stage
+}
+
+// NewRunner returns a runner for the given ordered stages.
+func NewRunner(stages ...Stage) *Runner {
+	return &Runner{stages: stages}
+}
+
+// Run executes all stages. Returns nil when the turn completes successfully or
+// after ErrTurnComplete from the terminal fallback stage.
+func (r *Runner) Run(ctx context.Context, tc *TurnContext, body Body) error {
+	if r == nil || tc == nil {
+		return nil
+	}
+	env := newEnvelope(tc)
+	tc.Envelope = env
+	for _, stage := range r.stages {
+		if stage == nil {
+			continue
+		}
+		logStageStarted(tc, stage, env)
+		start := time.Now()
+		err := stage.Run(ctx, tc, env, body)
+		outcome := stageOutcome(err)
+		if err == nil {
+			RecordStageCompletion(env, stage.Name())
+		}
+		logStageCompleted(tc, stage, env, start, outcome)
+		if err == nil {
+			continue
+		}
+		var abort *AbortError
+		if errors.As(err, &abort) {
+			return abort
+		}
+		if errors.Is(err, ErrTurnComplete) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+func stageOutcome(err error) string {
+	if err == nil {
+		return "ok"
+	}
+	var abort *AbortError
+	if errors.As(err, &abort) {
+		return "abort"
+	}
+	if errors.Is(err, ErrTurnComplete) {
+		return "complete"
+	}
+	return "error"
+}
+
+func logStageStarted(tc *TurnContext, stage Stage, env *TurnEnvelope) {
+	if tc == nil || tc.RouteLog == nil || stage == nil {
+		return
+	}
+	tc.RouteLog.Debug("harness stage started",
+		"msg", naming.MsgHarnessStageStarted,
+		"stage", stage.Name(),
+		"module", stage.Module(),
+		"virtual_model_id", env.VirtualModelID,
+		"turn_index", env.TurnIndex,
+		"timeline_kind", naming.TimelineKindBroker,
+	)
+}
+
+func logStageCompleted(tc *TurnContext, stage Stage, env *TurnEnvelope, start time.Time, outcome string) {
+	if tc == nil || tc.RouteLog == nil || stage == nil {
+		return
+	}
+	tc.RouteLog.Debug("harness stage completed",
+		"msg", naming.MsgHarnessStageCompleted,
+		"stage", stage.Name(),
+		"module", stage.Module(),
+		"virtual_model_id", env.VirtualModelID,
+		"turn_index", env.TurnIndex,
+		"duration_ms", time.Since(start).Milliseconds(),
+		"outcome", outcome,
+		"timeline_kind", naming.TimelineKindBroker,
+	)
+}
+
+// DefaultRunner returns the v0.4 parity pipeline matching the pre-refactor
+// handleVirtualModelChat order.
+func DefaultRunner() *Runner {
+	return NewRunner(
+		StackResolveStage{},
+		ToolRouterStage{},
+		RetrievalStage{},
+		RequestWitnessStage{},
+		InitialPickStage{},
+		FallbackProxyStage{},
+	)
+}

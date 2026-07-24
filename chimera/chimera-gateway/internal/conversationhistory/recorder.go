@@ -31,6 +31,7 @@ type Recorder struct {
 	ctx     context.Context
 	turn    TurnContext
 	ragHits []vectorstore.Hit
+	harnessSummary []byte
 }
 
 // NewRecorder returns a recorder when store is non-nil.
@@ -47,6 +48,18 @@ func (r *Recorder) SetRAGHits(hits []vectorstore.Hit) {
 		return
 	}
 	r.ragHits = hits
+}
+
+// SetHarnessSummary attaches a redacted harness envelope JSON blob for the current exchange.
+func (r *Recorder) SetHarnessSummary(summary []byte) {
+	if r == nil {
+		return
+	}
+	if len(summary) == 0 {
+		r.harnessSummary = nil
+		return
+	}
+	r.harnessSummary = append([]byte(nil), summary...)
 }
 
 // Attach wires persistence hooks into chat.ProxyOpts.
@@ -140,6 +153,7 @@ func (r *Recorder) persistSuccess(resolvedModel, assistantContent string, body [
 		PromptTokens:     promptPtr,
 		CompletionTokens: completionPtr,
 		TotalTokens:      totalPtr,
+		HarnessSummaryJSON: string(r.harnessSummary),
 	})
 	if err != nil {
 		r.warn("append assistant turn", err)
@@ -179,6 +193,7 @@ func (r *Recorder) persistFailure(message, errType string) {
 		ErrorDetail:   detail,
 		RetryUserText: r.turn.UserText,
 		SelectedModel: r.turn.SelectedModel,
+		HarnessSummaryJSON: string(r.harnessSummary),
 	}); err != nil {
 		r.warn("append error turn", err)
 	}

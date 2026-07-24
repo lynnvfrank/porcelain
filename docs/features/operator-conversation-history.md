@@ -57,8 +57,8 @@ Operators can return to past gateway chats days later. Each saved thread include
 
 **Persistence**
 
-- Tables: `conversations`, `conversation_turns`, `conversation_retrievals` (migrations `000004` + `000007_manifest_retrieval_lines`).
-- Per turn: user/assistant/error content, selected and resolved model ids, token counts, RAG hit snippets with `vector_point_id`, optional `content_sha256`, and line range (`start_line`, `end_line`, `starts_mid_line`).
+- Tables: `conversations`, `conversation_turns`, `conversation_retrievals` (migrations `000004`, `000007_manifest_retrieval_lines`, `000008_harness_turn_summary`).
+- Per turn: user/assistant/error content, selected and resolved model ids, token counts, optional redacted `harness_summary_json` on assistant/error rows (virtual-model harness), RAG hit snippets with `vector_point_id`, optional `content_sha256`, and line range (`start_line`, `end_line`, `starts_mid_line`).
 - Live chat `X-Chimera-Conversation-Id` aligns with `conversations.conversation_id`.
 
 ## Interfaces
@@ -66,11 +66,12 @@ Operators can return to past gateway chats days later. Each saved thread include
 | Surface | Detail |
 |---------|--------|
 | `GET /api/ui/conversations` | List: `limit`, `offset`, optional `flagged=1`. Returns id, title, preview, flag, workspace fields, timestamps. |
-| `GET /api/ui/conversations/{id}` | Full transcript for session principal. |
+| `GET /api/ui/conversations/{id}` | Full transcript for session principal; assistant/error turns may include `harness_summary` (redacted JSON). |
 | `PATCH /api/ui/conversations/{id}` | Body `{ "title": "…" }` — trim, max length; empty rejected. |
 | `POST /api/ui/conversations/{id}/flag` | Body `{ "flagged": true\|false }`. |
 | `DELETE /api/ui/conversations/{id}` | 204; 404 when wrong principal. |
 | Header | `X-Chimera-Conversation-Id` — client-held id; cleared on new chat. |
+| Header | `X-Chimera-Harness-Summary` — base64 redacted harness envelope JSON on virtual-model chat turns (pre-proxy snapshot; resolved model in persisted summary). |
 | Chat hook | Persistence runs once per completed client delivery (stream end, non-stream body, dedup short-circuit, or error response). |
 
 All conversation routes require authenticated UI session JSON handlers (`RequireAuthJSON`).
@@ -85,7 +86,7 @@ All conversation routes require authenticated UI session JSON handlers (`Require
 | Session / principal | `internal/server/adminui/session/session.go`, `handler/handler.go` |
 | Store | `internal/operatorstore/conversations.go`, `store.go` |
 | Title helper | `conversationtitle.FromFirstUserMessage` |
-| Chat persistence hooks | `internal/server/server.go`, `virtualmodel_chat.go` |
+| Chat persistence hooks | `internal/server/server.go`, `virtualmodel_chat.go`, `internal/harness/`, `internal/conversationhistory/` |
 | RAG metadata | `internal/rag/response_meta.go` |
 | Migration | `migrations/chimera-gateway/operator/000003_conversation_history.sql` |
 | Tests | `embed/embedui_test/chat_history_test.go`, operatorstore unit tests |

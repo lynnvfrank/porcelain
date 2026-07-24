@@ -42,7 +42,9 @@ Double-clicking `locus-desktop` opens the gateway operator UI in a webview after
 **Shutdown**
 
 - `RequestShutdown` → `POST /shutdown` on supervisor control URL (owned supervisor path).
-- Owned supervisor stop timeout `40s`.
+- When HTTP shutdown is accepted, desktop does **not** also send SIGINT — `signal.NotifyContext`'s cancel restores default SIGINT disposition, and a follow-up Interrupt can kill the supervisor before children are signaled (orphaning wrappers on Unix, especially `chimera-broker`).
+- Interrupt is used only when HTTP shutdown is unavailable.
+- Owned supervisor stop timeout `40s`; on timeout, desktop force-kills the supervisor **process tree** (Windows `taskkill /T`; Unix PPID walk + SIGKILL) so wrapper backends are not left under launchd/`init`.
 - Attach mode: desktop close does **not** stop an existing supervisor.
 
 **Version compatibility**
@@ -77,10 +79,12 @@ Double-clicking `locus-desktop` opens the gateway operator UI in a webview after
 | Concern | Location |
 |---------|----------|
 | Launcher + ownership | `locus/locus-desktop/internal/launcher/launcher.go` |
+| Owned stop / tree kill | `locus/locus-desktop/internal/launcher/stop_tree_*.go` |
 | Supervisor HTTP client | `locus/locus-desktop/internal/supervisor/client.go` |
 | Shared names/paths | `internal/locus/res.go` |
 | App shell | `locus/locus-desktop/internal/app/app.go` |
 | Supervisor control plane | `chimera/chimera-supervisor/internal/control/` |
+| Supervisor child tree kill | `chimera/chimera-supervisor/internal/proc/treekill_*.go` |
 
 ## Verification
 

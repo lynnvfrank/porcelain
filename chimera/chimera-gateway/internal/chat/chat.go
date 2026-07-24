@@ -572,6 +572,8 @@ type ProxyOpts struct {
 	ModelAvailable func(upstreamModel string) bool
 	// VirtualModelID scopes routing.model.unavailable_skipped logs to a virtual model.
 	VirtualModelID string
+	// OnFallbackAttempt runs before each upstream attempt in the virtual-model fallback loop.
+	OnFallbackAttempt func(upstreamModel string, attempt int)
 }
 
 func notifyResponseCaptured(opts *ProxyOpts, statusCode int, upstreamModel string, stream bool, body []byte) {
@@ -1192,6 +1194,9 @@ func WithVirtualModelFallback(ctx context.Context, w http.ResponseWriter, initia
 			} else {
 				log.Debug("routing attempt", attemptArgs...)
 			}
+		}
+		if opts != nil && opts.OnFallbackAttempt != nil {
+			opts.OnFallbackAttempt(upstreamModel, i+1)
 		}
 		out, est, err := prepareChatPayload(upstreamModel, stream, body)
 		if err != nil {
