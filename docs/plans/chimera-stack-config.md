@@ -111,7 +111,7 @@ HTTP `/v1/rag/*` routes unchanged in this plan (YAML `search` rename only).
 - Rename `config/chimera.yaml` / `gateway.example.yaml` → `chimera.yaml` / `chimera.example.yaml`.
 - Naming constants: `ChimeraConfigFileTarget`, `DefaultChimeraConfigRelPath`, `CHIMERA_CONFIG` only.
 - Resolve order: `CHIMERA_CONFIG` → `./config/chimera.yaml`.
-- **Hard cut:** no `chimera.yaml` / `CHIMERA_GATEWAY_CONFIG` fallback (legacy removed).
+- **Hard cut:** no `gateway.yaml` / `CHIMERA_GATEWAY_CONFIG` fallback (legacy removed).
 - Update configure/release/clean scripts and loader call sites (`LoadChimeraYAML` or alias).
 
 **Acceptance**
@@ -119,7 +119,7 @@ HTTP `/v1/rag/*` routes unchanged in this plan (YAML `search` rename only).
 - Fresh clone: `make` configure produces `config/chimera.yaml`; locus-desktop / supervisor start with no `chimera.yaml`.
 - Only `CHIMERA_CONFIG` / `chimera.yaml` load; leftover `chimera.yaml` is ignored.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -140,7 +140,7 @@ HTTP `/v1/rag/*` routes unchanged in this plan (YAML `search` rename only).
 - Default config starts indexer without a special supervised flag.
 - Omitting indexer from `services` leaves other children up; gateway still connects to external services when suite-enabled.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -159,7 +159,7 @@ HTTP `/v1/rag/*` routes unchanged in this plan (YAML `search` rename only).
 - `supervisor.log_level: debug` + `vectorstore.log_level: debug` → debug lines in `/ui/logs` and supervisor log file.
 - `supervisor.log_level: info` + service `debug` → no debug in the shared feed.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -179,7 +179,7 @@ HTTP `/v1/rag/*` routes unchanged in this plan (YAML `search` rename only).
 - Example `chimera.example.yaml` has no top-level `rag` / `health` / `paths` / `metrics`.
 - With only legacy keys, stack still starts (alias path) and logs hints.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -198,7 +198,7 @@ HTTP `/v1/rag/*` routes unchanged in this plan (YAML `search` rename only).
 - Inline-only supervised run (no `config_path`) indexes after workspace save.
 - Overlay edits via UI survive rematerialize of inline base.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -215,7 +215,7 @@ HTTP `/v1/rag/*` routes unchanged in this plan (YAML `search` rename only).
 
 - An agent reading only `docs/features/` can configure `chimera.yaml`, explain suite vs launch, and explain emit vs collector logging without reading this plan.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 

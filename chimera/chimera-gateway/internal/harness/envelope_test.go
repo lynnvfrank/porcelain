@@ -50,7 +50,7 @@ func TestWriteSummaryHeader_base64JSON(t *testing.T) {
 		RequestID:      "req-1",
 		ConversationID: "conv-1",
 		TurnIndex:      1,
-		Stack: VMStack{VM: &virtualmodel.Resolved{ModelID: "VM-1.0"}},
+		Stack:          VMStack{VM: &virtualmodel.Resolved{ModelID: "VM-1.0"}},
 	}
 	WriteSummaryHeader(rec, newEnvelope(tc))
 	raw := rec.Header().Get(naming.HeaderHarnessSummaryTarget)

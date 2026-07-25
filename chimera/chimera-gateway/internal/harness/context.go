@@ -29,15 +29,15 @@ type VMStack struct {
 // TurnContext carries immutable request dependencies and mutable stage outputs for
 // one virtual-model chat turn.
 type TurnContext struct {
-	W       http.ResponseWriter
+	W        http.ResponseWriter
 	Resolved *config.Resolved
-	Stack   VMStack
+	Stack    VMStack
 
-	Stream         bool
-	SkipToolRouter bool
+	Stream           bool
+	SkipToolRouter   bool
 	HeaderToolThresh float64
 
-	RouteLog *slog.Logger
+	RouteLog       *slog.Logger
 	ConversationID string
 	TurnIndex      int
 	RequestID      string
@@ -50,10 +50,10 @@ type TurnContext struct {
 	ChatOpts *chat.ProxyOpts
 	HistRec  *conversationhistory.Recorder
 
-	RAG              *rag.Service
-	Metrics          gatewaymetrics.Recorder
-	LimitsGuard      *providerlimits.Guard
-	ModelAvailable   func(id string) bool
+	RAG                 *rag.Service
+	Metrics             gatewaymetrics.Recorder
+	LimitsGuard         *providerlimits.Guard
+	ModelAvailable      func(id string) bool
 	OnToolRouterAttempt func(model string, err error)
 	EmitRequestWitness  func(log *slog.Logger, res *config.Resolved, body map[string]json.RawMessage)
 

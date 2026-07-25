@@ -2,30 +2,30 @@ package harness
 
 // TurnEnvelope is the per-turn artifact mutated by harness stages (schema_version: 1).
 type TurnEnvelope struct {
-	SchemaVersion  int             `json:"schema_version"`
-	RequestID      string          `json:"request_id"`
-	ConversationID string          `json:"conversation_id"`
-	TurnIndex      int             `json:"turn_index"`
-	VirtualModelID string          `json:"virtual_model_id"`
-	Scope          Scope           `json:"scope"`
-	Intent         Intent          `json:"intent"`
-	Plan           Plan            `json:"plan"`
-	Retrieval      Retrieval       `json:"retrieval"`
-	Execution      Execution       `json:"execution"`
-	Evaluation     Evaluation      `json:"evaluation"`
-	Escalation     Escalation      `json:"escalation"`
-	Response       Response        `json:"response"`
+	SchemaVersion  int        `json:"schema_version"`
+	RequestID      string     `json:"request_id"`
+	ConversationID string     `json:"conversation_id"`
+	TurnIndex      int        `json:"turn_index"`
+	VirtualModelID string     `json:"virtual_model_id"`
+	Scope          Scope      `json:"scope"`
+	Intent         Intent     `json:"intent"`
+	Plan           Plan       `json:"plan"`
+	Retrieval      Retrieval  `json:"retrieval"`
+	Execution      Execution  `json:"execution"`
+	Evaluation     Evaluation `json:"evaluation"`
+	Escalation     Escalation `json:"escalation"`
+	Response       Response   `json:"response"`
 }
 
 // Scope holds tenant, RAG scope, and workspace policy fields (policy fields populated in later plans).
 type Scope struct {
-	TenantID             string `json:"tenant_id"`
-	ProjectID            string `json:"project_id"`
-	FlavorID             string `json:"flavor_id"`
-	WorkspaceID          *int64 `json:"workspace_id"`
-	WorkspacePermission  string `json:"workspace_permission"`
-	Sensitivity          string `json:"sensitivity"`
-	AllowCloud           *bool  `json:"allow_cloud"`
+	TenantID            string `json:"tenant_id"`
+	ProjectID           string `json:"project_id"`
+	FlavorID            string `json:"flavor_id"`
+	WorkspaceID         *int64 `json:"workspace_id"`
+	WorkspacePermission string `json:"workspace_permission"`
+	Sensitivity         string `json:"sensitivity"`
+	AllowCloud          *bool  `json:"allow_cloud"`
 }
 
 // Intent holds classifier outputs (populated by intent plan).
@@ -59,9 +59,9 @@ type Retrieval struct {
 
 // Execution records upstream and tool activity during the turn.
 type Execution struct {
-	ToolCalls        []ToolCallRecord   `json:"tool_calls"`
-	UpstreamAttempts []UpstreamAttempt  `json:"upstream_attempts"`
-	ResolvedModelID  *string            `json:"resolved_model_id"`
+	ToolCalls        []ToolCallRecord  `json:"tool_calls"`
+	UpstreamAttempts []UpstreamAttempt `json:"upstream_attempts"`
+	ResolvedModelID  *string           `json:"resolved_model_id"`
 }
 
 // ToolCallRecord is a redacted tool invocation summary.
@@ -79,10 +79,10 @@ type UpstreamAttempt struct {
 
 // Evaluation holds evaluator module output (populated by evaluator plan).
 type Evaluation struct {
-	Ran                bool     `json:"ran"`
-	Confidence         *float64 `json:"confidence"`
-	Issues             []string `json:"issues"`
-	RecommendEscalation bool    `json:"recommend_escalation"`
+	Ran                 bool     `json:"ran"`
+	Confidence          *float64 `json:"confidence"`
+	Issues              []string `json:"issues"`
+	RecommendEscalation bool     `json:"recommend_escalation"`
 }
 
 // Escalation holds in-loop escalation state.
@@ -93,8 +93,8 @@ type Escalation struct {
 
 // Response holds citations and response metadata for the client turn.
 type Response struct {
-	Citations []Citation         `json:"citations"`
-	Metadata  map[string]any     `json:"metadata"`
+	Citations []Citation     `json:"citations"`
+	Metadata  map[string]any `json:"metadata"`
 }
 
 // Citation is a source reference attached to the assistant reply.
@@ -139,11 +139,11 @@ func newEnvelope(tc *TurnContext) *TurnEnvelope {
 
 func defaultIntent() Intent {
 	return Intent{
-		TaskType:      "unknown",
-		Domain:        "unknown",
-		Complexity:    "unknown",
-		Ambiguity:     "unknown",
-		Sensitivity:   "unknown",
-		Tags:          []string{},
+		TaskType:    "unknown",
+		Domain:      "unknown",
+		Complexity:  "unknown",
+		Ambiguity:   "unknown",
+		Sensitivity: "unknown",
+		Tags:        []string{},
 	}
 }

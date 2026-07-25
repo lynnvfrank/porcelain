@@ -76,10 +76,10 @@ A line appears only if the service emitted it **and** the gate allows that level
 | `vectorstore.url` | Vector store HTTP URL |
 | `vectorstore.log_level` | Vectorstore / backend emit |
 | `indexer.enabled` | Suite membership |
-| `indexer.config_path` | Optional last-wins overlay YAML |
+| `indexer.config_path` | Optional last-wins overlay YAML (omit for single-file) |
 | `indexer.*` | Same tuning keys as standalone `indexer.yaml` (workers, `log_level`, …) |
 
-Supervised indexer merges inline `indexer:` with optional overlay, materializes to `data/gateway/indexer.materialized.yaml`, and passes that as `--config`. UI GET returns effective YAML; UI PUT writes the overlay (default `indexer.yaml` beside `chimera.yaml`).
+Supervised indexer merges inline `indexer:` with optional `config_path` overlay, materializes to `data/gateway/indexer.materialized.yaml`, and passes that as `--config`. When `config_path` is omitted, UI GET/PUT edit the `indexer:` block in `chimera.yaml`. When set, UI PUT writes the overlay file. Standalone `chimera-indexer --config indexer.yaml` still works with the separate template.
 
 ### Search platform
 

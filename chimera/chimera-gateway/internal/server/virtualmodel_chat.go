@@ -137,8 +137,8 @@ func handleVirtualModelChat(
 	modelAvailable := func(id string) bool { return tenantSnap.IsAvailable(id) }
 
 	tc := &harness.TurnContext{
-		W:                w,
-		Resolved:         res,
+		W:        w,
+		Resolved: res,
 		Stack: harness.VMStack{
 			VM:           vm,
 			Fallback:     vmCtx.fallback,

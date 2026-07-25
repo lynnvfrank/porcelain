@@ -244,10 +244,10 @@ func handleSetupCompletePOST(rt *Runtime, log *slog.Logger) http.HandlerFunc {
 			AccessMode: body.AccessMode,
 			LoginMode:  body.LoginMode,
 		}, firstsetup.Options{
-			TokensPath:  tokStore.Path(),
+			TokensPath:      tokStore.Path(),
 			ChimeraYAMLPath: gatewayPath,
-			DotenvPath:  ".env",
-			EnvKey:      naming.EnvGatewayTokenTarget,
+			DotenvPath:      ".env",
+			EnvKey:          naming.EnvGatewayTokenTarget,
 		})
 		if err != nil {
 			if log != nil {

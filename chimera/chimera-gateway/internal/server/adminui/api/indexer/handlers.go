@@ -131,9 +131,7 @@ func handleIndexerConfigGET(h *handler.Handler, w http.ResponseWriter, r *http.R
 	}
 	path := strings.TrimSpace(res.IndexerOverlayPath)
 	if path == "" {
-		// Default overlay beside chimera.yaml
-		base := filepath.Dir(res.ChimeraYAMLPath)
-		path = filepath.Join(base, "indexer.yaml")
+		path = res.ChimeraYAMLPath
 	}
 	ctx := r.Context()
 	st := h.RT.OperatorStore()
@@ -167,9 +165,15 @@ func handleIndexerConfigPUT(h *handler.Handler, w http.ResponseWriter, r *http.R
 		return
 	}
 	path := strings.TrimSpace(res.IndexerOverlayPath)
-	if path == "" {
-		base := filepath.Dir(res.ChimeraYAMLPath)
-		path = filepath.Join(base, "indexer.yaml")
+	inlineOnly := path == ""
+	if inlineOnly {
+		path = strings.TrimSpace(res.ChimeraYAMLPath)
+		if path == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "chimera config path unavailable"})
+			return
+		}
 	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxIndexerConfigYAMLBytes+1<<12))
 	var body struct {
@@ -196,27 +200,43 @@ func handleIndexerConfigPUT(h *handler.Handler, w http.ResponseWriter, r *http.R
 		return
 	}
 	fc.Roots = nil
-	out, err := yaml.Marshal(&fc)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-		return
+	if inlineOnly {
+		if err := gwconfig.WriteChimeraIndexerTuning(path, fc); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		h.RT.Sync()
+		res, _ = h.RT.Snapshot()
+		if res == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": "reload failed"})
+			return
+		}
+	} else {
+		out, err := yaml.Marshal(&fc)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		if err := os.WriteFile(path, out, 0o644); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		res.IndexerOverlayPath = path
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-		return
-	}
-	if err := os.WriteFile(path, out, 0o644); err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-		return
-	}
-	// Rematerialize so supervised indexer hot-reloads the merged effective config.
-	res.IndexerOverlayPath = path
 	if _, err := gwconfig.MaterializeIndexerConfig(res); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)

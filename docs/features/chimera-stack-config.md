@@ -20,7 +20,7 @@ Operators configure the supervised Chimera stack in **`config/chimera.yaml`**: s
 - Configure `chimera.yaml` (example: `chimera.example.yaml`); `make configure` copies the example when missing.
 - Default launch runs vectorstore, broker, gateway, and indexer when each is `enabled: true`.
 - Setting only a service to `debug` does not show debug in `/ui` unless `supervisor.log_level` (or `LOG_LEVEL`) allows debug.
-- Indexer advanced YAML in settings edits the overlay file; effective merged tuning is what the child runs.
+- Indexer advanced YAML in settings edits `chimera.yaml` `indexer:` when no overlay is set; otherwise the `config_path` overlay.
 
 ## System behavior and contracts
 
@@ -41,7 +41,7 @@ Operators configure the supervised Chimera stack in **`config/chimera.yaml`**: s
 | Indexer launch | Launch list, not `indexer.supervised.enabled` |
 | RAG rename | YAML `search`; keep RAG type / HTTP paths |
 | Retrieval knobs in YAML | `search.retrieval_defaults` seed VMs; per-VM overrides in SQLite (v0.4) |
-| UI indexer PUT | Writes overlay only; rematerializes effective file |
+| UI indexer PUT | No `config_path` → patch `chimera.yaml`; with overlay → write that file; rematerialize |
 
 ## Interfaces
 
@@ -51,7 +51,7 @@ Operators configure the supervised Chimera stack in **`config/chimera.yaml`**: s
 | Env | `CHIMERA_CONFIG`, `LOG_LEVEL` (collector gate) |
 | Load | `config.LoadChimeraYAML`, `ResolveChimeraConfigPath` |
 | Materialize | `config.MaterializeIndexerConfig` → `data/gateway/indexer.materialized.yaml` |
-| UI | `GET/PUT /api/ui/indexer/config` (effective / overlay) |
+| UI | `GET/PUT /api/ui/indexer/config` (effective; write target = overlay or `chimera.yaml`) |
 
 ## Code map
 

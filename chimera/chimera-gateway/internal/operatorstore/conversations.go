@@ -42,15 +42,15 @@ type ListConversationsFilter struct {
 
 // AppendTurnInput is one persisted message row.
 type AppendTurnInput struct {
-	Role             string
-	Content          string
-	SelectedModel    string
-	ResolvedModel    string
-	ErrorDetail      string
-	RetryUserText    string
-	PromptTokens     *int
-	CompletionTokens *int
-	TotalTokens      *int
+	Role               string
+	Content            string
+	SelectedModel      string
+	ResolvedModel      string
+	ErrorDetail        string
+	RetryUserText      string
+	PromptTokens       *int
+	CompletionTokens   *int
+	TotalTokens        *int
 	HarnessSummaryJSON string
 }
 
@@ -69,21 +69,21 @@ type RetrievalInput struct {
 
 // ConversationTurn is a loaded transcript row.
 type ConversationTurn struct {
-	TurnID           string
-	ConversationID   string
-	TurnIndex        int
-	Role             string
-	Content          string
-	SelectedModel    string
-	ResolvedModel    string
-	ErrorDetail      string
-	RetryUserText    string
-	PromptTokens     sql.NullInt64
-	CompletionTokens sql.NullInt64
-	TotalTokens      sql.NullInt64
+	TurnID             string
+	ConversationID     string
+	TurnIndex          int
+	Role               string
+	Content            string
+	SelectedModel      string
+	ResolvedModel      string
+	ErrorDetail        string
+	RetryUserText      string
+	PromptTokens       sql.NullInt64
+	CompletionTokens   sql.NullInt64
+	TotalTokens        sql.NullInt64
 	HarnessSummaryJSON string
-	CreatedAt        time.Time
-	Retrievals       []ConversationRetrieval
+	CreatedAt          time.Time
+	Retrievals         []ConversationRetrieval
 }
 
 // ConversationRetrieval is a RAG hit on an assistant turn.

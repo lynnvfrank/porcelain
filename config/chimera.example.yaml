@@ -44,13 +44,16 @@ vectorstore:
 
 indexer:
   enabled: true
-  # Optional last-wins overlay (UI PUT writes here when set; default indexer.yaml beside this file).
+  # Omit config_path → all indexer tuning lives in this file (recommended for supervised stack).
+  # Set config_path to layer a last-wins overlay (UI PUT writes there; standalone chimera-indexer
+  # can use the same file via --config). Example:
   # config_path: "indexer.yaml"
   log_level: "info"
   job_skip_log: debug
   job_ingest_log: debug
   scope_status_poll_ms: -1
   storage_stats_poll_ms: -1
+  # sync_state_path: "data/indexer/sync-state.json"
 
 # Search platform (ingest + retrieval). HTTP routes remain /v1/rag/*.
 # retrieval_defaults seed new virtual models; per-VM retrieval overrides live in SQLite (v0.4).
