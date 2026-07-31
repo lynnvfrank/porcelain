@@ -16,8 +16,8 @@ func RecordStageCompletion(env *TurnEnvelope, stageName string) {
 	env.Plan.Stages = append(env.Plan.Stages, stageName)
 }
 
-// ApplyRetrievalToEnvelope updates retrieval fields from RAG hits.
-func ApplyRetrievalToEnvelope(env *TurnEnvelope, hits []vectorstore.Hit, topK int) {
+// ApplyRetrievalToEnvelope updates retrieval fields from delivered RAG evidence.
+func ApplyRetrievalToEnvelope(env *TurnEnvelope, hits []vectorstore.Hit, topK int, strategy string) {
 	if env == nil {
 		return
 	}
@@ -27,6 +27,9 @@ func ApplyRetrievalToEnvelope(env *TurnEnvelope, hits []vectorstore.Hit, topK in
 	env.Retrieval.Ran = true
 	if topK > 0 {
 		env.Retrieval.TopK = &topK
+	}
+	if strategy = strings.TrimSpace(strategy); strategy != "" {
+		env.Retrieval.CompressStrategy = &strategy
 	}
 	env.Retrieval.HitsCount = len(hits)
 	ids := make([]string, 0, len(hits))

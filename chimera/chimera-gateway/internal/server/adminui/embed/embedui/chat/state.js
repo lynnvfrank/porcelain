@@ -24,6 +24,7 @@
       selectedModel: extra.selectedModel || "",
       upstreamModel: extra.upstreamModel || "",
       ragHits: extra.ragHits || null,
+      harnessSummary: extra.harnessSummary || null,
       error: extra.error || "",
       retryUserText: extra.retryUserText || ""
     };

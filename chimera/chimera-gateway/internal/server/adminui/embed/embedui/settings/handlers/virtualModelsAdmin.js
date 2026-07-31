@@ -688,6 +688,167 @@ globalThis.ChimeraSettings.Handlers.VirtualModels.wire = function (ctx) {
         return;
       }
 
+      if (act === "vm-harness-intent-save") {
+        var currentIntent = Array.isArray(det && det.harness_modules) ? det.harness_modules.slice() : [];
+        var intentCfg = {
+          mode: String(((document.getElementById(pfx + "intent-mode") || {}).value || "heuristic")).trim() === "llm" ? "llm" : "heuristic",
+          model_id: String(((document.getElementById(pfx + "intent-model-id") || {}).value || "")).trim()
+        };
+        var intentFound = false;
+        for (var intentIndex = 0; intentIndex < currentIntent.length; intentIndex++) {
+          if (String(currentIntent[intentIndex].module_id || "") !== "intent") continue;
+          currentIntent[intentIndex] = Object.assign({}, currentIntent[intentIndex], { config_json: intentCfg });
+          intentFound = true;
+          break;
+        }
+        if (!intentFound) currentIntent.push({ module_id: "intent", enabled: true, config_json: intentCfg });
+        (adminPutJSON || adminPostJSON)(vmApiPath(vmId, "/harness"), { modules: currentIntent })
+          .then(function () {
+            adminSetMessage("", "Intent settings saved.");
+            return reloadVm(vmId);
+          })
+          .catch(function (e) {
+            adminSetMessage("err", e && e.message ? e.message : String(e));
+          });
+        return;
+      }
+
+      if (act === "vm-harness-evaluator-save" || act === "vm-harness-escalation-save") {
+        var isEvaluator = act === "vm-harness-evaluator-save";
+        var configModule = isEvaluator ? "evaluator" : "escalation";
+        var currentConfigModules = Array.isArray(det && det.harness_modules) ? det.harness_modules.slice() : [];
+        var savedConfig = {};
+        for (var configIndex = 0; configIndex < currentConfigModules.length; configIndex++) {
+          if (String(currentConfigModules[configIndex].module_id || "") !== configModule) continue;
+          savedConfig = currentConfigModules[configIndex].config_json;
+          if (typeof savedConfig === "string") {
+            try { savedConfig = JSON.parse(savedConfig); } catch (_eConfig) { savedConfig = {}; }
+          }
+          if (!savedConfig || typeof savedConfig !== "object") savedConfig = {};
+          break;
+        }
+        var nextConfig = isEvaluator
+          ? Object.assign({}, savedConfig, {
+              mode: String(((document.getElementById(pfx + "evaluator-mode") || {}).value || "single_pass")).trim() === "multi_draft" ? "multi_draft" : "single_pass",
+              model_id: String(((document.getElementById(pfx + "evaluator-model-id") || {}).value || "")).trim(),
+              draft_count: Math.max(1, Math.min(8, Number(String(((document.getElementById(pfx + "evaluator-draft-count") || {}).value || "3")).trim()) || 3)),
+              synthesize_model_id: String(((document.getElementById(pfx + "evaluator-synthesize-model-id") || {}).value || "")).trim(),
+              stream_policy: String(((document.getElementById(pfx + "evaluator-stream-policy") || {}).value || "immediate")).trim(),
+              min_confidence: Number(String(((document.getElementById(pfx + "evaluator-min-confidence") || {}).value || "")).trim()) || 0,
+              hallucination_risk_max: Number(String(((document.getElementById(pfx + "evaluator-hallucination-risk-max") || {}).value || "")).trim()) || 0
+            })
+          : Object.assign({}, savedConfig, {
+              max_rounds: Math.max(0, Math.min(2, Number(String(((document.getElementById(pfx + "escalation-max-rounds") || {}).value || "2")).trim()) || 0)),
+              on_fail: String(((document.getElementById(pfx + "escalation-on-fail") || {}).value || "")).split(",").map(function (v) { return v.trim(); }).filter(Boolean),
+              human_surfaces: String(((document.getElementById(pfx + "escalation-human-surfaces") || {}).value || "")).split("\n").map(function (line) {
+                var parts = line.split("|");
+                return { name: String(parts[0] || "").trim(), url: String(parts.slice(1).join("|") || "").trim() };
+              }).filter(function (surface) { return surface.name && surface.url; }),
+              privacy_disclosure: String(((document.getElementById(pfx + "escalation-privacy-disclosure") || {}).value || "")).trim(),
+              paste_back_delimiter: String(((document.getElementById(pfx + "escalation-paste-back-delimiter") || {}).value || "<<<CHIMERA_HUMAN_ANSWER>>>")).trim()
+            });
+        var configFound = false;
+        for (var configUpdate = 0; configUpdate < currentConfigModules.length; configUpdate++) {
+          if (String(currentConfigModules[configUpdate].module_id || "") !== configModule) continue;
+          currentConfigModules[configUpdate] = Object.assign({}, currentConfigModules[configUpdate], { config_json: nextConfig });
+          configFound = true;
+          break;
+        }
+        if (!configFound) currentConfigModules.push({ module_id: configModule, enabled: true, config_json: nextConfig });
+        (adminPutJSON || adminPostJSON)(vmApiPath(vmId, "/harness"), { modules: currentConfigModules })
+          .then(function () {
+            adminSetMessage("", (isEvaluator ? "Evaluator" : "Escalation") + " settings saved.");
+            return reloadVm(vmId);
+          })
+          .catch(function (e) {
+            adminSetMessage("err", e && e.message ? e.message : String(e));
+          });
+        return;
+      }
+
+      if (act === "vm-harness-retrieval-save") {
+        var currentRetrieval = Array.isArray(det && det.harness_modules) ? det.harness_modules.slice() : [];
+        var retrievalCfg = {};
+        for (var existingRetrieval = 0; existingRetrieval < currentRetrieval.length; existingRetrieval++) {
+          if (String(currentRetrieval[existingRetrieval].module_id || "") !== "retrieval") continue;
+          var savedRetrievalCfg = currentRetrieval[existingRetrieval].config_json;
+          if (typeof savedRetrievalCfg === "string") {
+            try { savedRetrievalCfg = JSON.parse(savedRetrievalCfg); } catch (_eRetrievalCfg) { savedRetrievalCfg = {}; }
+          }
+          if (savedRetrievalCfg && typeof savedRetrievalCfg === "object") retrievalCfg = Object.assign({}, savedRetrievalCfg);
+          break;
+        }
+        retrievalCfg = Object.assign(retrievalCfg, {
+          top_k: Number(String(((document.getElementById(pfx + "retrieval-top-k") || {}).value || "")).trim()) || 0,
+          score_floor: Number(String(((document.getElementById(pfx + "retrieval-score-floor") || {}).value || "")).trim()) || 0,
+          compress_strategy: String(((document.getElementById(pfx + "retrieval-compress-strategy") || {}).value || "truncate")).trim(),
+          max_context_chars: Number(String(((document.getElementById(pfx + "retrieval-max-context-chars") || {}).value || "")).trim()) || 0
+        });
+        var retrievalFound = false;
+        for (var hr = 0; hr < currentRetrieval.length; hr++) {
+          if (String(currentRetrieval[hr].module_id || "") === "retrieval") {
+            currentRetrieval[hr] = Object.assign({}, currentRetrieval[hr], { config_json: retrievalCfg });
+            retrievalFound = true;
+            break;
+          }
+        }
+        if (!retrievalFound) currentRetrieval.push({ module_id: "retrieval", enabled: true, config_json: retrievalCfg });
+        (adminPutJSON || adminPostJSON)(vmApiPath(vmId, "/harness"), { modules: currentRetrieval })
+          .then(function () {
+            adminSetMessage("", "Retrieval settings saved.");
+            return reloadVm(vmId);
+          })
+          .catch(function (e) {
+            adminSetMessage("err", e && e.message ? e.message : String(e));
+          });
+        return;
+      }
+
+      if (act === "vm-harness-module-toggle") {
+        ev.stopPropagation();
+        var harnessBtn = t.closest && t.closest(".sum-router-toggle");
+        if (!harnessBtn) harnessBtn = t;
+        if (harnessBtn.getAttribute("disabled") != null || harnessBtn.getAttribute("aria-disabled") === "true") {
+          return;
+        }
+        var moduleId = String(harnessBtn.getAttribute("data-harness-module") || "").trim();
+        if (!moduleId) return;
+        var nextOn = String(harnessBtn.getAttribute("aria-pressed") || "").toLowerCase() !== "true";
+        var current = Array.isArray(det && det.harness_modules) ? det.harness_modules.slice() : [];
+        if (!current.length) {
+          current = [
+            { module_id: "retrieval", enabled: true, config_json: {} },
+            { module_id: "intent", enabled: false, config_json: {} },
+            { module_id: "evaluator", enabled: false, config_json: {} },
+            { module_id: "escalation", enabled: false, config_json: {} },
+            { module_id: "tool_executor", enabled: false, config_json: {} }
+          ];
+        }
+        var found = false;
+        for (var hi = 0; hi < current.length; hi++) {
+          if (String(current[hi].module_id) === moduleId) {
+            current[hi] = Object.assign({}, current[hi], { enabled: nextOn });
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          current.push({ module_id: moduleId, enabled: nextOn, config_json: {} });
+        }
+        (adminPutJSON || adminPostJSON)(vmApiPath(vmId, "/harness"), { modules: current })
+          .then(function (resp) {
+            if (resp && Array.isArray(resp.modules) && det) {
+              det.harness_modules = resp.modules;
+            }
+            adminSetMessage("", "Harness module " + moduleId + " " + (nextOn ? "enabled." : "disabled."));
+            return reloadVm(vmId);
+          })
+          .catch(function (e) {
+            adminSetMessage("err", e && e.message ? e.message : String(e));
+          });
+        return;
+      }
+
       if (act === "vm-identity-save") {
         var body = vmIdentityPutBody(vmId, {});
         (adminPutJSON || adminPostJSON)(vmApiPath(vmId), body)

@@ -9,6 +9,8 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/chat"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/conversationhistory"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gatewaymetrics"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness/tools"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/transform"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
@@ -51,6 +53,7 @@ type TurnContext struct {
 	HistRec  *conversationhistory.Recorder
 
 	RAG                 *rag.Service
+	OperatorStore       *operatorstore.Store
 	Metrics             gatewaymetrics.Recorder
 	LimitsGuard         *providerlimits.Guard
 	ModelAvailable      func(id string) bool
@@ -58,10 +61,17 @@ type TurnContext struct {
 	EmitRequestWitness  func(log *slog.Logger, res *config.Resolved, body map[string]json.RawMessage)
 
 	// Mutable outputs populated by stages.
-	RAGHits      []vectorstore.Hit
-	InitialModel string
-	ToolRouter   transform.ToolRouterSummary
-	Envelope     *TurnEnvelope
+	RAGHits        []vectorstore.Hit
+	InitialModel   string
+	ToolRouter     transform.ToolRouterSummary
+	Envelope       *TurnEnvelope
+	WorkspaceScope *operatorstore.Workspace
+	WorkspaceRoots []string
+	ToolExecutor   tools.ToolExecutor
+	// BodyBeforeRetrieval preserves the request after transforms but before RAG
+	// injection so escalation can re-retrieve without duplicating evidence.
+	BodyBeforeRetrieval   Body
+	RetrievalTopKOverride int
 }
 
 // VirtualModelID returns the client-facing virtual model id when stack is loaded.

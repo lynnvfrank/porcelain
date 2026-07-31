@@ -270,6 +270,28 @@ globalThis.ChimeraSettings.Render.Cards.mountFeedLogConv = function (ctx) {
     return h;
   }
 
+  function harnessTimelineHtml(events) {
+    var Derive = globalThis.ChimeraSettings && ChimeraSettings.Derive;
+    if (!Derive || typeof Derive.conversationHarnessStagesByTurn !== "function") return "";
+    var turns = Derive.conversationHarnessStagesByTurn(events, getFlat);
+    if (!turns.length) return "";
+    var html = '<section class="sum-conv-harness-timeline" data-ui-part="conversation.harness-timeline">' +
+      '<div class="sum-section-label">Harness timeline</div>';
+    for (var ti = 0; ti < turns.length; ti++) {
+      var turn = turns[ti];
+      html += '<div class="sum-conv-harness-turn"><span class="sum-conv-harness-turn__label">' +
+        escapeHtml(turn.label) + "</span><div class=\"sum-conv-chip-row\">";
+      for (var si = 0; si < turn.stages.length; si++) {
+        var stage = turn.stages[si];
+        html += '<span class="sum-conv-chip sum-conv-chip--harness sum-conv-chip--' +
+          escapeHtml(stage.status) + '">' + escapeHtml(stage.name) + " · " +
+          escapeHtml(stage.status === "completed" ? "done" : "running") + "</span>";
+      }
+      html += "</div></div>";
+    }
+    return html + "</section>";
+  }
+
   var convAgg =
     globalThis.ChimeraSettings && ChimeraSettings.Derive ? ChimeraSettings.Derive : {};
 
@@ -448,6 +470,7 @@ globalThis.ChimeraSettings.Render.Cards.mountFeedLogConv = function (ctx) {
       "</div>";
     var life = conversationLifecycleBarHtml(cardModel.progress, {});
     var chips = conversationCardChipsSummaryHtml(cardModel);
+    var harnessTimeline = harnessTimelineHtml(evs);
     var ingestBlock = "";
     if (ingestCount > 0 && cardModel.ingestRunIds && cardModel.ingestRunIds.length) {
       ingestBlock =
@@ -502,6 +525,7 @@ globalThis.ChimeraSettings.Render.Cards.mountFeedLogConv = function (ctx) {
       life +
       chips +
       mini +
+      harnessTimeline +
       (contextStrip ? '<div class="sum-section-label">Context</div>' + contextStrip : "") +
       ingestBlock +
       full +

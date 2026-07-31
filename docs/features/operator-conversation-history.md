@@ -58,7 +58,7 @@ Operators can return to past gateway chats days later. Each saved thread include
 **Persistence**
 
 - Tables: `conversations`, `conversation_turns`, `conversation_retrievals` (migrations `000004`, `000007_manifest_retrieval_lines`, `000008_harness_turn_summary`).
-- Per turn: user/assistant/error content, selected and resolved model ids, token counts, optional redacted `harness_summary_json` on assistant/error rows (virtual-model harness), RAG hit snippets with `vector_point_id`, optional `content_sha256`, and line range (`start_line`, `end_line`, `starts_mid_line`).
+- Per turn: user/assistant/error content, selected and resolved model ids, token counts, optional redacted `harness_summary_json` on assistant/error rows (virtual-model harness), RAG hit snippets with `vector_point_id`, optional `content_sha256`, and line range (`start_line`, `end_line`, `starts_mid_line`). Reopened history exposes that summary to the shared assistant-message renderer; it does not reconstruct a turn from raw logs.
 - Live chat `X-Chimera-Conversation-Id` aligns with `conversations.conversation_id`.
 
 ## Interfaces
@@ -80,7 +80,7 @@ All conversation routes require authenticated UI session JSON handlers (`Require
 
 | Concern | Location |
 |---------|----------|
-| History panel UI | `chimera/chimera-gateway/internal/server/adminui/embed/embedui/chat/historyPanel.js`, `historyClient.js`, `styles/chat.css` |
+| History panel UI / harness details | `chimera/chimera-gateway/internal/server/adminui/embed/embedui/chat/historyPanel.js`, `historyClient.js`, `render/messages.js`, `styles/chat.css` |
 | Chat shell | `embed/embedui/chat.html`, `chat/app.js`, `chat/state.js` |
 | History API | `internal/server/adminui/api/conversations/` |
 | Session / principal | `internal/server/adminui/session/session.go`, `handler/handler.go` |

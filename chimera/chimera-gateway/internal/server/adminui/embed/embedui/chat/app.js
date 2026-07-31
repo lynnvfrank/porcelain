@@ -392,7 +392,8 @@
           State.createMessage("assistant", t.content || "", {
             selectedModel: t.selected_model || "",
             upstreamModel: t.resolved_model || t.selected_model || "",
-            ragHits: t.ragHits || null
+            ragHits: t.ragHits || null,
+            harnessSummary: t.harness_summary || t.harnessSummary || null
           })
         );
       } else if (role === "error") {

@@ -234,6 +234,33 @@ messages:
   - slug: harness.turn.completed
     summary: Virtual model harness turn completed with redacted envelope summary.
     gallery_preview: Harness turn completed.
+  - slug: harness.retrieval.compress_fallback
+    summary: Retrieval summarization failed, so the gateway attached truncated evidence instead.
+    gallery_preview: Retrieval summary unavailable · using truncated evidence.
+  - slug: harness.scope.workspace_ambiguous
+    summary: Multiple workspaces matched the request scope; the lowest workspace id was selected.
+    gallery_preview: Multiple workspace scopes matched · using the earliest workspace.
+  - slug: harness.stream.policy_applied
+    summary: Evaluator stream policy was applied to the virtual model chat response.
+    gallery_preview: Evaluator stream policy applied.
+  - slug: harness.evaluator.failed
+    summary: Evaluator request failed, so the gateway delivered the primary response.
+    gallery_preview: Evaluator unavailable · delivering the primary response.
+  - slug: harness.multi_draft.phase
+    summary: A multi-draft evaluator phase completed with its draft count and participating models.
+    gallery_preview: Multi-draft synthesis phase completed.
+  - slug: harness.escalation.started
+    summary: Evaluator escalation action started.
+    gallery_preview: Escalation started.
+  - slug: harness.escalation.completed
+    summary: Evaluator escalation action completed.
+    gallery_preview: Escalation completed.
+  - slug: harness.escalation.action
+    summary: Evaluator escalation action was recorded.
+    gallery_preview: Escalation action recorded.
+  - slug: harness.human.paste_back_merged
+    summary: A user supplied external human answer was merged into the next harness turn.
+    gallery_preview: External human answer merged into the conversation.
   - slug: conversation.rag.span
     formatter: rag_collection
     gallery_preview: RAG retrieval span recorded for this conversation turn (links retrieval to the chat scope).

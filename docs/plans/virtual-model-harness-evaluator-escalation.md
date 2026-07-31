@@ -4,11 +4,11 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway harness, chat streaming, broker upstream |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway v0.4 |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Child of [`virtual-model-turn-harness.md`](virtual-model-turn-harness.md) |
-| **As-built** | None — link to [`docs/features/`](../features/README.md) when shipped |
+| **As-built** | [`operator-virtual-models.md`](../features/operator-virtual-models.md), [`gateway-chat-routing-pipeline.md`](../features/gateway-chat-routing-pipeline.md) |
 
 ## At a glance
 
@@ -16,11 +16,13 @@ Optional single-pass evaluator checks primary output and feeds **escalation v1**
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
-| [Phase 1 — Evaluator (single pass)](#phase-1--evaluator-single-pass) | Confidence check after primary; configurable stream policy | `todo` |
-| [Phase 2 — Escalation v1](#phase-2--escalation-v1) | Re-retrieve and fallback-chain retry before giving up | `todo` |
+| [Phase 1 — Evaluator (single pass)](#phase-1--evaluator-single-pass) | Confidence check after primary; configurable stream policy | `done` |
+| [Phase 2 — Escalation v1](#phase-2--escalation-v1) | Re-retrieve and fallback-chain retry before giving up | `done` |
 
 **Depends on:** [runtime](virtual-model-harness-runtime.md), [settings](virtual-model-harness-settings.md), [retrieval](virtual-model-harness-retrieval.md), [intent](virtual-model-harness-intent.md)  
 **Blocks:** [observability](virtual-model-harness-observability.md) (evaluator fields in envelope UI)
+
+**Delivery gates:** [umbrella](virtual-model-turn-harness.md#delivery-gates-normative) — `make precommit` at plan done; hard cut (no legacy paths); phase debt OK if Fix-by is set.
 
 ---
 
@@ -52,14 +54,16 @@ The gateway today passthrough-streams upstream SSE immediately ([`internal/chat/
 - When VM `stream_policy` conflicts with `body.stream: true`, gateway applies VM policy; log `harness.stream.policy_applied`.
 - Default for new VMs: `immediate`.
 - Evaluator failure fail-opens (deliver primary answer, log warning).
+- **Gallery** ([umbrella contract](virtual-model-turn-harness.md#gallery--reference-ui-contract-normative)): evaluator section fixtures — module off; `single_pass` with each `stream_policy` (`immediate`, `gate_on_evaluator`, `buffer_until_complete`); part slugs for mode and stream policy controls.
 
 **Acceptance**
 
 - VM with evaluator on → envelope shows `evaluation.ran: true` and confidence on success path.
 - Same VM with three stream policies → verifiable different client-visible timing in test fixtures.
 - Evaluator error under any policy → primary answer delivered, warning logged.
+- Gallery shows evaluator off plus all three stream-policy configurations without live VM edits.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -74,13 +78,15 @@ The gateway today passthrough-streams upstream SSE immediately ([`internal/chat/
 - Increment `TurnEnvelope.escalation.rounds`; respect `max_escalation_rounds` and `max_upstream_calls_per_turn`.
 - Log `harness.escalation.*` slugs with action and outcome.
 - Escalation with `gate_on_evaluator` may force buffer path even when client requested stream.
+- **Gallery:** escalation config sample (budget + `on_fail` actions visible) on the VM harness fixture; complements Phase 1 stream-policy demos.
 
 **Acceptance**
 
 - Forced low-confidence fixture triggers re-retrieve or next chain entry; client still receives one final answer.
 - Escalation budget exhaustion returns best-effort answer with metadata flag.
+- Gallery shows an escalation-enabled config state (budget / actions) beside evaluator demos.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 

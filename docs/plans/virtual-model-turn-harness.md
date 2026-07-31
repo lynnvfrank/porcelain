@@ -4,11 +4,11 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway runtime, operator SQLite, chat path, operator embed UI (settings logs, chat), RAG, workspaces |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway v0.4 |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Supersedes ensemble-first framing in prior [`version-v0.4.md`](../version-v0.4.md); ensemble and human escalation become harness modules |
-| **As-built** | None — link to [`docs/features/`](../features/README.md) when shipped |
+| **As-built** | [Operator virtual models](../features/operator-virtual-models.md), [Gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md), [Indexer workspaces](../features/indexer-workspaces.md), [Operator conversation history](../features/operator-conversation-history.md), [Operator chat UI](../features/operator-chat-ui.md) |
 
 ## At a glance
 
@@ -16,17 +16,59 @@ Operators pick one **named virtual model** in chat (single-model picker UX — l
 
 | Child plan | Outcome | Status |
 |------------|---------|--------|
-| [Runtime + envelope](virtual-model-harness-runtime.md) | Stage registry; turn envelope schema and persistence | `active` |
-| [VM harness settings](virtual-model-harness-settings.md) | Module toggles per virtual model in settings | `todo` |
-| [Per-VM retrieval](virtual-model-harness-retrieval.md) | VM-scoped retrieval + pluggable evidence compression | `todo` |
-| [Workspace policy](virtual-model-harness-workspace-policy.md) | Sensitivity, cloud rules, file permissions; meta-policy stage | `todo` |
-| [Intent classification](virtual-model-harness-intent.md) | Heuristic intent + optional LLM; evaluate API | `todo` |
-| [Evaluator + escalation v1](virtual-model-harness-evaluator-escalation.md) | Single-pass evaluator; re-retrieve and fallback escalation | `todo` |
-| [Gateway workspace tools](virtual-model-harness-workspace-tools.md) | Read/write files under workspace permission in one turn | `todo` |
-| [Observability](virtual-model-harness-observability.md) | Stage timeline in settings logs and chat turn details | `todo` |
-| [Advanced modules](virtual-model-harness-advanced-modules.md) | Multi-draft evaluator; human escalation target | `todo` |
+| [Runtime + envelope](virtual-model-harness-runtime.md) | Stage registry; turn envelope schema and persistence | `done` |
+| [VM harness settings](virtual-model-harness-settings.md) | Module toggles per virtual model in settings | `done` |
+| [Per-VM retrieval](virtual-model-harness-retrieval.md) | VM-scoped retrieval + pluggable evidence compression | `done` |
+| [Workspace policy](virtual-model-harness-workspace-policy.md) | Sensitivity, cloud rules, file permissions; meta-policy stage | `done` |
+| [Intent classification](virtual-model-harness-intent.md) | Heuristic intent + optional LLM; evaluate API | `done` |
+| [Evaluator + escalation v1](virtual-model-harness-evaluator-escalation.md) | Single-pass evaluator; re-retrieve and fallback escalation | `done` |
+| [Gateway workspace tools](virtual-model-harness-workspace-tools.md) | Read/write files under workspace permission in one turn | `done` |
+| [Observability](virtual-model-harness-observability.md) | Stage timeline in settings logs and chat turn details | `done` |
+| [Advanced modules](virtual-model-harness-advanced-modules.md) | Multi-draft evaluator; human escalation target | `done` |
 
 **Suggested execution order:** Runtime → Settings (UI after runtime Phase 1) → Retrieval + Workspace policy (parallel after envelope) → Intent → Evaluator/Escalation → Tools → Observability (after envelope + slugs exist) → Advanced modules last.
+
+---
+
+## Gallery / reference UI contract (normative)
+
+Operators and implementers must be able to **review harness UI states on `/ui/settings/gallery`** without configuring live SQLite or chat. Live `/ui/settings` and `/ui/chat` remain the product path; the gallery is the **configuration-state catalog** for visual and usability review.
+
+**Rules for every child plan that ships operator-visible UI**
+
+1. **Same render path as production** — Gallery fixtures call the same `render/cards/*` (and chat modules when applicable) as the live feed via `embedui/gallery/gallery-card-fixtures.js` (or a sibling fixture module). Do not hand-copy markup that can drift.
+2. **Multiple configuration states** — Ship at least two fixture variants that matter for the feature (e.g. module off vs on; default vs dense config; policy deny vs allow). Prefer side-by-side mounts under one gallery subsection so states are comparable without toggling live data.
+3. **Navigable section** — Add a stable `id` anchor and top-nav link on `settings/gallery.html` (or extend an existing section) so reviewers can jump feature-by-feature.
+4. **Part slugs** — New controls get `data-ui-part` entries and a `styleguide-part-slugs` list under the demo (see `settings/card-parts-registry.md`).
+5. **Done means gallery too** — A UI-bearing phase is not `done` until gallery fixtures and nav land in the same delivery train as the live controls. Backend-only phases (runtime envelope with no new controls) may skip gallery; note that explicitly in the child plan.
+6. **Chat surfaces** — When a plan adds chat UI (e.g. Turn details), either extend the settings gallery with a chat-message fixture mount or add a dedicated chat gallery subsection that reuses production chat render helpers — same multi-state rule.
+
+**Fixture inventory (expected by child plan)**
+
+| Child plan | Gallery demos (minimum) |
+|------------|-------------------------|
+| [Runtime](virtual-model-harness-runtime.md) | None (no new operator controls) |
+| [Settings](virtual-model-harness-settings.md) | VM card: harness section default/off; all-modules-on stub; disabled-until-ready controls |
+| [Retrieval](virtual-model-harness-retrieval.md) | Harness retrieval config: truncate vs summarize; skip-if / empty state |
+| [Workspace policy](virtual-model-harness-workspace-policy.md) | Workspace card: public+cloud vs private+no-cloud; file policy `none` / `read` / `read_write` |
+| [Intent](virtual-model-harness-intent.md) | Intent module off vs heuristic vs LLM; evaluate dry-run panel sample |
+| [Evaluator + escalation](virtual-model-harness-evaluator-escalation.md) | Evaluator off; `single_pass` + each `stream_policy`; escalation budget sample |
+| [Workspace tools](virtual-model-harness-workspace-tools.md) | Tool executor off vs on; read-only vs read_write permission framing |
+| [Observability](virtual-model-harness-observability.md) | Conversation card harness timeline; chat Turn details expanded/collapsed |
+| [Advanced modules](virtual-model-harness-advanced-modules.md) | `multi_draft` config; human escalation copy-paste / paste-back sample |
+
+**Code anchors:** `embedui/settings/gallery.html`, `embedui/gallery/gallery-card-fixtures.js`, `embedui/gallery/README.md`, `embedui/settings/card-parts-registry.md`.
+
+---
+
+## Delivery gates (normative)
+
+Applies to every `virtual-model-harness-*` child plan.
+
+1. **`make precommit`** — Required before marking a child plan `done` / shipped. Runs `contracts-generate`, `fmt`, `fmt-check`, `vet`, and `test` (see root `Makefile`). Phase check-ins may skip it; plan delivery may not.
+2. **Fix timing** — Incomplete UI or temporary stubs are allowed **within** a multi-phase plan when a later phase of that plan (or an explicitly named later child plan) will finish them; log in [`backlog/harness-ui-design-debt.md`](backlog/harness-ui-design-debt.md) with a **Fix by** column. At plan delivery, clear debt owned by that plan or reassign with a real owner plan.
+3. **Hard cut / no legacy** — Do not retain dual-read endpoints, config keys, env aliases, or “compat for existing installs.” There are **no existing users** of this service for migration purposes: update all call sites to the new path and delete obsolete ones in the same train.
+4. **Design validation** — UI-bearing phases: run the [harness-ui-design-validator](../../.cursor/skills/harness-ui-design-validator/SKILL.md) skill (separate agent). Plan delivery: run [harness-plan-delivery](../../.cursor/skills/harness-plan-delivery/SKILL.md) (includes `make precommit`). See also [`.cursor/skills/README.md`](../../.cursor/skills/README.md).
 
 ---
 
@@ -47,6 +89,7 @@ Prior v0.4 ideas — two-phase ensemble, `//deep` triggers, external human escal
 5. **No Continue / IDE agent dependency** — Chimera chat owns orchestration; file actions run in-gateway under workspace policy, not via external agent clients.
 6. **Direct upstream ids** remain an escape hatch (`provider/model` bypasses harness); the product path is virtual model ids.
 7. **Explicit virtual model id** — no reserved aliases; `body.model` must match a VM `model_id` or a direct upstream id. The product shows a **single-model picker** even when the harness uses multiple upstream models via fallback, evaluator, and escalation.
+8. **Hard cut** — no legacy endpoint/config/path dual-support; assume greenfield operators. Plan delivery requires `make precommit`.
 
 **Related docs:** [`version-v0.4.md`](../version-v0.4.md), [`design.md`](../design.md), [`gateway-chat-routing-pipeline.md`](../features/gateway-chat-routing-pipeline.md), [`operator-virtual-models.md`](../features/operator-virtual-models.md), [`gateway-rag-ingest-and-retrieval.md`](../features/gateway-rag-ingest-and-retrieval.md), [`indexer-workspaces.md`](../features/indexer-workspaces.md), [`operator-conversation-history.md`](../features/operator-conversation-history.md), [`log-conversations.md`](log-conversations.md), [`virtual-models-operator.md`](virtual-models-operator.md).
 

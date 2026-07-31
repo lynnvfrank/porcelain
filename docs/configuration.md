@@ -61,7 +61,7 @@ A line appears only if the service emitted it **and** the gate allows that level
 | `gateway.listen_host` / `listen_port` | HTTP bind |
 | `gateway.log_level` | Gateway **emit** level |
 | `gateway.timeouts.broker_ms` | Broker health / models fetch timeout |
-| `gateway.timeouts.chat_ms` | Chat completion timeout |
+| `gateway.timeouts.chat_ms` | Per-upstream chat completion timeout (direct `provider/model` and virtual-model harness stages: primary stream, summarize, evaluator, tools). Default `300000` (5m) when omitted or `0`. |
 | `gateway.catalog.poll_ms` | Broker catalog poll (0 disables periodic) |
 | `gateway.auth.api_keys` | Path to `api-keys.yaml` |
 | `gateway.metrics.*` | Usage SQLite for quotas (applied at process start) |

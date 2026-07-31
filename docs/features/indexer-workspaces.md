@@ -32,6 +32,8 @@ Operators define **indexer workspaces**—a project, flavor, and one or more abs
 - **Supervised watch list** — Effective roots come **only** from the workspaces API when running with supervised `--config`; YAML `roots:` and `--root` are not used.
 - **Standalone indexer** — Unchanged: roots from merged YAML layers and optional CLI `--root`.
 - **UI card list is DB-first** — Logs enrich progress; they do not create workspace cards for unmatched partitions.
+- **Harness scope policy** — A workspace also stores `sensitivity` (`public`, `internal`, `private`), `allow_cloud`, `allow_cloud_summary_only`, and `file_action_policy` (`none`, `read`, `read_write`). Virtual-model chat derives its workspace from `X-Chimera-Project` plus `X-Chimera-Flavor-Id`; `X-Chimera-Workspace-Id` remains conversation-history metadata. If rows collide, the lowest workspace id is selected and logged.
+- **Workspace tool boundary** — An enabled virtual-model workspace-tools module may use only the resolved row’s watched roots. Tool paths are workspace-relative and cleaned plus symlink-checked before filesystem access; `none` rejects all calls, `read` permits `read_file`, `list_dir`, and `search`, and `read_write` additionally permits atomic `write_file`.
 
 **Decisions**
 
@@ -57,8 +59,8 @@ Operators define **indexer workspaces**—a project, flavor, and one or more abs
 | `GET /v1/indexer/workspaces` | Bearer auth; nested workspaces with `workspace_id`, `project_id`, `flavor_id`, `paths[]` |
 | `GET /api/ui/indexer/config` | Supervised YAML + nested workspaces for settings UI |
 | `GET /api/ui/indexer/workspaces` | List workspaces (session auth) |
-| `POST /api/ui/indexer/workspaces` | Create workspace + paths |
-| `PUT /api/ui/indexer/workspaces/{id}` | Update project/flavor/paths |
+| `POST /api/ui/indexer/workspaces` | Create workspace + paths + policy |
+| `PUT /api/ui/indexer/workspaces/{id}` | Update project/flavor + policy |
 | `DELETE /api/ui/indexer/workspaces/{id}` | Delete workspace and paths |
 | Indexer poll | `workspaces_poll_interval_ms` in supervised YAML (default 30s); logs `indexer.supervised.workspaces_changed` then `indexer.supervised.workspaces_applied` |
 | Structured logs | Scope fields include `workspace_id`, `ingest_project`, `flavor_id`, `indexer_target_key` on job and status lines |

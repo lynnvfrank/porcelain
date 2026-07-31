@@ -102,10 +102,23 @@ func logStageCompleted(tc *TurnContext, stage Stage, env *TurnEnvelope, start ti
 func DefaultRunner() *Runner {
 	return NewRunner(
 		StackResolveStage{},
+		MetaPolicyStage{},
+		IntentStage{},
 		ToolRouterStage{},
+		ToolExecutorStage{},
 		RetrievalStage{},
 		RequestWitnessStage{},
 		InitialPickStage{},
 		FallbackProxyStage{},
+	)
+}
+
+// PrePrimaryRunner executes only deterministic, non-proxy stages for operator
+// dry-runs. It intentionally excludes transforms and retrieval injection.
+func PrePrimaryRunner() *Runner {
+	return NewRunner(
+		StackResolveStage{},
+		MetaPolicyStage{},
+		IntentStage{},
 	)
 }

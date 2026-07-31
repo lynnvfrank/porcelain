@@ -33,6 +33,7 @@ type VirtualModel struct {
 	ToolRouterEnabled    bool
 	RouterModels         []string
 	ToolRouterConfidence float64
+	HarnessModules       []HarnessModule
 }
 
 // RoutingRuleDefinition is a reusable routing rule catalog entry.
@@ -48,14 +49,15 @@ type RoutingRuleDefinition struct {
 
 // CreateVirtualModelInput is metadata for a new virtual model (routing filled separately).
 type CreateVirtualModelInput struct {
-	ModelID              string
-	Name                 string
-	Version              string
-	Description          string
-	Visibility           string
-	CreatedByPrincipalID string
-	TenantID             string
-	Enabled              bool
+	ModelID                 string
+	Name                    string
+	Version                 string
+	Description             string
+	Visibility              string
+	CreatedByPrincipalID    string
+	TenantID                string
+	Enabled                 bool
+	DefaultRetrievalEnabled bool // seeds harness retrieval module (gateway RAG on/off)
 }
 
 func normalizeVisibility(v string) string {
@@ -215,7 +217,7 @@ FROM virtual_model_tool_router WHERE virtual_model_id = ?`, vm.ID).
 			_ = json.Unmarshal([]byte(routerJSON), &vm.RouterModels)
 		}
 	}
-	return nil
+	return s.loadVirtualModelHarness(ctx, vm)
 }
 
 // GetVirtualModelByID loads one model by row id and tenant scope.
@@ -339,6 +341,9 @@ INSERT INTO virtual_model_routing_policy (virtual_model_id, enabled, policy_yaml
 	if _, err := tx.ExecContext(ctx, `
 INSERT INTO virtual_model_tool_router (virtual_model_id, enabled, router_models_json, confidence_threshold, updated_at)
 VALUES (?,?,?,?,?)`, id, 0, "[]", 0.5, now); err != nil {
+		return nil, err
+	}
+	if err := s.insertDefaultHarnessModulesTx(ctx, tx, id, in.DefaultRetrievalEnabled, now); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -565,14 +570,15 @@ FROM routing_rule_definitions ORDER BY id`)
 // InsertVirtualModelFull inserts a complete virtual model in one transaction (bootstrap/tests).
 func (s *Store) InsertVirtualModelFull(ctx context.Context, vm VirtualModel) (*VirtualModel, error) {
 	in := CreateVirtualModelInput{
-		ModelID:              vm.ModelID,
-		Name:                 vm.Name,
-		Version:              vm.Version,
-		Description:          vm.Description,
-		Visibility:           vm.Visibility,
-		CreatedByPrincipalID: vm.CreatedByPrincipalID,
-		TenantID:             vm.TenantID,
-		Enabled:              vm.Enabled,
+		ModelID:                 vm.ModelID,
+		Name:                    vm.Name,
+		Version:                 vm.Version,
+		Description:             vm.Description,
+		Visibility:              vm.Visibility,
+		CreatedByPrincipalID:    vm.CreatedByPrincipalID,
+		TenantID:                vm.TenantID,
+		Enabled:                 vm.Enabled,
+		DefaultRetrievalEnabled: true,
 	}
 	created, err := s.CreateVirtualModel(ctx, in)
 	if err != nil {
@@ -594,6 +600,11 @@ func (s *Store) InsertVirtualModelFull(ctx context.Context, vm VirtualModel) (*V
 			th = 0.5
 		}
 		if err := s.SetVirtualModelToolRouter(ctx, vm.TenantID, created.ID, vm.ToolRouterEnabled, vm.RouterModels, th); err != nil {
+			return nil, err
+		}
+	}
+	if len(vm.HarnessModules) > 0 {
+		if err := s.SetVirtualModelHarness(ctx, vm.TenantID, created.ID, vm.HarnessModules); err != nil {
 			return nil, err
 		}
 	}

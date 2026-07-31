@@ -77,31 +77,27 @@ func workspacesAPIPayload(ctx context.Context, st *operatorstore.Store, tenantID
 			})
 		}
 		nested = append(nested, map[string]any{
-			"id":         w.ID,
-			"project_id": w.ProjectID,
-			"flavor_id":  w.FlavorID,
-			"paths":      pathObjs,
-			"created_at": w.CreatedAt.UTC().Format(time.RFC3339Nano),
-			"updated_at": w.UpdatedAt.UTC().Format(time.RFC3339Nano),
+			"id":                       w.ID,
+			"project_id":               w.ProjectID,
+			"flavor_id":                w.FlavorID,
+			"sensitivity":              w.Sensitivity,
+			"allow_cloud":              w.AllowCloud,
+			"allow_cloud_summary_only": w.AllowCloudSummaryOnly,
+			"file_action_policy":       w.FileActionPolicy,
+			"paths":                    pathObjs,
+			"created_at":               w.CreatedAt.UTC().Format(time.RFC3339Nano),
+			"updated_at":               w.UpdatedAt.UTC().Format(time.RFC3339Nano),
 		})
 	}
 	return roots, nested, nil
 }
 
 // listIndexerOperatorWorkspaces returns workspaces for the authenticated token tenant.
-// If that tenant has no rows, falls back to tenant_id "" (Phase 1 UI stored legacy rows with an empty tenant id).
 func listIndexerOperatorWorkspaces(ctx context.Context, st *operatorstore.Store, tenantID string) ([]operatorstore.Workspace, error) {
 	if st == nil {
 		return nil, nil
 	}
-	wss, err := st.ListWorkspaces(ctx, tenantID)
-	if err != nil {
-		return nil, err
-	}
-	if len(wss) == 0 && strings.TrimSpace(tenantID) != "" {
-		return st.ListWorkspaces(ctx, "")
-	}
-	return wss, nil
+	return st.ListWorkspaces(ctx, tenantID)
 }
 
 func handleIndexerConfigGET(h *handler.Handler, w http.ResponseWriter, r *http.Request) {
@@ -284,9 +280,13 @@ func handleIndexerWorkspacesPOST(h *handler.Handler, w http.ResponseWriter, r *h
 	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	var body struct {
-		ProjectID string   `json:"project_id"`
-		FlavorID  string   `json:"flavor_id"`
-		Paths     []string `json:"paths"`
+		ProjectID             string   `json:"project_id"`
+		FlavorID              string   `json:"flavor_id"`
+		Paths                 []string `json:"paths"`
+		Sensitivity           string   `json:"sensitivity"`
+		AllowCloud            *bool    `json:"allow_cloud"`
+		AllowCloudSummaryOnly bool     `json:"allow_cloud_summary_only"`
+		FileActionPolicy      string   `json:"file_action_policy"`
 	}
 	if err := dec.Decode(&body); err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -306,7 +306,14 @@ func handleIndexerWorkspacesPOST(h *handler.Handler, w http.ResponseWriter, r *h
 		absPaths = append(absPaths, abs)
 	}
 	uiTenant := operatorIndexerTenantID()
-	ws, err := st.CreateWorkspace(r.Context(), uiTenant, strings.TrimSpace(body.ProjectID), strings.TrimSpace(body.FlavorID), absPaths)
+	allowCloud := true
+	if body.AllowCloud != nil {
+		allowCloud = *body.AllowCloud
+	}
+	ws, err := st.CreateWorkspace(r.Context(), uiTenant, strings.TrimSpace(body.ProjectID), strings.TrimSpace(body.FlavorID), absPaths, operatorstore.WorkspacePolicy{
+		Sensitivity: strings.TrimSpace(body.Sensitivity), AllowCloud: allowCloud,
+		AllowCloudSummaryOnly: body.AllowCloudSummaryOnly, FileActionPolicy: strings.TrimSpace(body.FileActionPolicy),
+	})
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
@@ -360,8 +367,12 @@ func handleIndexerWorkspacePUT(h *handler.Handler, w http.ResponseWriter, r *htt
 	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	var body struct {
-		ProjectID string `json:"project_id"`
-		FlavorID  string `json:"flavor_id"`
+		ProjectID             string `json:"project_id"`
+		FlavorID              string `json:"flavor_id"`
+		Sensitivity           string `json:"sensitivity"`
+		AllowCloud            bool   `json:"allow_cloud"`
+		AllowCloudSummaryOnly bool   `json:"allow_cloud_summary_only"`
+		FileActionPolicy      string `json:"file_action_policy"`
 	}
 	if err := dec.Decode(&body); err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -369,7 +380,10 @@ func handleIndexerWorkspacePUT(h *handler.Handler, w http.ResponseWriter, r *htt
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "invalid json"})
 		return
 	}
-	if err := st.UpdateWorkspaceProjectFlavor(r.Context(), operatorIndexerTenantID(), id, strings.TrimSpace(body.ProjectID), strings.TrimSpace(body.FlavorID)); err != nil {
+	if err := st.UpdateWorkspaceProjectFlavor(r.Context(), operatorIndexerTenantID(), id, strings.TrimSpace(body.ProjectID), strings.TrimSpace(body.FlavorID), operatorstore.WorkspacePolicy{
+		Sensitivity: strings.TrimSpace(body.Sensitivity), AllowCloud: body.AllowCloud,
+		AllowCloudSummaryOnly: body.AllowCloudSummaryOnly, FileActionPolicy: strings.TrimSpace(body.FileActionPolicy),
+	}); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
@@ -384,9 +398,16 @@ func handleIndexerWorkspacePUT(h *handler.Handler, w http.ResponseWriter, r *htt
 			"flavor_id", strings.TrimSpace(body.FlavorID),
 		)
 	}
-	roots, _, _ := workspacesAPIPayload(r.Context(), st, operatorIndexerTenantID())
+	roots, nested, _ := workspacesAPIPayload(r.Context(), st, operatorIndexerTenantID())
+	var workspace map[string]any
+	for _, candidate := range nested {
+		if candidateID, ok := candidate["id"].(int64); ok && candidateID == id {
+			workspace = candidate
+			break
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(operatorapi.IndexerRootsResponse{OK: true, Roots: roots})
+	_ = json.NewEncoder(w).Encode(operatorapi.IndexerWorkspaceUpdateResponse{OK: true, Workspace: workspace, Roots: roots})
 }
 
 func handleIndexerWorkspaceDELETE(h *handler.Handler, w http.ResponseWriter, r *http.Request) {

@@ -17,13 +17,13 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 
 | Focus | Outcome | Status |
 |-------|---------|--------|
-| [Turn harness (execution plan)](#turn-harness-execution-plan) | Composable per-VM stages, turn envelope, module toggles, observability | `todo` |
-| [Client contract](#client-contract) | One `model` string per turn; gateway owns orchestration; no Continue dependency | `todo` |
-| [Per-virtual-model retrieval](#per-virtual-model-retrieval) | VM-scoped top_k, thresholds, skip rules on project/flavor/conversation scope | `todo` |
-| [Workspace policy](#workspace-policy) | Sensitivity, cloud rules, file action policy on workspace rows | `todo` |
-| [Gateway workspace tools](#gateway-workspace-tools) | Read/write files under workspace roots inside one chat turn | `todo` |
-| [Evaluator and escalation](#evaluator-and-escalation) | Unified module: single-pass first, multi-draft ensemble later, human escalation target | `todo` |
-| [Harness observability](#harness-observability) | Stage timeline in settings conversation cards and chat turn details | `todo` |
+| [Turn harness (execution plan)](#turn-harness-execution-plan) | Composable per-VM stages, turn envelope, module toggles, observability | `done` |
+| [Client contract](#client-contract) | One `model` string per turn; gateway owns orchestration; no Continue dependency | `partial` |
+| [Per-virtual-model retrieval](#per-virtual-model-retrieval) | VM-scoped top_k, thresholds, skip rules on project/flavor/conversation scope | `done` |
+| [Workspace policy](#workspace-policy) | Sensitivity, cloud rules, file action policy on workspace rows | `done` |
+| [Gateway workspace tools](#gateway-workspace-tools) | Read/write files under workspace roots inside one chat turn | `done` |
+| [Evaluator and escalation](#evaluator-and-escalation) | Unified module: single-pass first, multi-draft ensemble later, human escalation target | `done` |
+| [Harness observability](#harness-observability) | Stage timeline in settings conversation cards and chat turn details | `done` |
 | [Deferred to v0.5+](#deferred-to-v05) | MCP tools, peer backends, desired-state gateway, app-wide search, indexer Phase 7 | `deferred` |
 
 **Execution plan:** [`plans/virtual-model-turn-harness.md`](plans/virtual-model-turn-harness.md) (umbrella index) — child plans `virtual-model-harness-*.md` cover runtime, settings, retrieval, workspace policy, intent, evaluator/escalation, tools, observability, and advanced modules.
@@ -57,6 +57,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 * **Turn envelope** — Stable `schema_version: 1` artifact through all stages; redacted logging and `conversation_turns.harness_summary_json` persistence.
 * **Modules** — Meta-policy, intent, resource planner, retrieval, tool router, tool executor, evidence aggregate, primary, evaluator, escalation, response builder, telemetry. See module table in [`plans/virtual-model-turn-harness.md`](plans/virtual-model-turn-harness.md).
 * **Settings UI** — Harness section on virtual model cards: enable/disable modules, per-module config (models, thresholds, evaluator mode).
+* **Gallery / reference UI** — Every UI-bearing child plan ships multi-state fixtures on `/ui/settings/gallery` (see [gallery contract](plans/virtual-model-turn-harness.md#gallery--reference-ui-contract-normative)); reviewers must not need live CRUD to compare configuration states.
 * **Evaluate API** — Dry-run pre-primary stages without upstream completion (extends today’s routing evaluate pattern).
 
 **Phases (summary)** — see child plans under [`plans/virtual-model-turn-harness.md`](plans/virtual-model-turn-harness.md):
@@ -76,9 +77,11 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 **Acceptance**
 
 * Child plans [runtime](plans/virtual-model-harness-runtime.md) through [retrieval](plans/virtual-model-harness-retrieval.md) marked done when parity chat works with per-VM retrieval toggles and stage logs visible.
+* UI-bearing phases include gallery fixtures per [gallery contract](plans/virtual-model-turn-harness.md#gallery--reference-ui-contract-normative).
+* Each child plan delivery: `make precommit` passes; design-validator run for UI plans; no legacy dual-path (see [delivery gates](plans/virtual-model-turn-harness.md#delivery-gates-normative)).
 * Feature records updated for [`gateway-chat-routing-pipeline.md`](features/gateway-chat-routing-pipeline.md) and [`operator-virtual-models.md`](features/operator-virtual-models.md) when Phase 1 ships.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -99,7 +102,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 * Chimera `/ui/chat` completes turns without external agent tooling.
 * Documented contract in [`configuration.md`](configuration.md): model string, headers, harness summary header.
 
-**Status:** `todo`
+**Status:** `partial` — runtime headers and VM id resolution ship; full operator contract prose in [`configuration.md`](configuration.md) remains thin.
 
 ---
 
@@ -120,7 +123,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 * Two VMs with different `top_k` on the same workspace produce different hit counts and envelope retrieval fields.
 * Disabled retrieval module on VM → no inject even when global RAG is on.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -140,7 +143,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 * `private` workspace with `allow_cloud: false` prevents cloud upstream models from receiving full retrieval context.
 * `file_action_policy: none` blocks file tools even if primary model requests them.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -162,7 +165,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 * `read_write` workspace: write tool creates/updates file under watched root in one HTTP turn.
 * `read`-only: write attempts fail with policy error in envelope and logs.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -174,16 +177,16 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 
 * **v0.4 MVP:** `evaluator.mode: single_pass` — small model returns confidence and issues; feeds escalation.
 * **Escalation v1:** `re_retrieve`, `fallback_chain`; bounded rounds.
-* **Later in v0.4 train:** [advanced modules plan](plans/virtual-model-harness-advanced-modules.md) — `evaluator.mode: multi_draft` and human escalation.
+* **Advanced modules shipped:** [advanced modules plan](plans/virtual-model-harness-advanced-modules.md) — `evaluator.mode: multi_draft` and human escalation.
 * Flexible `stream_policy` per VM (see [evaluator plan](plans/virtual-model-harness-evaluator-escalation.md)).
 
 **Acceptance**
 
 * Single-pass evaluator populates `TurnEnvelope.evaluation` and can trigger escalation v1.
-* Multi-draft mode returns one answer with phase logs when [advanced modules plan](plans/virtual-model-harness-advanced-modules.md) ships.
+* Multi-draft mode runs parallel available fallback drafts, synthesizes one answer, evaluates it, and logs draft/synthesis phases. Human escalation emits configured named surfaces, a privacy disclosure, and a paste-back delimiter after internal remediation exhausts.
 * Human escalation path documented end-to-end when advanced modules Phase 2 ships.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -203,7 +206,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 * Turn with retrieval + evaluator shows ordered stage pills in settings conversation expanded view.
 * History reload shows turn details without log replay.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 

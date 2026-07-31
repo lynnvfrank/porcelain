@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routing"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/routinggen"
@@ -41,10 +42,36 @@ func vmDetail(vm operatorstore.VirtualModel) operatorapi.VirtualModelDetail {
 		RoutingPolicyYAML:    vm.RoutingPolicyYAML,
 		FallbackChain:        vm.FallbackChain,
 		ToolRouterConfidence: vm.ToolRouterConfidence,
+		HarnessModules:       harnessModulesAPI(vm.HarnessModules),
 		CreatedByPrincipalID: vm.CreatedByPrincipalID,
 		CreatedAt:            vm.CreatedAt.UTC().Format(time.RFC3339Nano),
 		UpdatedAt:            vm.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}
+}
+
+func harnessModulesAPI(mods []operatorstore.HarnessModule) []operatorapi.VirtualModelHarnessModule {
+	if len(mods) == 0 {
+		mods = operatorstore.DefaultHarnessModules(false)
+	}
+	out := make([]operatorapi.VirtualModelHarnessModule, 0, len(mods))
+	for _, m := range mods {
+		item := operatorapi.VirtualModelHarnessModule{
+			ModuleID:     m.ModuleID,
+			Enabled:      m.Enabled,
+			ConfigJSON:   json.RawMessage(operatorstoreNormalizeConfig(m.ConfigJSON)),
+			Configurable: true,
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func operatorstoreNormalizeConfig(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" || !json.Valid([]byte(s)) {
+		return "{}"
+	}
+	return s
 }
 
 func vmDetailForSession(h *handler.Handler, r *http.Request, vm operatorstore.VirtualModel) operatorapi.VirtualModelDetail {
@@ -138,14 +165,21 @@ func handleCreatePOST(h *handler.Handler, w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
+	ragOn := false
+	if h != nil && h.RT != nil {
+		if res, _ := h.RT.Snapshot(); res != nil && res.RAG.Enabled {
+			ragOn = true
+		}
+	}
 	vm, err := st.CreateVirtualModel(r.Context(), operatorstore.CreateVirtualModelInput{
-		ModelID:     body.ModelID,
-		Name:        body.Name,
-		Version:     body.Version,
-		Description: body.Description,
-		Visibility:  body.Visibility,
-		TenantID:    operatorTenantID,
-		Enabled:     true,
+		ModelID:                 body.ModelID,
+		Name:                    body.Name,
+		Version:                 body.Version,
+		Description:             body.Description,
+		Visibility:              body.Visibility,
+		TenantID:                operatorTenantID,
+		Enabled:                 true,
+		DefaultRetrievalEnabled: ragOn,
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -339,6 +373,81 @@ func handleToolRouterPUT(h *handler.Handler, w http.ResponseWriter, r *http.Requ
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 }
 
+func handleHarnessGET(h *handler.Handler, w http.ResponseWriter, r *http.Request) {
+	st := operatorStore(h)
+	if st == nil {
+		http.Error(w, "operator store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	id, ok := parseVMID(r)
+	if !ok {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if vm == nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(operatorapi.VirtualModelHarnessResponse{
+		Modules: harnessModulesAPI(vm.HarnessModules),
+	})
+}
+
+func handleHarnessPUT(h *handler.Handler, w http.ResponseWriter, r *http.Request) {
+	st := operatorStore(h)
+	if st == nil {
+		http.Error(w, "operator store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	id, ok := parseVMID(r)
+	if !ok {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	var body operatorapi.VirtualModelHarnessSaveRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	mods := make([]operatorstore.HarnessModule, 0, len(body.Modules))
+	for _, m := range body.Modules {
+		cfg := "{}"
+		if len(m.ConfigJSON) > 0 && json.Valid(m.ConfigJSON) {
+			cfg = string(m.ConfigJSON)
+		}
+		mods = append(mods, operatorstore.HarnessModule{
+			ModuleID:   m.ModuleID,
+			Enabled:    m.Enabled,
+			ConfigJSON: cfg,
+		})
+	}
+	if err := st.SetVirtualModelHarness(r.Context(), operatorTenantID, id, mods); err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.NotFound(w, r)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	reloadRegistry(h, r.Context())
+	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	if err != nil || vm == nil {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(operatorapi.VirtualModelHarnessResponse{
+		Modules: harnessModulesAPI(vm.HarnessModules),
+	})
+}
+
 func filterByProviderPrefix(ids []string, prefix string) []string {
 	prefix = strings.TrimSpace(strings.ToLower(prefix))
 	if prefix == "" {
@@ -482,6 +591,76 @@ func handleEvaluatePOST(h *handler.Handler, w http.ResponseWriter, r *http.Reque
 		FallbackStartIndex:  start,
 		FallbackFromInitial: chain[start:],
 	})
+}
+
+func handleHarnessEvaluatePOST(h *handler.Handler, w http.ResponseWriter, r *http.Request) {
+	st := operatorStore(h)
+	if st == nil || h == nil || h.RT == nil {
+		http.Error(w, "operator store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	id, ok := parseVMID(r)
+	if !ok {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if vm == nil {
+		http.NotFound(w, r)
+		return
+	}
+	var input operatorapi.VirtualModelHarnessEvaluateRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(input.Message) == "" {
+		http.Error(w, "message is required", http.StatusBadRequest)
+		return
+	}
+	reg := h.RT.VirtualModels()
+	if reg == nil {
+		http.Error(w, "virtual model registry unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	resolved, err := reg.Resolve(vm.ModelID, operatorTenantID)
+	if err != nil {
+		http.Error(w, "virtual model unavailable for evaluation", http.StatusBadRequest)
+		return
+	}
+	res, _ := h.RT.Snapshot()
+	if res == nil {
+		http.Error(w, "gateway config unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	messages, _ := json.Marshal([]map[string]string{{"role": "user", "content": input.Message}})
+	tc := &harness.TurnContext{
+		Resolved: res,
+		Stack: harness.VMStack{
+			VM: resolved, Fallback: append([]string(nil), resolved.FallbackChain...),
+			ToolEnabled: resolved.ToolRouterEnabled, RouterModels: resolved.RouterModels,
+			ToolThresh: resolved.ToolRouterConfidence,
+		},
+		RouteLog: h.Log, TenantID: operatorTenantID, ProjectID: strings.TrimSpace(input.Project),
+		FlavorID: strings.TrimSpace(input.Flavor), OperatorStore: st,
+	}
+	if err := harness.PrePrimaryRunner().Run(r.Context(), tc, harness.Body{
+		"messages": json.RawMessage(messages),
+	}); err != nil {
+		http.Error(w, "harness evaluation failed", http.StatusBadRequest)
+		return
+	}
+	redacted, err := harness.RedactedJSON(tc.Envelope)
+	if err != nil {
+		http.Error(w, "harness evaluation encoding failed", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(operatorapi.VirtualModelHarnessEvaluateResponse{OK: true, Envelope: redacted})
 }
 
 func configHealthTimeout(res *config.Resolved) time.Duration {

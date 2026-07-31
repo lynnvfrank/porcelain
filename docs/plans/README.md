@@ -39,6 +39,21 @@ These plans are complete. Read the linked feature record for as-built behavior.
 | [context-window-admission.md](context-window-admission.md) | [context-window-admission](../features/context-window-admission.md) (`partial`) |
 | [adminui-filesystem-dev-mode.md](adminui-filesystem-dev-mode.md) | [operator-ui-filesystem-dev-mode](../features/operator-ui-filesystem-dev-mode.md) |
 
+### Virtual model turn harness (v0.4)
+
+| Plan | Feature record(s) |
+|------|-------------------|
+| [virtual-model-turn-harness.md](virtual-model-turn-harness.md) | [operator virtual models](../features/operator-virtual-models.md), [gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md), [indexer workspaces](../features/indexer-workspaces.md), [operator conversation history](../features/operator-conversation-history.md), [operator chat UI](../features/operator-chat-ui.md) |
+| [virtual-model-harness-runtime.md](virtual-model-harness-runtime.md) | [gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md), [operator virtual models](../features/operator-virtual-models.md), [operator conversation history](../features/operator-conversation-history.md) |
+| [virtual-model-harness-settings.md](virtual-model-harness-settings.md) | [operator virtual models](../features/operator-virtual-models.md) |
+| [virtual-model-harness-retrieval.md](virtual-model-harness-retrieval.md) | [operator virtual models](../features/operator-virtual-models.md), [gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md) |
+| [virtual-model-harness-workspace-policy.md](virtual-model-harness-workspace-policy.md) | [indexer workspaces](../features/indexer-workspaces.md), [gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md) |
+| [virtual-model-harness-intent.md](virtual-model-harness-intent.md) | [operator virtual models](../features/operator-virtual-models.md), [gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md) |
+| [virtual-model-harness-evaluator-escalation.md](virtual-model-harness-evaluator-escalation.md) | [operator virtual models](../features/operator-virtual-models.md), [gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md) |
+| [virtual-model-harness-workspace-tools.md](virtual-model-harness-workspace-tools.md) | [operator virtual models](../features/operator-virtual-models.md), [gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md), [indexer workspaces](../features/indexer-workspaces.md) |
+| [virtual-model-harness-observability.md](virtual-model-harness-observability.md) | [operator conversation history](../features/operator-conversation-history.md), [operator chat UI](../features/operator-chat-ui.md), [operator log message registry](../features/operator-log-message-registry.md) |
+| [virtual-model-harness-advanced-modules.md](virtual-model-harness-advanced-modules.md) | [operator virtual models](../features/operator-virtual-models.md), [gateway chat routing pipeline](../features/gateway-chat-routing-pipeline.md), [operator chat UI](../features/operator-chat-ui.md) |
+
 ### Platform contracts
 
 | Plan | Feature record(s) |
@@ -64,16 +79,6 @@ Create a feature record when implementation ships.
 
 | Plan | Summary |
 |------|---------|
-| [virtual-model-turn-harness.md](virtual-model-turn-harness.md) | **v0.4 umbrella** — index, module table, resolved decisions for per-VM turn harness |
-| [virtual-model-harness-runtime.md](virtual-model-harness-runtime.md) | Stage registry + turn envelope |
-| [virtual-model-harness-settings.md](virtual-model-harness-settings.md) | VM module toggles (SQLite, API, settings UI) |
-| [virtual-model-harness-retrieval.md](virtual-model-harness-retrieval.md) | Per-VM retrieval + pluggable evidence compression |
-| [virtual-model-harness-workspace-policy.md](virtual-model-harness-workspace-policy.md) | Workspace policy + meta-policy (project/flavor scope) |
-| [virtual-model-harness-intent.md](virtual-model-harness-intent.md) | Intent classification + evaluate API |
-| [virtual-model-harness-evaluator-escalation.md](virtual-model-harness-evaluator-escalation.md) | Evaluator single-pass + escalation v1; flexible streaming |
-| [virtual-model-harness-workspace-tools.md](virtual-model-harness-workspace-tools.md) | Gateway workspace file tools (gateway-injected declarations) |
-| [virtual-model-harness-observability.md](virtual-model-harness-observability.md) | Harness timeline in settings logs and chat |
-| [virtual-model-harness-advanced-modules.md](virtual-model-harness-advanced-modules.md) | Multi-draft evaluator + human escalation |
 | [indexer-embedding-model-and-workspace-purge.md](indexer-embedding-model-and-workspace-purge.md) | Operator embedding model selector on indexer card; workspace delete drops vector collection |
 | [operator-workspace-search.md](operator-workspace-search.md) | Direct workspace search API, `/ui/search`, ribbon nav |
 | [embedui-settings-card-cleanup.md](embedui-settings-card-cleanup.md) | Settings feed and card component refactor for consistency |

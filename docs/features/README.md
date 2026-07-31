@@ -18,7 +18,7 @@ Durable contracts for new binaries, wrappers, and cross-cutting integration — 
 | [Operator UI session auth](operator-ui-session-auth.md) | UI session cookie, `principal_id`, `/api/ui/*` gate | Admin UI session store | `current` |
 | [Operator SQLite store](operator-sqlite-store.md) | `operator.sqlite`, migrations, shared persistence for UI features | `internal/operatorstore` | `current` |
 | [Operator UI filesystem dev mode](operator-ui-filesystem-dev-mode.md) | `CHIMERA_ADMINUI_ROOT` serves embed UI from disk on loopback | Gateway embed assets | `current` |
-| [Gateway chat routing pipeline](gateway-chat-routing-pipeline.md) | Tool router, RAG inject, policy pick, fallback loop; extensibility target for routers | Gateway chat path | `current` |
+| [Gateway chat routing pipeline](gateway-chat-routing-pipeline.md) | Virtual-model turn harness stages (meta-policy, intent, retrieval, tools, evaluator, escalation); extensibility target for routers | Gateway chat path | `current` |
 
 ## Operator features
 
@@ -36,7 +36,7 @@ Durable contracts for new binaries, wrappers, and cross-cutting integration — 
 | [Operator conversation history](operator-conversation-history.md) | Durable chat threads in operator SQLite; history panel with title, flag, delete | Gateway embed UI, operator SQLite, session | `current` |
 | [Operator settings UI](operator-settings-ui.md) | `/ui/settings` cards + event log; unified admin/observability surface | Gateway embed UI, servicelogs | `current` |
 | [Operator embed UI mobile layout](operator-embed-ui-mobile-layout.md) | Phone-width settings cards, scoped event log, VM toggles; site-wide mobile baseline; gallery fixtures | Gateway embed UI | `active` |
-| [Operator virtual models](operator-virtual-models.md) | Per-VM routing stacks in SQLite; catalog + chat resolution | Gateway runtime, operator SQLite, settings UI | `current` |
+| [Operator virtual models](operator-virtual-models.md) | Per-VM routing stacks and harness module toggles in SQLite; catalog + chat resolution | Gateway runtime, operator SQLite, settings UI | `current` |
 | [Operator provider model availability](operator-provider-model-availability.md) | Tenant-scoped upstream model enable/disable; catalog filter | Operator SQLite, settings provider cards | `current` |
 | [Operator log message registry](operator-log-message-registry.md) | Canonical log slugs + operator copy in YAML; generated JS/Go constants | `internal/operatorcopy`, settings UI | `current` |
 | [Context window admission](context-window-admission.md) | Pre-upstream context/body limits; retriable `request_too_large` fallback | Chat routing, `providerlimits` | `partial` |

@@ -35,10 +35,19 @@ func Register(mux *http.ServeMux, h *handler.Handler) {
 	mux.HandleFunc("PUT /api/ui/virtual-models/{id}/tool-router", h.RequireAuthJSON(func(w http.ResponseWriter, r *http.Request) {
 		handleToolRouterPUT(h, w, r)
 	}))
+	mux.HandleFunc("GET /api/ui/virtual-models/{id}/harness", h.RequireAuthJSON(func(w http.ResponseWriter, r *http.Request) {
+		handleHarnessGET(h, w, r)
+	}))
+	mux.HandleFunc("PUT /api/ui/virtual-models/{id}/harness", h.RequireAuthJSON(func(w http.ResponseWriter, r *http.Request) {
+		handleHarnessPUT(h, w, r)
+	}))
 	mux.HandleFunc("POST /api/ui/virtual-models/{id}/routing/generate", h.RequireAuthJSON(func(w http.ResponseWriter, r *http.Request) {
 		handleGeneratePOST(h, w, r)
 	}))
 	mux.HandleFunc("POST /api/ui/virtual-models/{id}/routing/evaluate", h.RequireAuthJSON(func(w http.ResponseWriter, r *http.Request) {
 		handleEvaluatePOST(h, w, r)
+	}))
+	mux.HandleFunc("POST /api/ui/virtual-models/{id}/harness/evaluate", h.RequireAuthJSON(func(w http.ResponseWriter, r *http.Request) {
+		handleHarnessEvaluatePOST(h, w, r)
 	}))
 }

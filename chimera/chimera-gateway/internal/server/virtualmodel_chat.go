@@ -161,6 +161,7 @@ func handleVirtualModelChat(
 		ChatOpts:         chatOpts,
 		HistRec:          histRec,
 		RAG:              rt.RAG(),
+		OperatorStore:    rt.OperatorStore(),
 		Metrics:          rt.Metrics(),
 		LimitsGuard:      rt.LimitsGuard(),
 		ModelAvailable:   modelAvailable,

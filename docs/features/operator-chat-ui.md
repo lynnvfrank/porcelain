@@ -13,7 +13,7 @@
 
 ## At a glance
 
-Operators exercise gateway chat from `/ui/chat` (iframe inside the app shell at `/ui`). The page streams assistant replies, lets them pick a virtual or upstream model and an optional indexer workspace for RAG scope, and shows per-turn metadata: resolved upstream model, expandable workspace retrieval snippets with syntax highlighting, and inline errors with **Retry**. Messages render with design-01 styling; assistant text uses a safe Markdown subset. Per-message **Copy** is available on all roles; full-thread Markdown export exists in code but is not exposed in the ribbon shell (see gaps).
+Operators exercise gateway chat from `/ui/chat` (iframe inside the app shell at `/ui`). The page streams assistant replies, lets them pick a virtual or upstream model and an optional indexer workspace for RAG scope, and shows per-turn metadata: resolved upstream model, expandable workspace retrieval snippets with syntax highlighting, virtual-model harness **Turn details**, and inline errors with **Retry**. Messages render with design-01 styling; assistant text uses a safe Markdown subset. Per-message **Copy** is available on all roles; full-thread Markdown export exists in code but is not exposed in the ribbon shell (see gaps).
 
 ## Operator-visible behavior
 
@@ -25,6 +25,7 @@ Operators exercise gateway chat from `/ui/chat` (iframe inside the app shell at 
 - **Errors** — Failed turns render as error blocks with **Retry** (resends stored user text).
 - **RAG snippets** — Expandable blocks under assistant messages; show source path, relevance score, and highlighted code or Markdown from `X-Chimera-RAG-Hits` (base64 JSON header).
 - **Resolved model** — Message header shows upstream model id when the gateway resolved a virtual model to a concrete provider model.
+- **Turn details** — Assistant messages restored from history expose a collapsed harness summary: intent chips, RAG hit count, resolved model, evaluator verdict, and retrieval compression strategy. The details are persisted redacted envelope data, never a replay of gateway logs.
 - **Title bar** — Editable conversation title when a saved thread is open (persists via conversation history API).
 - **New chat** — Clears in-memory messages and assigns a new `conversation_id`; does not delete SQLite history rows.
 - **Shell integration** — Ribbon posts `chimera-chat-action` messages for **new** and **open**; chat posts `chimera-chat-state` to refresh or highlight history.
@@ -77,7 +78,7 @@ Operators exercise gateway chat from `/ui/chat` (iframe inside the app shell at 
 | State + transcript export | `embed/embedui/chat/state.js` |
 | Gateway client | `embed/embedui/chat/gatewayClient.js` |
 | Streaming | `embed/embedui/chat/streamHandler.js`, `scroll.js` |
-| Rendering | `embed/embedui/chat/render/messages.js`, `input.js`, `markdown.js`, `snippet.js`, `titleBar.js` |
+| Rendering | `embed/embedui/chat/render/messages.js` (including persisted harness Turn details), `input.js`, `markdown.js`, `snippet.js`, `titleBar.js` |
 | History load | `embed/embedui/chat/historyClient.js` |
 | Routes | `embed/routes.go` — `/ui/chat`, `/ui/assets/chat/` |
 | Chat + persistence hooks | `internal/server/server.go`, `virtualmodel_chat.go` |

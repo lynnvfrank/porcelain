@@ -55,6 +55,12 @@ Summarized feed `kind` values align with these families (`admin-provider`, `virt
 | `virtual-model.fallback` | Fallback chain section | `details[data-ui-part][data-vm-section=fallback]` | `adminVirtualModels.js` |
 | `virtual-model.routing` | Routing policy section | `details[data-ui-part][data-vm-section=routing]` | `adminVirtualModels.js` |
 | `virtual-model.tool-router` | Tool router section | `details[data-ui-part][data-vm-section=router]` | `adminVirtualModels.js` |
+| `virtual-model.harness` | Harness module toggles | `details[data-ui-part][data-vm-section=harness]` | `adminVirtualModels.js` |
+| `virtual-model.harness.retrieval-config` | Per-VM retrieval knobs | `.sum-vm-harness-retrieval[data-ui-part]` | `adminVirtualModels.js` |
+| `virtual-model.harness.intent-config` | Intent mode and classifier model | `.sum-vm-harness-intent[data-ui-part]` | `adminVirtualModels.js` |
+| `virtual-model.harness.evaluator-config` | Evaluator mode, model, multi-draft, thresholds, and stream policy | `.sum-vm-harness-evaluator[data-ui-part]` | `adminVirtualModels.js` |
+| `virtual-model.harness.escalation-config` | Escalation budget, actions, human targets, privacy, and paste-back delimiter | `.sum-vm-harness-escalation[data-ui-part]` | `adminVirtualModels.js` |
+| `virtual-model.harness.evaluate-result` | Static dry-run envelope sample | `[data-ui-part]` in gallery | `gallery.html` |
 | `virtual-model.scoped-evlog` | Scoped routing log | `.sum-evlog[data-ui-part]` | `adminVirtualModels.js` |
 
 ## Parts — virtual model draft
@@ -68,6 +74,7 @@ Summarized feed `kind` values align with these families (`admin-provider`, `virt
 | Slug | Label | DOM hint | Builder |
 |------|-------|----------|---------|
 | `workspace-draft.form` | Project / flavor / paths | `.sum-body[data-ui-part]` | `workspaceDraft.js` |
+| `workspace-draft.policy` | Sensitivity, cloud, file-action policy | `.ws-policy-fields[data-ui-part]` | `workspaceDraft.js` |
 
 ## Parts — indexer operator workspace
 
@@ -75,6 +82,7 @@ Summarized feed `kind` values align with these families (`admin-provider`, `virt
 |------|-------|----------|---------|
 | `indexer-operator-workspace.summary` | Card header | `header.sum-card__hdr` | `indexerWorkspace.js` |
 | `indexer-operator-workspace.toolbar` | Configure / path edit toolbar | `div[data-ui-part].ws-managed-edit-controls` | `workspaceDraft.js` |
+| `indexer-operator-workspace.policy` | Sensitivity, cloud, file-action policy editor | `.ws-policy-fields[data-ui-part]` | `workspaceDraft.js` |
 | `indexer-operator-workspace.paths` | Watched paths block | `dd[data-ui-part]` (Watched paths) | `indexerRun.js` (`renderExpandedIndexer`) |
 | `indexer-operator-workspace.scoped-evlog` | Workspace-scoped log | `.sum-evlog[data-ui-part]` | `indexerRun.js` |
 
@@ -90,7 +98,9 @@ Summarized feed `kind` values align with these families (`admin-provider`, `virt
 |------|-------|---------|
 | `conversation.summary` | Conversation card header | `feedLogConv.js` |
 | `conversation.timeline` | Lifecycle timeline | `feedLogConv.js` |
+| `conversation.harness-timeline` | Per-turn harness stage pills | `feedLogConv.js` |
 | `conversation.scoped-evlog` | Scoped log | `feedLogConv.js` |
+| `chat.turn-details` | Collapsible persisted harness turn summary | `chat/render/messages.js` |
 | `service.summary` | Service card header | `serviceFeed.js` |
 | `service.scoped-evlog` | Service scoped log | `serviceFeed.js` |
 | `indexer.summary` | Indexer run card header | `indexerRun.js` |

@@ -317,6 +317,9 @@ func TestLogsCards_virtualModelCard_detailsLayout(t *testing.T) {
 		`vm-42-routing-table`,
 		`vm-42-routing-yaml`,
 		`Tool router`,
+		`data-ui-part="virtual-model.harness"`,
+		`data-vm-section="harness"`,
+		`Harness`,
 	} {
 		if !strings.Contains(html, want) {
 			t.Fatalf("missing %q in %q", want, html)
@@ -707,7 +710,11 @@ func TestLogsCards_cardUiPartAttributes(t *testing.T) {
 			"7": {
 				fallback_chain: ["groq/free"],
 				routing_policy: "ambiguous_default_model: groq/free\nrules: []\n",
-				router_models: []
+				router_models: [],
+				harness_modules: [
+					{ module_id: "retrieval", enabled: true, configurable: true, config_json: {} },
+					{ module_id: "tool_executor", enabled: false, configurable: false, disabled_reason: "not yet", config_json: {} }
+				]
 			}
 		};
 		var vmHtml = ctx.buildVirtualModelCardHtml({
@@ -723,6 +730,9 @@ func TestLogsCards_cardUiPartAttributes(t *testing.T) {
 		});
 		if (vmHtml.indexOf('data-ui-part="virtual-model.routing"') < 0) {
 			throw new Error("virtual model missing routing part");
+		}
+		if (vmHtml.indexOf('data-ui-part="virtual-model.harness"') < 0) {
+			throw new Error("virtual model missing harness part");
 		}
 	`)
 	if err != nil {

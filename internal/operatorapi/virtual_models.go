@@ -1,5 +1,7 @@
 package operatorapi
 
+import "encoding/json"
+
 // VirtualModelSummary is a list entry for GET /api/ui/state and virtual-models list.
 type VirtualModelSummary struct {
 	ID                   int64    `json:"id"`
@@ -18,13 +20,14 @@ type VirtualModelSummary struct {
 // VirtualModelDetail is GET /api/ui/virtual-models/{id}.
 type VirtualModelDetail struct {
 	VirtualModelSummary
-	RoutingPolicyYAML    string   `json:"routing_policy_yaml,omitempty"`
-	FallbackChain        []string `json:"fallback_chain"`
-	FallbackUnavailable  []string `json:"fallback_unavailable,omitempty"`
-	ToolRouterConfidence float64  `json:"tool_router_confidence_threshold"`
-	CreatedByPrincipalID string   `json:"created_by_principal_id,omitempty"`
-	CreatedAt            string   `json:"created_at"`
-	UpdatedAt            string   `json:"updated_at"`
+	RoutingPolicyYAML    string                      `json:"routing_policy_yaml,omitempty"`
+	FallbackChain        []string                    `json:"fallback_chain"`
+	FallbackUnavailable  []string                    `json:"fallback_unavailable,omitempty"`
+	ToolRouterConfidence float64                     `json:"tool_router_confidence_threshold"`
+	HarnessModules       []VirtualModelHarnessModule `json:"harness_modules,omitempty"`
+	CreatedByPrincipalID string                      `json:"created_by_principal_id,omitempty"`
+	CreatedAt            string                      `json:"created_at"`
+	UpdatedAt            string                      `json:"updated_at"`
 }
 
 // VirtualModelCreateRequest is POST /api/ui/virtual-models body.
@@ -61,6 +64,39 @@ type VirtualModelToolRouterSaveRequest struct {
 	Enabled             bool     `json:"tool_router_enabled"`
 	RouterModels        []string `json:"router_models"`
 	ConfidenceThreshold float64  `json:"confidence_threshold"`
+}
+
+// VirtualModelHarnessModule is one harness module on a virtual model.
+type VirtualModelHarnessModule struct {
+	ModuleID   string          `json:"module_id"`
+	Enabled    bool            `json:"enabled"`
+	ConfigJSON json.RawMessage `json:"config_json,omitempty"`
+	// UI hints (read-only on GET)
+	Configurable   bool   `json:"configurable,omitempty"`
+	DisabledReason string `json:"disabled_reason,omitempty"`
+}
+
+// VirtualModelHarnessResponse is GET /api/ui/virtual-models/{id}/harness.
+type VirtualModelHarnessResponse struct {
+	Modules []VirtualModelHarnessModule `json:"modules"`
+}
+
+// VirtualModelHarnessSaveRequest is PUT /api/ui/virtual-models/{id}/harness.
+type VirtualModelHarnessSaveRequest struct {
+	Modules []VirtualModelHarnessModule `json:"modules"`
+}
+
+// VirtualModelHarnessEvaluateRequest is a dry-run pre-primary harness input.
+type VirtualModelHarnessEvaluateRequest struct {
+	Message string `json:"message"`
+	Project string `json:"project,omitempty"`
+	Flavor  string `json:"flavor,omitempty"`
+}
+
+// VirtualModelHarnessEvaluateResponse is a redacted dry-run envelope.
+type VirtualModelHarnessEvaluateResponse struct {
+	OK       bool            `json:"ok"`
+	Envelope json.RawMessage `json:"envelope"`
 }
 
 // VirtualModelListResponse is GET /api/ui/virtual-models.

@@ -34,7 +34,23 @@ type Resolved struct {
 	ToolRouterConfidence float64
 	Visibility           string
 	CreatedByPrincipalID string
+	HarnessModules       map[string]HarnessModule
 	policy               *routing.InMemoryPolicy
+}
+
+// HarnessModule is runtime config for one harness module on a virtual model.
+type HarnessModule struct {
+	Enabled    bool
+	ConfigJSON string
+}
+
+// HarnessEnabled reports whether the named module is enabled.
+func (r *Resolved) HarnessEnabled(moduleID string) bool {
+	if r == nil {
+		return false
+	}
+	m, ok := r.HarnessModules[moduleID]
+	return ok && m.Enabled
 }
 
 // Policy returns the compiled routing policy for this virtual model.
@@ -158,6 +174,14 @@ func compileVirtualModel(vm operatorstore.VirtualModel) (*Resolved, error) {
 	if th <= 0 {
 		th = 0.5
 	}
+	harness := make(map[string]HarnessModule, len(vm.HarnessModules))
+	mods := vm.HarnessModules
+	if len(mods) == 0 {
+		mods = operatorstore.DefaultHarnessModules(false)
+	}
+	for _, m := range mods {
+		harness[m.ModuleID] = HarnessModule{Enabled: m.Enabled, ConfigJSON: m.ConfigJSON}
+	}
 	return &Resolved{
 		ID:                   vm.ID,
 		ModelID:              vm.ModelID,
@@ -170,6 +194,7 @@ func compileVirtualModel(vm operatorstore.VirtualModel) (*Resolved, error) {
 		ToolRouterConfidence: th,
 		Visibility:           vm.Visibility,
 		CreatedByPrincipalID: vm.CreatedByPrincipalID,
+		HarnessModules:       harness,
 		policy:               pol,
 	}, nil
 }

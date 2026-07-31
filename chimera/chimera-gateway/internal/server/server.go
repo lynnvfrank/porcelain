@@ -660,13 +660,9 @@ func handleV1Chat(w http.ResponseWriter, r *http.Request, rt *Runtime, log *slog
 			headerToolThresh = v
 		}
 	}
-	rtDur := time.Duration(res.ChatTimeoutMs) * time.Millisecond
-	if rtDur > 60*time.Second {
-		rtDur = 60 * time.Second
-	}
-	if rtDur < 5*time.Second {
-		rtDur = 5 * time.Second
-	}
+	// Same budget as direct upstream chat: gateway.timeouts.chat_ms (default 300s).
+	// Applied per harness upstream call (primary stream, summarize, evaluator, tools).
+	rtDur := chatTimeout(res)
 	headerCID := ingest.OptionalConversationIDFromHeader(r)
 	proj := ingest.ResolveProject(r.Header.Get(ingest.HeaderProject), res.RAG.DefaultProject)
 	flav := ingest.ResolveFlavor(r.Header.Get(ingest.HeaderFlavor), res.RAG.DefaultFlavor)

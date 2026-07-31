@@ -19,8 +19,10 @@ Operators create **virtual models** in operator SQLite—each with a client-faci
 
 - **Virtual model cards** on `/ui/settings` — list, create, edit metadata, enable/disable, delete.
 - **Routing stack editors** — Fallback chain (required), routing policy YAML (toggleable), tool router models + confidence (toggleable). These configure the [chat routing pipeline](gateway-chat-routing-pipeline.md); cards do not execute routing themselves.
+- **Harness modules** — Per-VM toggles for retrieval, intent, evaluator, escalation, and workspace tools (`GET/PUT /api/ui/virtual-models/{id}/harness`). Workspace tools inject only gateway-native `read_file`, `write_file`, `list_dir`, and `search` schemas; their `max_tool_rounds` defaults to 5 and workspace policy decides whether reads or writes are permitted. Evaluator supports `single_pass` and `multi_draft`; multi-draft uses `draft_count` (default 3, capped at 8 and available fallback models) plus `synthesize_model_id`, buffers the response through synthesis and JSON evaluation, and returns one answer. Escalation accepts `{ "max_rounds":0..2, "on_fail":["re_retrieve","fallback_chain","ensemble","human"], "human_surfaces":[{"name":"…","url":"…"}], "privacy_disclosure":"…", "paste_back_delimiter":"…" }`. The human target is emitted only after internal remediation exhausts; a next user message containing the delimiter supplies external context without blocking ordinary turns. Gallery fixtures show single-pass, multi-draft, and human escalation states.
 - **Generate from catalog** — Builds fallback or policy from **available** upstream models only (respects provider availability).
 - **Evaluate / preview** — Dry-run policy against sample message text without sending chat.
+- **Harness evaluate** — `POST /api/ui/virtual-models/{id}/harness/evaluate` runs stack resolution, meta-policy, and intent against a sample message, returning a redacted envelope without retrieval injection or an upstream primary completion.
 - **Scoped logs** — Card expanded panel shows routing, fallback, and tool-router events for that model id.
 - **Chat selector** — Enabled public virtual models appear in `/ui/chat` model dropdown alongside upstream ids.
 - **Disabled / private** — Disabled models hidden from catalog and rejected on chat; private models visible only to creating principal (single-user desktop uses empty tenant today).
@@ -34,7 +36,8 @@ Operators create **virtual models** in operator SQLite—each with a client-faci
 - Each VM compiles routing policy into `routing.InMemoryPolicy` at registry reload.
 - Fallback walk skips unavailable models (provider availability), quota/context limits, and retriable upstream errors.
 - Structured logs include `virtual_model_id` on routing resolution and fallback attempts.
-- RAG remains **gateway-global** for v1 (not per-virtual-model scoped).
+- RAG remains **gateway-global** for enablement (`search.enabled`); the per-VM **retrieval** harness module can disable injection or override retrieval knobs for that turn. Empty retrieval config inherits gateway RAG top-k and score floor.
+- Evaluator failures fail open to the primary response. `immediate` preserves live SSE; gated policies buffer the primary, evaluate it, and can escalate before delivering one response.
 
 **Decisions**
 
@@ -71,8 +74,11 @@ Operators create **virtual models** in operator SQLite—each with a client-faci
 | `PUT /api/ui/virtual-models/{id}/fallback` | Save fallback chain |
 | `PUT /api/ui/virtual-models/{id}/routing-policy` | Save policy YAML + enable flag |
 | `PUT /api/ui/virtual-models/{id}/tool-router` | Save tool router config |
+| `GET /api/ui/virtual-models/{id}/harness` | List harness modules + UI hints |
+| `PUT /api/ui/virtual-models/{id}/harness` | Save harness module toggles / config |
 | `POST /api/ui/virtual-models/{id}/routing/generate` | Generate stack from catalog |
 | `POST /api/ui/virtual-models/{id}/routing/evaluate` | Dry-run policy |
+| `POST /api/ui/virtual-models/{id}/harness/evaluate` | Dry-run pre-primary harness stages |
 | `GET /v1/models` | Includes enabled virtual models |
 | `POST /v1/chat/completions` | Resolves `body.model` through VM registry |
 | Log slugs | `chat.routing.resolved`, `conversation.routing.resolved`, `routing.rule.matched`, fallback attempt lines |
@@ -102,7 +108,7 @@ Manual: create two VMs with different fallback chains; chat with each; confirm d
 
 ## Out of scope and known gaps
 
-- Per-virtual-model RAG / workspace scope.
+- Workspace policy-driven retrieval scope and cloud-summary restrictions.
 - Shared routing-rule definition catalog (reusable named rules across VMs) — VM stores policy YAML directly today.
 - Rate-limit policy per VM.
 

@@ -4,11 +4,11 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway RAG, harness retrieval stage, operator virtual models |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway v0.4 |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Child of [`virtual-model-turn-harness.md`](virtual-model-turn-harness.md) |
-| **As-built** | None — link to [`docs/features/`](../features/README.md) when shipped |
+| **As-built** | [`Operator virtual models`](../features/operator-virtual-models.md); [`Gateway chat routing pipeline`](../features/gateway-chat-routing-pipeline.md) |
 
 ## At a glance
 
@@ -16,10 +16,12 @@ Each virtual model applies its own retrieval settings to the request's **project
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
-| [Phase 1 — Per-virtual-model retrieval](#phase-1--per-virtual-model-retrieval) | VM config drives retrieval; evidence compression with summarize | `todo` |
+| [Phase 1 — Per-virtual-model retrieval](#phase-1--per-virtual-model-retrieval) | VM config drives retrieval; evidence compression with summarize | `done` |
 
 **Depends on:** [runtime](virtual-model-harness-runtime.md), [settings](virtual-model-harness-settings.md)
 **Blocks:** [evaluator escalation](virtual-model-harness-evaluator-escalation.md) (re-retrieve uses retrieval config)
+
+**Delivery gates:** [umbrella](virtual-model-turn-harness.md#delivery-gates-normative) — `make precommit` at plan done; hard cut (no legacy paths); phase debt OK if Fix-by is set.
 
 ---
 
@@ -51,6 +53,7 @@ RAG today uses gateway-global `top_k` and `score_floor` ([`gateway-rag-ingest-an
 - Evidence aggregation: format hits into `TurnEnvelope.retrieval` (including `compress_strategy`) and structured evidence block for primary inject.
 - Fail-open: summarize error → truncate → log `harness.retrieval.compress_fallback`.
 - Update [`gateway-chat-routing-pipeline.md`](../features/gateway-chat-routing-pipeline.md) and [`operator-virtual-models.md`](../features/operator-virtual-models.md) when shipped.
+- **Gallery** ([umbrella contract](virtual-model-turn-harness.md#gallery--reference-ui-contract-normative)): fixture VM cards (or harness subsection mounts) for retrieval config with `compress_strategy: truncate` vs `summarize`, plus a skip/empty-query framing state; part slugs for retrieval knobs.
 
 **Acceptance**
 
@@ -58,8 +61,9 @@ RAG today uses gateway-global `top_k` and `score_floor` ([`gateway-rag-ingest-an
 - Global RAG disabled → retrieval module no-ops regardless of VM toggle.
 - VM with `compress_strategy: summarize` over budget → one summarize upstream call; envelope records strategy.
 - Summarize failure → truncated evidence delivered; turn completes.
+- Gallery shows truncate vs summarize (and at least one skip/empty) retrieval config states without live VM edits.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 

@@ -1088,6 +1088,23 @@ tr.sg-op-vm-fallback-row--unavailable td {
   margin-top: 0;
   text-align: right;
 }
+.sum-vm-harness-retrieval {
+  padding: 0.35rem 0 0.15rem;
+}
+.sum-vm-harness-retrieval .sg-op-label:first-child {
+  margin-top: 0;
+}
+.sum-vm-harness-retrieval .sg-op-input[type="number"],
+.sum-vm-harness-retrieval .sg-op-input[type="text"] {
+  max-width: 10rem;
+}
+.sum-vm-harness-retrieval .sg-op-btn {
+  margin-top: 0.5rem;
+}
+.sum-vm-harness-table .sum-vm-harness-toggle-cell {
+  vertical-align: top;
+  white-space: nowrap;
+}
 .sum-vm-router-panel__view .sg-op-yaml-wrap.sg-op-yaml-wrap--full {
   margin-top: 0;
 }

@@ -20,7 +20,7 @@ Structured log lines use stable **`msg` slugs** in Go (`slog` fields). The **ope
 - **Summary column** — Event log and summarized cards show plain-language lines derived from registry `summary` / `formatter` / `append` rules.
 - **Gallery previews** — Every slug requires `gallery_preview` for `/ui/settings/gallery` documentation rows.
 - **Service-specific tone** — Gateway, conversation, broker, vectorstore, and indexer slugs share one registry; indexer-heavy lines use `operatorMessageIndexer.js` formatters where needed.
-- **Shape-driven UI** — Tags like `http.access`, `chat.routing`, `rag`, `ingest` drive `inferShape` and card metric rollups.
+- **Shape-driven UI** — Tags like `http.access`, `chat.routing`, `rag`, `ingest` drive `inferShape` and card metric rollups. The canonical `harness.stage.*` and `harness.escalation.*` entries provide the settings conversation timeline and virtual-model scoped logs with stable operator copy.
 
 ## System behavior and contracts
 

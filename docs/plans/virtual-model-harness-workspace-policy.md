@@ -4,11 +4,11 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Operator SQLite workspaces, harness meta-policy stage, settings UI |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway v0.4 |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Child of [`virtual-model-turn-harness.md`](virtual-model-turn-harness.md) |
-| **As-built** | None — link to [`docs/features/`](../features/README.md) when shipped |
+| **As-built** | [`Indexer workspaces`](../features/indexer-workspaces.md) |
 
 ## At a glance
 
@@ -16,10 +16,12 @@ Workspaces declare sensitivity and file permissions; a deterministic meta-policy
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
-| [Phase 1 — Workspace policy and meta-policy](#phase-1--workspace-policy-and-meta-policy) | Workspace fields, settings UI, meta-policy stage | `todo` |
+| [Phase 1 — Workspace policy and meta-policy](#phase-1--workspace-policy-and-meta-policy) | Workspace fields, settings UI, meta-policy stage | `done` |
 
 **Depends on:** [runtime](virtual-model-harness-runtime.md), [settings](virtual-model-harness-settings.md)  
 **Blocks:** [workspace tools](virtual-model-harness-workspace-tools.md), cloud-aware summarize in [retrieval](virtual-model-harness-retrieval.md)
+
+**Delivery gates:** [umbrella](virtual-model-turn-harness.md#delivery-gates-normative) — `make precommit` at plan done; hard cut (no legacy paths); phase debt OK if Fix-by is set.
 
 ---
 
@@ -47,14 +49,16 @@ Indexer workspaces today store project, flavor, and paths ([`indexer-workspaces.
 - Meta-policy stage: set `TurnEnvelope.scope` (including derived `workspace_id`); veto cloud routes and tool execution when policy forbids.
 - Classifier/cloud stages consult `scope.allow_cloud`; workspace `sensitivity` overrides classifier suggestions.
 - Document wire contract: `X-Chimera-Project` + `X-Chimera-Flavor-Id` select scope; `X-Chimera-Workspace-Id` remains history metadata only.
+- **Gallery** ([umbrella contract](virtual-model-turn-harness.md#gallery--reference-ui-contract-normative)): Workspaces section fixtures for (1) `public` + cloud allowed, (2) `private` + `allow_cloud: false`, (3) `file_action_policy` variants (`none` / `read` / `read_write`); nav + part slugs for new policy fields.
 
 **Acceptance**
 
 - Workspace `private` + `allow_cloud: false` → fallback chain skips cloud-only models before upstream call.
 - `file_action_policy: none` → tool executor stage rejects file tools even if primary model requests them.
 - Two DB rows with same project/flavor → deterministic lowest-id choice logged once per turn.
+- Gallery shows comparable workspace policy states; reviewers need not create live workspaces to inspect controls.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 

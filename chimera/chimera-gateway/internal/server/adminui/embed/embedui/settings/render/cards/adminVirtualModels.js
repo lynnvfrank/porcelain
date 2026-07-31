@@ -149,7 +149,8 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     var keys = [
       "id", "model_id", "name", "version", "description", "enabled", "visibility",
       "fallback_depth", "routing_policy_enabled", "tool_router_enabled", "router_models",
-      "routing_policy_yaml", "fallback_chain", "fallback_unavailable", "tool_router_confidence_threshold"
+      "routing_policy_yaml", "fallback_chain", "fallback_unavailable", "tool_router_confidence_threshold",
+      "harness_modules"
     ];
     for (var i = 0; i < keys.length; i++) {
       var k = keys[i];
@@ -169,9 +170,14 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
       var ev = entryCache[i];
       var f = getFlat(ev.parsed);
       var vmField = String(f.virtual_model_id || "").trim();
-      if (modelId && vmField && vmField !== modelId) continue;
       var msg = String(f.msg || f.message || "").toLowerCase();
+      var isHarness = msg.indexOf("harness.") === 0;
+      // Harness events are strictly VM-scoped: never leak an untagged event into
+      // every VM card while retaining existing routing lines' historical scope.
+      if (isHarness && (!vmField || vmField !== modelId)) continue;
+      if (!isHarness && modelId && vmField && vmField !== modelId) continue;
       if (
+        isHarness ||
         msg.indexOf("routing") >= 0 ||
         msg.indexOf("fallback") >= 0 ||
         msg.indexOf("failover") >= 0 ||
@@ -776,6 +782,182 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     );
   }
 
+  function harnessModuleLabel(moduleId) {
+    switch (String(moduleId || "")) {
+      case "retrieval":
+        return "Retrieval";
+      case "intent":
+        return "Intent";
+      case "evaluator":
+        return "Evaluator";
+      case "escalation":
+        return "Escalation";
+      case "tool_executor":
+        return "Workspace tools";
+      default:
+        return String(moduleId || "Module");
+    }
+  }
+
+  function harnessModuleDesc(moduleId) {
+    switch (String(moduleId || "")) {
+      case "retrieval":
+        return "Per-virtual-model RAG inject (still requires gateway search enabled).";
+      case "intent":
+        return "Classify turn intent before primary completion.";
+      case "evaluator":
+        return "Score primary output and apply the selected stream policy.";
+      case "escalation":
+        return "Re-retrieve or walk fallback when evaluation recommends it.";
+      case "tool_executor":
+        return "Gateway-injected workspace file tools constrained to the resolved workspace policy.";
+      default:
+        return "";
+    }
+  }
+
+  function retrievalConfigFromModule(module) {
+    var cfg = (module && module.config_json) || {};
+    if (typeof cfg === "string") {
+      try { cfg = JSON.parse(cfg); } catch (_e) { cfg = {}; }
+    }
+    return cfg && typeof cfg === "object" ? cfg : {};
+  }
+
+  function retrievalKnobsHtml(module, pfx, vmId) {
+    var cfg = retrievalConfigFromModule(module);
+    var strategy = String(cfg.compress_strategy || "truncate").toLowerCase();
+    if (strategy !== "none" && strategy !== "truncate" && strategy !== "summarize") strategy = "truncate";
+    return (
+      '<div class="sum-vm-harness-retrieval" data-ui-part="virtual-model.harness.retrieval-config">' +
+      '<label class="sg-op-label">Top K<input id="' + pfx + 'retrieval-top-k" class="sg-op-input" type="number" min="1" step="1" value="' + escapeHtml(String(cfg.top_k || "")) + '" placeholder="Gateway default" /></label>' +
+      '<label class="sg-op-label">Score floor<input id="' + pfx + 'retrieval-score-floor" class="sg-op-input" type="number" min="0" max="1" step="0.01" value="' + escapeHtml(String(cfg.score_floor || "")) + '" placeholder="Gateway default" /></label>' +
+      '<label class="sg-op-label">Compression<select id="' + pfx + 'retrieval-compress-strategy" class="sg-op-input"><option value="none"' + (strategy === "none" ? " selected" : "") + '>None</option><option value="truncate"' + (strategy === "truncate" ? " selected" : "") + '>Truncate</option><option value="summarize"' + (strategy === "summarize" ? " selected" : "") + '>Summarize</option></select></label>' +
+      '<label class="sg-op-label">Max context chars<input id="' + pfx + 'retrieval-max-context-chars" class="sg-op-input" type="number" min="1" step="100" value="' + escapeHtml(String(cfg.max_context_chars || "")) + '" placeholder="12000" /></label>' +
+      '<button type="button" class="sg-op-btn sg-op-btn--ghost" data-admin-action="vm-harness-retrieval-save" data-vm-id="' + escapeHtml(String(vmId)) + '">Keep retrieval settings</button>' +
+      "</div>"
+    );
+  }
+
+  function intentKnobsHtml(module, pfx, vmId) {
+    var cfg = retrievalConfigFromModule(module);
+    var mode = String(cfg.mode || "heuristic").toLowerCase() === "llm" ? "llm" : "heuristic";
+    return (
+      '<div class="sum-vm-harness-intent" data-ui-part="virtual-model.harness.intent-config">' +
+      '<label class="sg-op-label">Classification mode<select id="' + pfx + 'intent-mode" class="sg-op-input"><option value="heuristic"' + (mode === "heuristic" ? " selected" : "") + '>Heuristic</option><option value="llm"' + (mode === "llm" ? " selected" : "") + '>LLM assist</option></select></label>' +
+      '<label class="sg-op-label">Classifier model id<input id="' + pfx + 'intent-model-id" class="sg-op-input" type="text" value="' + escapeHtml(String(cfg.model_id || "")) + '" placeholder="provider/model" /></label>' +
+      '<p class="sg-op-card-note sg-op-card-note--tight">Heuristic mode never calls an upstream classifier. LLM assist falls back to heuristic classification when unavailable.</p>' +
+      '<button type="button" class="sg-op-btn sg-op-btn--ghost" data-admin-action="vm-harness-intent-save" data-vm-id="' + escapeHtml(String(vmId)) + '">Keep intent settings</button>' +
+      "</div>"
+    );
+  }
+
+  function evaluatorKnobsHtml(module, pfx, vmId) {
+    var cfg = retrievalConfigFromModule(module);
+    var mode = String(cfg.mode || "single_pass").toLowerCase() === "multi_draft" ? "multi_draft" : "single_pass";
+    var policy = String(cfg.stream_policy || "immediate").toLowerCase();
+    if (policy !== "gate_on_evaluator" && policy !== "buffer_until_complete") policy = "immediate";
+    return (
+      '<div class="sum-vm-harness-evaluator" data-ui-part="virtual-model.harness.evaluator-config">' +
+      '<label class="sg-op-label">Mode<select id="' + pfx + 'evaluator-mode" class="sg-op-input"><option value="single_pass"' + (mode === "single_pass" ? " selected" : "") + '>Single pass</option><option value="multi_draft"' + (mode === "multi_draft" ? " selected" : "") + '>Multi-draft</option></select></label>' +
+      '<label class="sg-op-label">Evaluator model id<input id="' + pfx + 'evaluator-model-id" class="sg-op-input" type="text" value="' + escapeHtml(String(cfg.model_id || "")) + '" placeholder="provider/model" /></label>' +
+      '<label class="sg-op-label">Draft count<input id="' + pfx + 'evaluator-draft-count" class="sg-op-input" type="number" min="1" max="8" step="1" value="' + escapeHtml(String(cfg.draft_count || 3)) + '" /></label>' +
+      '<label class="sg-op-label">Synthesis model id<input id="' + pfx + 'evaluator-synthesize-model-id" class="sg-op-input" type="text" value="' + escapeHtml(String(cfg.synthesize_model_id || "")) + '" placeholder="provider/model" /></label>' +
+      '<label class="sg-op-label">Stream policy<select id="' + pfx + 'evaluator-stream-policy" class="sg-op-input"><option value="immediate"' + (policy === "immediate" ? " selected" : "") + '>Immediate</option><option value="gate_on_evaluator"' + (policy === "gate_on_evaluator" ? " selected" : "") + '>Gate on evaluator</option><option value="buffer_until_complete"' + (policy === "buffer_until_complete" ? " selected" : "") + '>Buffer until complete</option></select></label>' +
+      '<label class="sg-op-label">Min confidence<input id="' + pfx + 'evaluator-min-confidence" class="sg-op-input" type="number" min="0" max="1" step="0.01" value="' + escapeHtml(String(cfg.min_confidence || "")) + '" /></label>' +
+      '<label class="sg-op-label">Hallucination risk max<input id="' + pfx + 'evaluator-hallucination-risk-max" class="sg-op-input" type="number" min="0" max="1" step="0.01" value="' + escapeHtml(String(cfg.hallucination_risk_max || "")) + '" /></label>' +
+      '<button type="button" class="sg-op-btn sg-op-btn--ghost" data-admin-action="vm-harness-evaluator-save" data-vm-id="' + escapeHtml(String(vmId)) + '">Keep evaluator settings</button></div>'
+    );
+  }
+
+  function escalationKnobsHtml(module, pfx, vmId) {
+    var cfg = retrievalConfigFromModule(module);
+    var actions = Array.isArray(cfg.on_fail) ? cfg.on_fail.join(", ") : "";
+    var maxRounds = cfg.max_rounds != null ? cfg.max_rounds : 2;
+    return (
+      '<div class="sum-vm-harness-escalation" data-ui-part="virtual-model.harness.escalation-config">' +
+      '<label class="sg-op-label">Max rounds<input id="' + pfx + 'escalation-max-rounds" class="sg-op-input" type="number" min="0" max="2" step="1" value="' + escapeHtml(String(maxRounds)) + '" /></label>' +
+      '<label class="sg-op-label">On failure (comma separated)<input id="' + pfx + 'escalation-on-fail" class="sg-op-input" type="text" value="' + escapeHtml(actions) + '" placeholder="re_retrieve, fallback_chain" /></label>' +
+      '<label class="sg-op-label">Human surfaces (one Name | URL per line)<textarea id="' + pfx + 'escalation-human-surfaces" class="sg-op-input" rows="3" placeholder="Support desk | https://example.test/escalate">' + escapeHtml((Array.isArray(cfg.human_surfaces) ? cfg.human_surfaces : []).map(function (s) { return String(s.name || "") + " | " + String(s.url || ""); }).join("\n")) + '</textarea></label>' +
+      '<label class="sg-op-label">Privacy disclosure<textarea id="' + pfx + 'escalation-privacy-disclosure" class="sg-op-input" rows="2">' + escapeHtml(String(cfg.privacy_disclosure || "")) + '</textarea></label>' +
+      '<label class="sg-op-label">Paste-back delimiter<input id="' + pfx + 'escalation-paste-back-delimiter" class="sg-op-input" type="text" value="' + escapeHtml(String(cfg.paste_back_delimiter || "<<<CHIMERA_HUMAN_ANSWER>>>")) + '" /></label>' +
+      '<button type="button" class="sg-op-btn sg-op-btn--ghost" data-admin-action="vm-harness-escalation-save" data-vm-id="' + escapeHtml(String(vmId)) + '">Keep escalation settings</button></div>'
+    );
+  }
+
+  function buildHarnessSection(vm, ui, pfx, loading) {
+    var modules = Array.isArray(vm.harness_modules) ? vm.harness_modules : [];
+    var body = "";
+    if (loading) {
+      body = '<p class="muted">Loading harness modules…</p>';
+    } else if (!modules.length) {
+      body = '<p class="muted">No harness modules loaded.</p>';
+    } else {
+      var rows = "";
+      for (var i = 0; i < modules.length; i++) {
+        var m = modules[i] || {};
+        var mid = String(m.module_id || "");
+        var locked = m.configurable === false;
+        var en = !!m.enabled && !locked;
+        var reason = String(m.disabled_reason || "").trim();
+        var toggleId = pfx + "harness-" + mid.replace(/[^a-z0-9_-]/gi, "-");
+        var toggleHtml = locked
+          ? '<button class="sum-router-toggle" type="button" id="' +
+            escapeHtml(toggleId) +
+            '" aria-pressed="false" disabled aria-disabled="true" title="' +
+            escapeHtml(reason || "Not available yet") +
+            '"><span class="sum-router-toggle__track"><span class="sum-router-toggle__thumb"></span></span></button>'
+          : vmRouterToggleHtml(
+              toggleId,
+              "vm-harness-module-toggle",
+              vm.id,
+              en,
+              "Toggle " + harnessModuleLabel(mid)
+            ).replace(
+              'data-admin-action="vm-harness-module-toggle"',
+              'data-admin-action="vm-harness-module-toggle" data-harness-module="' + escapeHtml(mid) + '"'
+            );
+        var stateLabel = en ? "On" : "Off";
+        var retrievalKnobs = mid === "retrieval" && en ? retrievalKnobsHtml(m, pfx, vm.id) : "";
+        var intentKnobs = mid === "intent" && en ? intentKnobsHtml(m, pfx, vm.id) : "";
+        var evaluatorKnobs = mid === "evaluator" && en ? evaluatorKnobsHtml(m, pfx, vm.id) : "";
+        var escalationKnobs = mid === "escalation" && en ? escalationKnobsHtml(m, pfx, vm.id) : "";
+        rows +=
+          "<tr data-harness-module-row=\"" +
+          escapeHtml(mid) +
+          '">' +
+          "<td><strong>" +
+          escapeHtml(harnessModuleLabel(mid)) +
+          '</strong><div class="sg-op-card-note sg-op-card-note--tight">' +
+          escapeHtml(harnessModuleDesc(mid)) +
+          (reason ? " — " + escapeHtml(reason) : "") +
+          "</div></td>" +
+          '<td class="sum-vm-harness-toggle-cell">' +
+          '<span class="sum-vm-hdr-toggle">' +
+          toggleHtml +
+          '<span class="sum-vm-hdr-toggle-state muted">' +
+          escapeHtml(stateLabel) +
+          "</span></span></td></tr>" +
+          ((retrievalKnobs || intentKnobs || evaluatorKnobs || escalationKnobs) ? '<tr><td colspan="2">' + retrievalKnobs + intentKnobs + evaluatorKnobs + escalationKnobs + "</td></tr>" : "");
+      }
+      body =
+        '<div class="sum-metrics-table-wrap"><table class="sum-metrics-table sum-vm-harness-table"><thead><tr><th>Module</th><th class="num">Enabled</th></tr></thead><tbody>' +
+        rows +
+        "</tbody></table></div>";
+    }
+    return (
+      '<details class="sum-vm-section" data-vm-section="harness" data-ui-part="virtual-model.harness"' +
+      vmSectionOpenAttr(ui, "harness") +
+      ">" +
+      vmSectionHeaderHtml("Harness", {
+        desc: "Turn-harness modules for this virtual model. Toggle independently of the routing stack above."
+      }) +
+      '<div class="sum-vm-section__body">' +
+      body +
+      "</div></details>"
+    );
+  }
+
   function buildVirtualModelCardHtml(vmSummary) {
     vmSummary = vmSummary || {};
     var rowId = String(vmSummary.id != null ? vmSummary.id : "");
@@ -795,6 +977,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
       buildFallbackSection(vm, ui, pfx, gw, loading) +
       buildRoutingSection(vm, ui, pfx, gw, loading) +
       buildToolRouterSection(vm, ui, pfx, loading) +
+      buildHarnessSection(vm, ui, pfx, loading) +
       adminScopedEvlogPanelFromEvents(
         "Scoped log — " + modelId,
         "vm-" + rowId + "-routing",

@@ -4,11 +4,11 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway runtime, chat path, operator SQLite |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway v0.4 |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Child of [`virtual-model-turn-harness.md`](virtual-model-turn-harness.md) |
-| **As-built** | None — link to [`docs/features/`](../features/README.md) when shipped |
+| **As-built** | [`gateway-chat-routing-pipeline.md`](../features/gateway-chat-routing-pipeline.md), [`operator-virtual-models.md`](../features/operator-virtual-models.md) |
 
 ## At a glance
 
@@ -21,6 +21,8 @@ Replace ad-hoc ordered calls in virtual-model chat with a **stage registry** and
 
 **Depends on:** nothing  
 **Blocks:** all other `virtual-model-harness-*` plans
+
+**Delivery gates:** [umbrella](virtual-model-turn-harness.md#delivery-gates-normative) — `make precommit` at plan done; hard cut (no legacy paths); phase debt OK if Fix-by is set.
 
 ---
 
@@ -69,6 +71,8 @@ Today `handleVirtualModelChat` runs a fixed five-step pipeline ([`gateway-chat-r
 
 - Completed turn has non-empty envelope in debug logs; history reload shows `harness_summary_json` when observability plan UI lands.
 - Secrets and raw prompts never appear in envelope at Info level.
+
+**Gallery:** none — no new operator controls (see [umbrella gallery contract](virtual-model-turn-harness.md#gallery--reference-ui-contract-normative)).
 
 **Status:** `done`
 

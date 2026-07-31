@@ -4,11 +4,11 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway harness, evaluator, escalation, chat UI |
-| **Status** | `draft` |
+| **Status** | `done` |
 | **Targets** | Gateway v0.4 (same train; after MVP phases 1–10) |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Child of [`virtual-model-turn-harness.md`](virtual-model-turn-harness.md) |
-| **As-built** | None — link to [`docs/features/`](../features/README.md) when shipped |
+| **As-built** | [`operator-virtual-models.md`](../features/operator-virtual-models.md), [`gateway-chat-routing-pipeline.md`](../features/gateway-chat-routing-pipeline.md), [`operator-chat-ui.md`](../features/operator-chat-ui.md) |
 
 ## At a glance
 
@@ -16,10 +16,12 @@
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
-| [Phase 1 — Evaluator multi-draft mode](#phase-1--evaluator-multi-draft-mode) | Parallel drafts, synthesize, judge — one client answer | `todo` |
-| [Phase 2 — Human escalation module](#phase-2--human-escalation-module) | Copy-paste external escalation with paste-back merge | `todo` |
+| [Phase 1 — Evaluator multi-draft mode](#phase-1--evaluator-multi-draft-mode) | Parallel drafts, synthesize, judge — one client answer | `done` |
+| [Phase 2 — Human escalation module](#phase-2--human-escalation-module) | Copy-paste external escalation with paste-back merge | `done` |
 
 **Depends on:** [evaluator + escalation v1](virtual-model-harness-evaluator-escalation.md)
+
+**Delivery gates:** [umbrella](virtual-model-turn-harness.md#delivery-gates-normative) — `make precommit` at plan done; hard cut (no legacy paths); phase debt OK if Fix-by is set.
 
 ---
 
@@ -42,13 +44,15 @@ Prior v0.4 drafts treated two-phase ensemble and external human escalation as st
 - VM-level triggers (complexity threshold, manual depth flag in message or header) — replace legacy `//deep` on fixed semver id.
 - Streaming semantics documented: draft-phase failure, synthesize failure, interaction with `stream_policy`.
 - Reuse escalation module when evaluator still recommends escalation after multi-draft.
+- **Gallery** ([umbrella contract](virtual-model-turn-harness.md#gallery--reference-ui-contract-normative)): evaluator `multi_draft` config fixture (`draft_count`, synthesize model) beside existing single-pass demos.
 
 **Acceptance**
 
 - VM with `multi_draft` enabled completes draft → synthesize → evaluate → one client-visible answer.
 - Logs show draft count, models used, phase boundaries.
+- Gallery shows `multi_draft` configuration state distinct from `single_pass`.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -62,13 +66,15 @@ Prior v0.4 drafts treated two-phase ensemble and external human escalation as st
 - Response construction stage emits escalation body with copy-paste prompt when triggered.
 - Later message with delimiter merges external answer into thread (conversation merge or harness entry hook).
 - Non-blocking: no delimiter on next message → normal chat continues.
+- **Gallery:** human-escalation sample — escalation message with privacy disclosure + paste-back delimiter framing (chat or conversation fixture); config surface for named human targets on the VM harness card.
 
 **Acceptance**
 
 - Documented path: low confidence → escalation message with privacy line → paste-back → merged continuation.
 - Human escalation never runs before internal escalation budget exhausted (configurable).
+- Gallery shows human-escalation config and a sample escalation / paste-back message state.
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
