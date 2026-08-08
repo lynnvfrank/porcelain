@@ -11,4 +11,8 @@ func TestCompletionTextSupportsJSONAndSSE(t *testing.T) {
 	if got := completionText(sseBody); got != "final answer" {
 		t.Fatalf("SSE completionText = %q", got)
 	}
+	reasoningJSON := []byte(`{"choices":[{"message":{"content":"","reasoning":"reasoned answer"}}]}`)
+	if got := completionText(reasoningJSON); got != "reasoned answer" {
+		t.Fatalf("reasoning JSON completionText = %q", got)
+	}
 }

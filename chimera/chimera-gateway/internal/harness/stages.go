@@ -336,7 +336,7 @@ func (FallbackProxyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnv
 				tc.HistRec.SetHarnessSummary(b)
 			}
 		}
-		writeBufferedResponse(tc.W, buffer)
+		writeBufferedResponse(tc.W, buffer, tc.Stream)
 		return ErrTurnComplete
 	}
 	if env != nil {
@@ -387,22 +387,8 @@ func (FallbackProxyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnv
 	if env != nil && env.Evaluation.RecommendEscalation {
 		applyEscalation(ctx, tc, env, body, evaluator.StreamPolicy, buffer)
 	}
-	writeBufferedResponse(tc.W, buffer)
+	writeBufferedResponse(tc.W, buffer, tc.Stream)
 	return ErrTurnComplete
-}
-
-func writeBufferedResponse(w http.ResponseWriter, recorder *httptest.ResponseRecorder) {
-	if w == nil || recorder == nil {
-		return
-	}
-	for key, values := range recorder.Result().Header {
-		w.Header().Del(key)
-		for _, value := range values {
-			w.Header().Add(key, value)
-		}
-	}
-	w.WriteHeader(recorder.Code)
-	_, _ = w.Write(recorder.Body.Bytes())
 }
 
 func logStreamPolicy(tc *TurnContext, policy string) {

@@ -113,14 +113,19 @@ func brokerCompletion(ctx context.Context, tc *TurnContext, model string, messag
 	var completion struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content   string `json:"content"`
+				Reasoning string `json:"reasoning"`
 			} `json:"message"`
 		} `json:"choices"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&completion); err != nil || len(completion.Choices) == 0 {
 		return "", errors.New("broker returned no completion")
 	}
-	return strings.TrimSpace(completion.Choices[0].Message.Content), nil
+	text := strings.TrimSpace(completion.Choices[0].Message.Content)
+	if text == "" {
+		text = strings.TrimSpace(completion.Choices[0].Message.Reasoning)
+	}
+	return text, nil
 }
 
 // runMultiDraft builds independently generated candidates, synthesizes one
@@ -200,16 +205,20 @@ func completionText(raw []byte) string {
 	var completion struct {
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content   string `json:"content"`
+				Reasoning string `json:"reasoning"`
 			} `json:"message"`
 		} `json:"choices"`
 	}
 	if json.Unmarshal(raw, &completion) == nil && len(completion.Choices) > 0 {
-		return strings.TrimSpace(completion.Choices[0].Message.Content)
+		if text := strings.TrimSpace(completion.Choices[0].Message.Content); text != "" {
+			return text
+		}
+		return strings.TrimSpace(completion.Choices[0].Message.Reasoning)
 	}
 	// Buffered SSE frames are intentionally parsed minimally: evaluator needs
 	// only the accumulated assistant delta, never raw client event formatting.
-	var out strings.Builder
+	var content, reasoning strings.Builder
 	for _, line := range strings.Split(string(raw), "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, "data:") {
@@ -218,15 +227,20 @@ func completionText(raw []byte) string {
 		var event struct {
 			Choices []struct {
 				Delta struct {
-					Content string `json:"content"`
+					Content   string `json:"content"`
+					Reasoning string `json:"reasoning"`
 				} `json:"delta"`
 			} `json:"choices"`
 		}
 		if json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data:"))), &event) == nil {
 			for _, choice := range event.Choices {
-				out.WriteString(choice.Delta.Content)
+				content.WriteString(choice.Delta.Content)
+				reasoning.WriteString(choice.Delta.Reasoning)
 			}
 		}
 	}
-	return strings.TrimSpace(out.String())
+	if text := strings.TrimSpace(content.String()); text != "" {
+		return text
+	}
+	return strings.TrimSpace(reasoning.String())
 }
