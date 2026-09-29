@@ -92,7 +92,7 @@ func LogTurnCompleted(tc *TurnContext, env *TurnEnvelope, statusCode int) {
 	}
 	tc.RouteLog.Debug("harness turn completed",
 		"msg", naming.MsgHarnessTurnCompleted,
-		"virtual_model_id", env.VirtualModelID,
+		"assistant_id", env.AssistantID,
 		"turn_index", env.TurnIndex,
 		"status_code", statusCode,
 		"harness_summary", string(redacted),

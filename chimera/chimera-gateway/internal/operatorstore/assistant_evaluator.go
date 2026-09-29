@@ -11,7 +11,7 @@ const (
 	StreamPolicyBufferUntilComplete = "buffer_until_complete"
 )
 
-// EvaluatorConfig controls the evaluator implementation for one virtual model.
+// EvaluatorConfig controls the evaluator implementation for one assistant.
 type EvaluatorConfig struct {
 	ModelID              string  `json:"model_id"`
 	Mode                 string  `json:"mode"`

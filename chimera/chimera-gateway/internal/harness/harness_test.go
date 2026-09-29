@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/assistant"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/virtualmodel"
 	"github.com/lynn/porcelain/internal/naming"
 )
 
@@ -42,7 +42,7 @@ func TestRunner_executesStagesInOrderAndLogs(t *testing.T) {
 		TurnIndex:      2,
 		RequestID:      "req-1",
 		Stack: harness.VMStack{
-			VM: &virtualmodel.Resolved{ModelID: "Test-1.0"},
+			VM: &assistant.Resolved{ModelID: "Test-1.0"},
 		},
 	}
 
@@ -85,7 +85,7 @@ func TestRunner_abortStopsPipeline(t *testing.T) {
 		}},
 	)
 	tc := &harness.TurnContext{
-		Stack: harness.VMStack{VM: &virtualmodel.Resolved{ModelID: "T-1"}},
+		Stack: harness.VMStack{VM: &assistant.Resolved{ModelID: "T-1"}},
 	}
 	err := runner.Run(context.Background(), tc, harness.Body{})
 	var abort *harness.AbortError
@@ -142,15 +142,15 @@ func harness_testReplaceBody(dst, src harness.Body) {
 	}
 }
 
-func TestStackResolveStage_setsVirtualModelID(t *testing.T) {
+func TestStackResolveStage_setsAssistantID(t *testing.T) {
 	tc := &harness.TurnContext{
-		Stack: harness.VMStack{VM: &virtualmodel.Resolved{ModelID: "X-1", FallbackChain: []string{"groq/x"}}},
+		Stack: harness.VMStack{VM: &assistant.Resolved{ModelID: "X-1", FallbackChain: []string{"groq/x"}}},
 	}
 	env := &harness.TurnEnvelope{SchemaVersion: 1}
 	if err := (harness.StackResolveStage{}).Run(context.Background(), tc, env, harness.Body{}); err != nil {
 		t.Fatal(err)
 	}
-	if env.VirtualModelID != "X-1" {
-		t.Fatalf("virtual_model_id=%q", env.VirtualModelID)
+	if env.AssistantID != "X-1" {
+		t.Fatalf("assistant_id=%q", env.AssistantID)
 	}
 }

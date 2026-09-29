@@ -16,7 +16,7 @@ import (
 	"github.com/lynn/porcelain/internal/naming"
 )
 
-func TestVirtualModels_twoModelsDifferentRouting(t *testing.T) {
+func TestAssistants_twoModelsDifferentRouting(t *testing.T) {
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 	var seenModel string
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,10 +57,10 @@ func TestVirtualModels_twoModelsDifferentRouting(t *testing.T) {
 	}
 	ctx := context.Background()
 	gemini := operatorstore.Gemini010Seed([]string{"gemini/flash"})
-	if _, err := st.InsertVirtualModelFull(ctx, gemini); err != nil {
+	if _, err := st.InsertAssistantFull(ctx, gemini); err != nil {
 		t.Fatal(err)
 	}
-	if err := rt.ReloadVirtualModels(ctx); err != nil {
+	if err := rt.ReloadAssistants(ctx); err != nil {
 		t.Fatal(err)
 	}
 	seedChimeraTestVMWithPolicy(t, rt, "0.1.0", []string{"groq/fast", "groq/slow"}, "groq/fast")
@@ -104,7 +104,7 @@ func TestVirtualModels_twoModelsDifferentRouting(t *testing.T) {
 	}
 }
 
-func TestVirtualModels_listIncludesBootstrapped(t *testing.T) {
+func TestAssistants_listIncludesBootstrapped(t *testing.T) {
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -131,8 +131,8 @@ func TestVirtualModels_listIncludesBootstrapped(t *testing.T) {
 	}
 	rt := mustRuntime(t, gwPath)
 	seedChimeraTestVM(t, rt, "0.1.0", []string{"groq/x"})
-	if rt.VirtualModels() == nil {
-		t.Fatal("expected virtual model registry")
+	if rt.Assistants() == nil {
+		t.Fatal("expected assistant registry")
 	}
 	front := httptest.NewServer(NewMux(rt, testLog(), nil, nil))
 	t.Cleanup(front.Close)
@@ -157,7 +157,7 @@ func TestVirtualModels_listIncludesBootstrapped(t *testing.T) {
 	}
 }
 
-func TestVirtualModels_disabledRejected(t *testing.T) {
+func TestAssistants_disabledRejected(t *testing.T) {
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
@@ -181,10 +181,10 @@ func TestVirtualModels_disabledRejected(t *testing.T) {
 	seedChimeraTestVM(t, rt, "0.1.0", []string{"groq/x"})
 	st := rt.OperatorStore()
 	disabled := false
-	if err := st.UpdateVirtualModelMetadata(context.Background(), "", 1, "", "", "", &disabled, nil); err != nil {
+	if err := st.UpdateAssistantMetadata(context.Background(), "", 1, "", "", "", &disabled, nil); err != nil {
 		t.Fatal(err)
 	}
-	_ = rt.ReloadVirtualModels(context.Background())
+	_ = rt.ReloadAssistants(context.Background())
 
 	front := httptest.NewServer(NewMux(rt, testLog(), nil, nil))
 	t.Cleanup(front.Close)

@@ -7,14 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/virtualmodel"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/assistant"
 	"github.com/lynn/porcelain/internal/naming"
 )
 
 func TestRedact_stripsSensitiveMetadata(t *testing.T) {
 	env := &TurnEnvelope{
-		SchemaVersion:  1,
-		VirtualModelID: "Test-1.0",
+		SchemaVersion: 1,
+		AssistantID:   "Test-1.0",
 		Execution: Execution{
 			ToolCalls: []ToolCallRecord{{Name: "read_file", ID: "tc1"}},
 		},
@@ -50,7 +50,7 @@ func TestWriteSummaryHeader_base64JSON(t *testing.T) {
 		RequestID:      "req-1",
 		ConversationID: "conv-1",
 		TurnIndex:      1,
-		Stack:          VMStack{VM: &virtualmodel.Resolved{ModelID: "VM-1.0"}},
+		Stack:          VMStack{VM: &assistant.Resolved{ModelID: "VM-1.0"}},
 	}
 	WriteSummaryHeader(rec, newEnvelope(tc))
 	raw := rec.Header().Get(naming.HeaderHarnessSummaryTarget)
@@ -65,7 +65,7 @@ func TestWriteSummaryHeader_base64JSON(t *testing.T) {
 	if err := json.Unmarshal(decoded, &parsed); err != nil {
 		t.Fatal(err)
 	}
-	if parsed["virtual_model_id"] != "VM-1.0" {
+	if parsed["assistant_id"] != "VM-1.0" {
 		t.Fatalf("parsed=%v", parsed)
 	}
 }

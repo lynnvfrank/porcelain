@@ -14,7 +14,7 @@ func TestAppendTurn_persistsHarnessSummary(t *testing.T) {
 	if err := s.EnsureConversation(ctx, principal, cid, "hello", ConversationWorkspaceSnapshot{}); err != nil {
 		t.Fatal(err)
 	}
-	summary := `{"schema_version":1,"virtual_model_id":"VM-1.0"}`
+	summary := `{"schema_version":1,"assistant_id":"VM-1.0"}`
 	turnID, err := s.AppendTurn(ctx, principal, cid, AppendTurnInput{
 		Role:               "assistant",
 		Content:            "ok",

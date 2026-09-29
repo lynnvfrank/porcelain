@@ -1,6 +1,6 @@
--- Operator SQLite: virtual models and per-model routing stacks.
+-- Operator SQLite: assistants and per-model routing stacks.
 
-CREATE TABLE IF NOT EXISTS virtual_models (
+CREATE TABLE IF NOT EXISTS assistants (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	model_id TEXT NOT NULL UNIQUE,
 	name TEXT NOT NULL,
@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS virtual_models (
 	updated_at TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_virtual_models_tenant ON virtual_models (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_virtual_models_enabled ON virtual_models (enabled);
+CREATE INDEX IF NOT EXISTS idx_assistants_tenant ON assistants (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_assistants_enabled ON assistants (enabled);
 
 CREATE TABLE IF NOT EXISTS routing_rule_definitions (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,35 +27,35 @@ CREATE TABLE IF NOT EXISTS routing_rule_definitions (
 	updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS virtual_model_fallback (
-	virtual_model_id INTEGER NOT NULL PRIMARY KEY REFERENCES virtual_models (id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS assistant_fallback (
+	assistant_id INTEGER NOT NULL PRIMARY KEY REFERENCES assistants (id) ON DELETE CASCADE,
 	chain_json TEXT NOT NULL,
 	updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS virtual_model_routing_policy (
-	virtual_model_id INTEGER NOT NULL PRIMARY KEY REFERENCES virtual_models (id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS assistant_routing_policy (
+	assistant_id INTEGER NOT NULL PRIMARY KEY REFERENCES assistants (id) ON DELETE CASCADE,
 	enabled INTEGER NOT NULL DEFAULT 1,
 	policy_yaml TEXT NOT NULL DEFAULT '',
 	updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS virtual_model_tool_router (
-	virtual_model_id INTEGER NOT NULL PRIMARY KEY REFERENCES virtual_models (id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS assistant_tool_router (
+	assistant_id INTEGER NOT NULL PRIMARY KEY REFERENCES assistants (id) ON DELETE CASCADE,
 	enabled INTEGER NOT NULL DEFAULT 0,
 	router_models_json TEXT NOT NULL DEFAULT '[]',
 	confidence_threshold REAL NOT NULL DEFAULT 0.5,
 	updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS virtual_model_rule_bindings (
+CREATE TABLE IF NOT EXISTS assistant_rule_bindings (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	virtual_model_id INTEGER NOT NULL REFERENCES virtual_models (id) ON DELETE CASCADE,
+	assistant_id INTEGER NOT NULL REFERENCES assistants (id) ON DELETE CASCADE,
 	routing_rule_definition_id INTEGER NOT NULL REFERENCES routing_rule_definitions (id) ON DELETE CASCADE,
 	enabled INTEGER NOT NULL DEFAULT 1,
 	override_config_json TEXT NOT NULL DEFAULT '{}',
 	sort_order INTEGER NOT NULL DEFAULT 0,
-	UNIQUE (virtual_model_id, routing_rule_definition_id)
+	UNIQUE (assistant_id, routing_rule_definition_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_vm_rule_bindings_vm ON virtual_model_rule_bindings (virtual_model_id);
+CREATE INDEX IF NOT EXISTS idx_assistant_rule_bindings_assistant ON assistant_rule_bindings (assistant_id);

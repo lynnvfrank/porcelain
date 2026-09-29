@@ -75,7 +75,7 @@ func logStageStarted(tc *TurnContext, stage Stage, env *TurnEnvelope) {
 		"msg", naming.MsgHarnessStageStarted,
 		"stage", stage.Name(),
 		"module", stage.Module(),
-		"virtual_model_id", env.VirtualModelID,
+		"assistant_id", env.AssistantID,
 		"turn_index", env.TurnIndex,
 		"timeline_kind", naming.TimelineKindBroker,
 	)
@@ -89,7 +89,7 @@ func logStageCompleted(tc *TurnContext, stage Stage, env *TurnEnvelope, start ti
 		"msg", naming.MsgHarnessStageCompleted,
 		"stage", stage.Name(),
 		"module", stage.Module(),
-		"virtual_model_id", env.VirtualModelID,
+		"assistant_id", env.AssistantID,
 		"turn_index", env.TurnIndex,
 		"duration_ms", time.Since(start).Milliseconds(),
 		"outcome", outcome,
@@ -98,7 +98,7 @@ func logStageCompleted(tc *TurnContext, stage Stage, env *TurnEnvelope, start ti
 }
 
 // DefaultRunner returns the v0.4 parity pipeline matching the pre-refactor
-// handleVirtualModelChat order.
+// handleAssistantChat order.
 func DefaultRunner() *Runner {
 	return NewRunner(
 		StackResolveStage{},

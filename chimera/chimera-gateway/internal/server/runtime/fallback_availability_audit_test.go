@@ -164,10 +164,10 @@ func seedTestVMFallbackChain(t *testing.T, rt *Runtime, chain []string) {
 	}
 	ctx := context.Background()
 	vm := operatorstore.ChimeraSeed("0.1.0", chain, chain[0])
-	if _, err := st.InsertVirtualModelFull(ctx, vm); err != nil {
+	if _, err := st.InsertAssistantFull(ctx, vm); err != nil {
 		t.Fatal(err)
 	}
-	if err := rt.ReloadVirtualModels(ctx); err != nil {
+	if err := rt.ReloadAssistants(ctx); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/assistant"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/chat"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/conversationhistory"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/virtualmodel"
 	"github.com/lynn/porcelain/chimera/internal/config"
 )
 
-func virtualModelsForCatalog(rt *Runtime, principalID string) []*virtualmodel.Resolved {
-	reg := rt.VirtualModels()
+func assistantsForCatalog(rt *Runtime, principalID string) []*assistant.Resolved {
+	reg := rt.Assistants()
 	if reg != nil {
 		return reg.ListCatalog(principalID)
 	}
@@ -38,8 +38,8 @@ func openAIModelEntry(id, description string) map[string]any {
 	return entry
 }
 
-func prependVirtualModelsToCatalog(data []any, rt *Runtime, principalID string) []any {
-	vms := virtualModelsForCatalog(rt, principalID)
+func prependAssistantsToCatalog(data []any, rt *Runtime, principalID string) []any {
+	vms := assistantsForCatalog(rt, principalID)
 	if len(vms) == 0 {
 		return data
 	}
@@ -50,22 +50,22 @@ func prependVirtualModelsToCatalog(data []any, rt *Runtime, principalID string) 
 	return append(out, data...)
 }
 
-type virtualModelChatContext struct {
-	vm           *virtualmodel.Resolved
+type assistantChatContext struct {
+	vm           *assistant.Resolved
 	fallback     []string
 	toolEnabled  bool
 	routerModels []string
 	toolThresh   float64
 }
 
-func resolveVirtualModelChat(rt *Runtime, clientModel, principalID string) (*virtualModelChatContext, int, map[string]any) {
-	reg := rt.VirtualModels()
+func resolveAssistantChat(rt *Runtime, clientModel, principalID string) (*assistantChatContext, int, map[string]any) {
+	reg := rt.Assistants()
 	if reg == nil {
 		return nil, 0, nil
 	}
 	vm, err := reg.Resolve(clientModel, principalID)
 	if err == nil {
-		return &virtualModelChatContext{
+		return &assistantChatContext{
 			vm:           vm,
 			fallback:     vm.FallbackChain,
 			toolEnabled:  vm.ToolRouterEnabled,
@@ -73,23 +73,23 @@ func resolveVirtualModelChat(rt *Runtime, clientModel, principalID string) (*vir
 			toolThresh:   vm.ToolRouterConfidence,
 		}, 0, nil
 	}
-	if errors.Is(err, virtualmodel.ErrForbidden) {
+	if errors.Is(err, assistant.ErrForbidden) {
 		return nil, http.StatusForbidden, map[string]any{
-			"error": map[string]any{"message": "Virtual model not accessible", "type": "invalid_request"},
+			"error": map[string]any{"message": "Assistant not accessible", "type": "invalid_request"},
 		}
 	}
-	if store := rt.OperatorStore(); store != nil && errors.Is(err, virtualmodel.ErrNotFound) {
-		row, dbErr := store.GetVirtualModelByModelID(context.Background(), clientModel)
+	if store := rt.OperatorStore(); store != nil && errors.Is(err, assistant.ErrNotFound) {
+		row, dbErr := store.GetAssistantByModelID(context.Background(), clientModel)
 		if dbErr == nil && row != nil {
 			if !row.Enabled {
 				return nil, http.StatusNotFound, map[string]any{
-					"error": map[string]any{"message": "Virtual model is disabled", "type": "invalid_request"},
+					"error": map[string]any{"message": "Assistant is disabled", "type": "invalid_request"},
 				}
 			}
 			if row.Visibility == operatorstore.VisibilityPrivate &&
 				row.CreatedByPrincipalID != "" && row.CreatedByPrincipalID != principalID {
 				return nil, http.StatusForbidden, map[string]any{
-					"error": map[string]any{"message": "Virtual model not accessible", "type": "invalid_request"},
+					"error": map[string]any{"message": "Assistant not accessible", "type": "invalid_request"},
 				}
 			}
 		}
@@ -97,19 +97,19 @@ func resolveVirtualModelChat(rt *Runtime, clientModel, principalID string) (*vir
 	return nil, 0, nil
 }
 
-func routeLogWithVirtualModel(routeLog *slog.Logger, virtualModelID string) *slog.Logger {
-	if routeLog == nil || virtualModelID == "" {
+func routeLogWithAssistant(routeLog *slog.Logger, assistantID string) *slog.Logger {
+	if routeLog == nil || assistantID == "" {
 		return routeLog
 	}
-	return routeLog.With("virtual_model_id", virtualModelID)
+	return routeLog.With("assistant_id", assistantID)
 }
 
-func handleVirtualModelChat(
+func handleAssistantChat(
 	ctx context.Context,
 	w http.ResponseWriter,
 	rt *Runtime,
 	res *config.Resolved,
-	vmCtx *virtualModelChatContext,
+	vmCtx *assistantChatContext,
 	raw map[string]json.RawMessage,
 	stream bool,
 	skipToolRouter bool,
@@ -130,8 +130,8 @@ func handleVirtualModelChat(
 	if vm == nil {
 		return false
 	}
-	virtualID := vm.ModelID
-	routeLog = routeLogWithVirtualModel(routeLog, virtualID)
+	assistantID := vm.ModelID
+	routeLog = routeLogWithAssistant(routeLog, assistantID)
 
 	tenantSnap := rt.ProviderModelAvailability(sessTenant)
 	modelAvailable := func(id string) bool { return tenantSnap.IsAvailable(id) }

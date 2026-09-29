@@ -1,11 +1,11 @@
 /**
- * Virtual model cards for /ui/settings summarized feed (sectioned routing stack).
+ * Assistant cards for /ui/settings summarized feed (sectioned routing stack).
  */
 globalThis.ChimeraSettings = globalThis.ChimeraSettings || {};
 globalThis.ChimeraSettings.Render = globalThis.ChimeraSettings.Render || {};
 globalThis.ChimeraSettings.Render.Cards = globalThis.ChimeraSettings.Render.Cards || {};
 
-globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx) {
+globalThis.ChimeraSettings.Render.Cards.mountAdminAssistants = function (ctx) {
   var escapeHtml = ctx.escapeHtml;
   var formatInt = typeof ctx.formatInt === "function" ? ctx.formatInt : function (n) { return String(n); };
   var operatorCardChevronHtml = ctx.operatorCardChevronHtml;
@@ -23,9 +23,9 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
 
   function vmUi(ctx, id) {
     var key = String(id);
-    if (!ctx.virtualModelUi) ctx.virtualModelUi = {};
-    if (!ctx.virtualModelUi[key]) {
-      ctx.virtualModelUi[key] = {
+    if (!ctx.assistantUi) ctx.assistantUi = {};
+    if (!ctx.assistantUi[key]) {
+      ctx.assistantUi[key] = {
         panelOpen: false,
         hydrated: false,
         detailLoading: false,
@@ -46,7 +46,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
         sectionOpen: { identity: true, fallback: true }
       };
     }
-    return ctx.virtualModelUi[key];
+    return ctx.assistantUi[key];
   }
 
   function vmSectionOpenAttr(ui, sectionKey) {
@@ -111,7 +111,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
       actions += vmToolbarIconBtn(
         editOpts.deleteAction,
         vmId,
-        editOpts.deleteTitle || "Delete virtual model",
+        editOpts.deleteTitle || "Delete assistant",
         "delete_forever",
         "vm-identity-btn-delete"
       );
@@ -129,17 +129,17 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
       actions += vmConfigureBtn(editOpts.configureAction, vmId, editOpts.configureTitle);
     }
     return (
-      '<div class="sum-vm-section__toolbar">' +
-      (leadingHtml ? '<div class="sum-vm-section__toolbar-leading">' + leadingHtml + "</div>" : "") +
-      '<div class="sum-vm-section__toolbar-actions">' +
+      '<div class="sum-asst-section__toolbar">' +
+      (leadingHtml ? '<div class="sum-asst-section__toolbar-leading">' + leadingHtml + "</div>" : "") +
+      '<div class="sum-asst-section__toolbar-actions">' +
       actions +
       "</div></div>"
     );
   }
 
   function vmDetail(ctx, id) {
-    if (!ctx.virtualModelDetails) return null;
-    return ctx.virtualModelDetails[String(id)] || null;
+    if (!ctx.assistantDetails) return null;
+    return ctx.assistantDetails[String(id)] || null;
   }
 
   function mergeVm(summary, detail) {
@@ -163,13 +163,13 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     return out;
   }
 
-  function adminScopedEventsForVirtualModel(modelId) {
+  function adminScopedEventsForAssistant(modelId) {
     modelId = String(modelId || "").trim();
     var out = [];
     for (var i = entryCache.length - 1; i >= 0 && out.length < 18; i--) {
       var ev = entryCache[i];
       var f = getFlat(ev.parsed);
-      var vmField = String(f.virtual_model_id || "").trim();
+      var vmField = String(f.assistant_id || "").trim();
       var msg = String(f.msg || f.message || "").toLowerCase();
       var isHarness = msg.indexOf("harness.") === 0;
       // Harness events are strictly VM-scoped: never leak an untagged event into
@@ -183,7 +183,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
         msg.indexOf("failover") >= 0 ||
         msg.indexOf("tool_router") >= 0 ||
         msg.indexOf("tool-router") >= 0 ||
-        msg.indexOf("virtual model") >= 0
+        msg.indexOf("assistant") >= 0
       ) {
         out.push(ev);
       }
@@ -209,7 +209,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     if (name) return name;
     if (version) return version;
     var modelId = String(vm.model_id != null ? vm.model_id : "").trim();
-    return modelId || "Virtual model";
+    return modelId || "Assistant";
   }
 
   function vmCardSubtitleText(vm) {
@@ -220,7 +220,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     return vmEnabledPill(vm) + vmVisibilityPill(vm);
   }
 
-  function syncVirtualModelCardHeader(cardEl, vm) {
+  function syncAssistantCardHeader(cardEl, vm) {
     if (!cardEl || !vm) return;
     var titleEl = cardEl.querySelector(".sum-main .sum-title");
     var subEl = cardEl.querySelector(".sum-main .sum-sub");
@@ -254,9 +254,9 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     var visPublic = String(vm.visibility || "public").toLowerCase() !== "private";
     var enabled = !!vm.enabled;
     return (
-      '<div class="sum-vm-card-toggles">' +
-      '<span class="sum-vm-hdr-toggle">' +
-      '<span class="sum-vm-hdr-toggle-label">Enabled</span>' +
+      '<div class="sum-asst-card-toggles">' +
+      '<span class="sum-asst-hdr-toggle">' +
+      '<span class="sum-asst-hdr-toggle-label">Enabled</span>' +
       vmRouterToggleHtml(
         pfx + "enabled-toggle",
         "vm-identity-enabled-toggle",
@@ -264,11 +264,11 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
         enabled,
         "Toggle enabled"
       ) +
-      '<span class="sum-vm-hdr-toggle-state muted">' +
+      '<span class="sum-asst-hdr-toggle-state muted">' +
       escapeHtml(enabled ? "on" : "off") +
       "</span></span>" +
-      '<span class="sum-vm-hdr-toggle">' +
-      '<span class="sum-vm-hdr-toggle-label">Visibility</span>' +
+      '<span class="sum-asst-hdr-toggle">' +
+      '<span class="sum-asst-hdr-toggle-label">Visibility</span>' +
       vmRouterToggleHtml(
         pfx + "visibility-toggle",
         "vm-identity-visibility-toggle",
@@ -276,7 +276,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
         visPublic,
         "Toggle visibility (on = public)"
       ) +
-      '<span class="sum-vm-hdr-toggle-state muted">' +
+      '<span class="sum-asst-hdr-toggle-state muted">' +
       escapeHtml(visPublic ? "public" : "private") +
       "</span></span></div>"
     );
@@ -284,13 +284,13 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
 
   function vmSectionHdrToggleHtml(label, id, action, vmId, pressed, ariaLabel) {
     return (
-      '<span class="sum-vm-section__hdr-toggles">' +
-      '<span class="sum-vm-hdr-toggle">' +
-      '<span class="sum-vm-hdr-toggle-label">' +
+      '<span class="sum-asst-section__hdr-toggles">' +
+      '<span class="sum-asst-hdr-toggle">' +
+      '<span class="sum-asst-hdr-toggle-label">' +
       escapeHtml(String(label || "")) +
       "</span>" +
       vmRouterToggleHtml(id, action, vmId, pressed, ariaLabel) +
-      '<span class="sum-vm-hdr-toggle-state muted">' +
+      '<span class="sum-asst-hdr-toggle-state muted">' +
       escapeHtml(pressed ? "on" : "off") +
       "</span></span></span>"
     );
@@ -308,26 +308,26 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     var trailInRow = "";
     if (controls) {
       trailInRow =
-        '<span class="sum-vm-section__hdr-trail" data-sum-card-no-toggle>' +
-        '<span class="sum-vm-section__trail">' +
+        '<span class="sum-asst-section__hdr-trail" data-sum-card-no-toggle>' +
+        '<span class="sum-asst-section__trail">' +
         controls +
         "</span></span>";
     }
     var summary =
-      '<summary class="sum-vm-section__hdr">' +
-      '<span class="sum-vm-section__hdr-row">' +
-      '<span class="sum-vm-section__lead">' +
+      '<summary class="sum-asst-section__hdr">' +
+      '<span class="sum-asst-section__hdr-row">' +
+      '<span class="sum-asst-section__lead">' +
       operatorCardChevronHtml() +
       "</span>" +
-      '<span class="sum-vm-section__title"><span class="sum-section-label">' +
+      '<span class="sum-asst-section__title"><span class="sum-section-label">' +
       escapeHtml(String(title || "")) +
       "</span></span>" +
       trailInRow +
       "</span>";
     if (desc) {
       summary +=
-        '<span class="sum-vm-section__hdr-desc-row">' +
-        '<p class="sg-op-card-note sg-op-card-note--tight sum-vm-section__hdr-desc">' +
+        '<span class="sum-asst-section__hdr-desc-row">' +
+        '<p class="sg-op-card-note sg-op-card-note--tight sum-asst-section__hdr-desc">' +
         escapeHtml(desc) +
         "</p></span>";
     }
@@ -342,15 +342,15 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
   function buildClientUsageBlock(vm, pfx, loading) {
     if (loading) {
       return (
-        '<div class="sum-vm-section sum-vm-section--bar" data-ui-part="virtual-model.client-usage">' +
-        '<div class="sum-vm-section__hdr sum-vm-section__hdr--bar"><p class="muted">Loading…</p></div></div>'
+        '<div class="sum-asst-section sum-asst-section--bar" data-ui-part="assistant.client-usage">' +
+        '<div class="sum-asst-section__hdr sum-asst-section__hdr--bar"><p class="muted">Loading…</p></div></div>'
       );
     }
     return (
-      '<div class="sum-vm-section sum-vm-section--bar" data-ui-part="virtual-model.client-usage">' +
-      '<div class="sum-vm-section__hdr sum-vm-section__hdr--bar" aria-label="Model access">' +
-      '<span class="sum-vm-section__hdr-row">' +
-      '<span class="sum-vm-section__trail">' +
+      '<div class="sum-asst-section sum-asst-section--bar" data-ui-part="assistant.client-usage">' +
+      '<div class="sum-asst-section__hdr sum-asst-section__hdr--bar" aria-label="Model access">' +
+      '<span class="sum-asst-section__hdr-row">' +
+      '<span class="sum-asst-section__trail">' +
       vmCardUsageTogglesHtml(vm, pfx) +
       "</span></span></div></div>"
     );
@@ -419,7 +419,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
         vmSectionToolbarHtml(vm, "", {
           editing: ui.identityEditing,
           deleteAction: "vm-identity-delete",
-          deleteTitle: "Delete virtual model",
+          deleteTitle: "Delete assistant",
           saveAction: "vm-identity-save",
           saveTitle: "Keep identity",
           refreshAction: "vm-identity-refresh",
@@ -445,11 +445,11 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
         "</div>";
     }
     return (
-      '<details class="sum-vm-section" data-vm-section="identity" data-ui-part="virtual-model.identity"' +
+      '<details class="sum-asst-section" data-vm-section="identity" data-ui-part="assistant.identity"' +
       vmSectionOpenAttr(ui, "identity") +
       ">" +
       vmSectionHeaderHtml("Identity") +
-      '<div class="sum-vm-section__body">' +
+      '<div class="sum-asst-section__body">' +
       body +
       "</div></details>"
     );
@@ -528,30 +528,30 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
           configureTitle: "Configure fallback"
           }
         ) +
-        '<div class="sum-vm-fallback-panel">' +
+        '<div class="sum-asst-fallback-panel">' +
         '<div id="' +
         pfx +
-        'fallback-table" class="sum-vm-fallback-panel__view"' +
+        'fallback-table" class="sum-asst-fallback-panel__view"' +
         vmAttrHidden(ui.fallbackEditing) +
         '><div class="sum-metrics-table-wrap sg-op-fallback-table-scroll"><table class="sum-metrics-table"><thead><tr><th class="num">Order</th><th>Provider</th><th>Model</th><th class="num">Uses (24h)</th></tr></thead><tbody>' +
         tableRows +
         "</tbody></table></div></div>" +
         '<div id="' +
         pfx +
-        'fallback-yaml" class="sum-vm-fallback-panel__view"' +
+        'fallback-yaml" class="sum-asst-fallback-panel__view"' +
         vmAttrHidden(!ui.fallbackEditing) +
         ">" +
         vmYamlTextareaHtml(pfx, "fallback-yaml-ta", fallbackYAML, ui.fallbackTouched, 8) +
         "</div></div>";
     }
     return (
-      '<details class="sum-vm-section" data-vm-section="fallback" data-ui-part="virtual-model.fallback"' +
+      '<details class="sum-asst-section" data-vm-section="fallback" data-ui-part="assistant.fallback"' +
       vmSectionOpenAttr(ui, "fallback") +
       ">" +
       vmSectionHeaderHtml("Fallback chain", {
         desc: "Required. Ordered upstream model ids for failover after the routing policy picks an initial model."
       }) +
-      '<div class="sum-vm-section__body">' +
+      '<div class="sum-asst-section__body">' +
       body +
       "</div></details>"
     );
@@ -633,24 +633,24 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
           configureTitle: "Configure routing"
           }
         ) +
-        '<div class="sum-vm-routing-panel">' +
+        '<div class="sum-asst-routing-panel">' +
         '<div id="' +
         pfx +
-        'routing-table" class="sum-vm-routing-panel__view"' +
+        'routing-table" class="sum-asst-routing-panel__view"' +
         vmAttrHidden(ui.routingEditing) +
         '><div class="sum-metrics-table-wrap sg-op-routing-table-scroll"><table class="sum-metrics-table"><thead><tr><th>Name</th><th>Match</th><th>Models</th><th class="num">Hits (24h)</th></tr></thead><tbody>' +
         tableRows +
         "</tbody></table></div></div>" +
         '<div id="' +
         pfx +
-        'routing-yaml" class="sum-vm-routing-panel__view"' +
+        'routing-yaml" class="sum-asst-routing-panel__view"' +
         vmAttrHidden(!ui.routingEditing) +
         ">" +
         vmYamlTextareaHtml(pfx, "routing-yaml-ta", policyYAML, ui.policyTouched, 10) +
         "</div></div>";
     }
     return (
-      '<details class="sum-vm-section" data-vm-section="routing" data-ui-part="virtual-model.routing"' +
+      '<details class="sum-asst-section" data-vm-section="routing" data-ui-part="assistant.routing"' +
       vmSectionOpenAttr(ui, "routing") +
       ">" +
       vmSectionHeaderHtml("Routing policy", {
@@ -664,7 +664,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
           "Toggle routing policy enabled"
         )
       }) +
-      '<div class="sum-vm-section__body">' +
+      '<div class="sum-asst-section__body">' +
       body +
       "</div></details>"
     );
@@ -732,7 +732,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
           configureTitle: "Configure tool router"
           }
         ) +
-        '<div class="sg-op-head-row sum-vm-router-threshold-row">' +
+        '<div class="sg-op-head-row sum-asst-router-threshold-row">' +
         '<label class="sg-op-label sg-op-label--inline" for="' +
         pfx +
         'router-threshold">Confidence threshold</label>' +
@@ -748,21 +748,21 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
         ' aria-label="Tool router confidence threshold" /></div></div>' +
         '<div id="' +
         pfx +
-        'router-table" class="sum-vm-router-panel__view"' +
+        'router-table" class="sum-asst-router-panel__view"' +
         vmAttrHidden(ui.routerEditing) +
         '><div class="sum-metrics-table-wrap sg-op-router-table-scroll"><table class="sum-metrics-table"><thead><tr><th class="num">Order</th><th>Provider</th><th>Model</th><th class="num">Uses (24h)</th></tr></thead><tbody>' +
         tableRows +
         "</tbody></table></div></div>" +
         '<div id="' +
         pfx +
-        'router-edit" class="sum-vm-router-panel__view"' +
+        'router-edit" class="sum-asst-router-panel__view"' +
         vmAttrHidden(!ui.routerEditing) +
         ">" +
         vmYamlTextareaHtml(pfx, "router-yaml-ta", routerYAML, ui.routerModelsTouched, 6) +
         "</div>";
     }
     return (
-      '<details class="sum-vm-section" data-vm-section="router" data-ui-part="virtual-model.tool-router"' +
+      '<details class="sum-asst-section" data-vm-section="router" data-ui-part="assistant.tool-router"' +
       vmSectionOpenAttr(ui, "router") +
       ">" +
       vmSectionHeaderHtml("Tool router", {
@@ -776,7 +776,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
           "Toggle tool router enabled"
         )
       }) +
-      '<div class="sum-vm-section__body">' +
+      '<div class="sum-asst-section__body">' +
       body +
       "</div></details>"
     );
@@ -802,7 +802,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
   function harnessModuleDesc(moduleId) {
     switch (String(moduleId || "")) {
       case "retrieval":
-        return "Per-virtual-model RAG inject (still requires gateway search enabled).";
+        return "Per-assistant RAG inject (still requires gateway search enabled).";
       case "intent":
         return "Classify turn intent before primary completion.";
       case "evaluator":
@@ -829,7 +829,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     var strategy = String(cfg.compress_strategy || "truncate").toLowerCase();
     if (strategy !== "none" && strategy !== "truncate" && strategy !== "summarize") strategy = "truncate";
     return (
-      '<div class="sum-vm-harness-retrieval" data-ui-part="virtual-model.harness.retrieval-config">' +
+      '<div class="sum-asst-harness-retrieval" data-ui-part="assistant.harness.retrieval-config">' +
       '<label class="sg-op-label">Top K<input id="' + pfx + 'retrieval-top-k" class="sg-op-input" type="number" min="1" step="1" value="' + escapeHtml(String(cfg.top_k || "")) + '" placeholder="Gateway default" /></label>' +
       '<label class="sg-op-label">Score floor<input id="' + pfx + 'retrieval-score-floor" class="sg-op-input" type="number" min="0" max="1" step="0.01" value="' + escapeHtml(String(cfg.score_floor || "")) + '" placeholder="Gateway default" /></label>' +
       '<label class="sg-op-label">Compression<select id="' + pfx + 'retrieval-compress-strategy" class="sg-op-input"><option value="none"' + (strategy === "none" ? " selected" : "") + '>None</option><option value="truncate"' + (strategy === "truncate" ? " selected" : "") + '>Truncate</option><option value="summarize"' + (strategy === "summarize" ? " selected" : "") + '>Summarize</option></select></label>' +
@@ -843,7 +843,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     var cfg = retrievalConfigFromModule(module);
     var mode = String(cfg.mode || "heuristic").toLowerCase() === "llm" ? "llm" : "heuristic";
     return (
-      '<div class="sum-vm-harness-intent" data-ui-part="virtual-model.harness.intent-config">' +
+      '<div class="sum-asst-harness-intent" data-ui-part="assistant.harness.intent-config">' +
       '<label class="sg-op-label">Classification mode<select id="' + pfx + 'intent-mode" class="sg-op-input"><option value="heuristic"' + (mode === "heuristic" ? " selected" : "") + '>Heuristic</option><option value="llm"' + (mode === "llm" ? " selected" : "") + '>LLM assist</option></select></label>' +
       '<label class="sg-op-label">Classifier model id<input id="' + pfx + 'intent-model-id" class="sg-op-input" type="text" value="' + escapeHtml(String(cfg.model_id || "")) + '" placeholder="provider/model" /></label>' +
       '<p class="sg-op-card-note sg-op-card-note--tight">Heuristic mode never calls an upstream classifier. LLM assist falls back to heuristic classification when unavailable.</p>' +
@@ -858,7 +858,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     var policy = String(cfg.stream_policy || "immediate").toLowerCase();
     if (policy !== "gate_on_evaluator" && policy !== "buffer_until_complete") policy = "immediate";
     return (
-      '<div class="sum-vm-harness-evaluator" data-ui-part="virtual-model.harness.evaluator-config">' +
+      '<div class="sum-asst-harness-evaluator" data-ui-part="assistant.harness.evaluator-config">' +
       '<label class="sg-op-label">Mode<select id="' + pfx + 'evaluator-mode" class="sg-op-input"><option value="single_pass"' + (mode === "single_pass" ? " selected" : "") + '>Single pass</option><option value="multi_draft"' + (mode === "multi_draft" ? " selected" : "") + '>Multi-draft</option></select></label>' +
       '<label class="sg-op-label">Evaluator model id<input id="' + pfx + 'evaluator-model-id" class="sg-op-input" type="text" value="' + escapeHtml(String(cfg.model_id || "")) + '" placeholder="provider/model" /></label>' +
       '<label class="sg-op-label">Draft count<input id="' + pfx + 'evaluator-draft-count" class="sg-op-input" type="number" min="1" max="8" step="1" value="' + escapeHtml(String(cfg.draft_count || 3)) + '" /></label>' +
@@ -875,7 +875,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     var actions = Array.isArray(cfg.on_fail) ? cfg.on_fail.join(", ") : "";
     var maxRounds = cfg.max_rounds != null ? cfg.max_rounds : 2;
     return (
-      '<div class="sum-vm-harness-escalation" data-ui-part="virtual-model.harness.escalation-config">' +
+      '<div class="sum-asst-harness-escalation" data-ui-part="assistant.harness.escalation-config">' +
       '<label class="sg-op-label">Max rounds<input id="' + pfx + 'escalation-max-rounds" class="sg-op-input" type="number" min="0" max="2" step="1" value="' + escapeHtml(String(maxRounds)) + '" /></label>' +
       '<label class="sg-op-label">On failure (comma separated)<input id="' + pfx + 'escalation-on-fail" class="sg-op-input" type="text" value="' + escapeHtml(actions) + '" placeholder="re_retrieve, fallback_chain" /></label>' +
       '<label class="sg-op-label">Human surfaces (one Name | URL per line)<textarea id="' + pfx + 'escalation-human-surfaces" class="sg-op-input" rows="3" placeholder="Support desk | https://example.test/escalate">' + escapeHtml((Array.isArray(cfg.human_surfaces) ? cfg.human_surfaces : []).map(function (s) { return String(s.name || "") + " | " + String(s.url || ""); }).join("\n")) + '</textarea></label>' +
@@ -932,33 +932,33 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
           escapeHtml(harnessModuleDesc(mid)) +
           (reason ? " — " + escapeHtml(reason) : "") +
           "</div></td>" +
-          '<td class="sum-vm-harness-toggle-cell">' +
-          '<span class="sum-vm-hdr-toggle">' +
+          '<td class="sum-asst-harness-toggle-cell">' +
+          '<span class="sum-asst-hdr-toggle">' +
           toggleHtml +
-          '<span class="sum-vm-hdr-toggle-state muted">' +
+          '<span class="sum-asst-hdr-toggle-state muted">' +
           escapeHtml(stateLabel) +
           "</span></span></td></tr>" +
           ((retrievalKnobs || intentKnobs || evaluatorKnobs || escalationKnobs) ? '<tr><td colspan="2">' + retrievalKnobs + intentKnobs + evaluatorKnobs + escalationKnobs + "</td></tr>" : "");
       }
       body =
-        '<div class="sum-metrics-table-wrap"><table class="sum-metrics-table sum-vm-harness-table"><thead><tr><th>Module</th><th class="num">Enabled</th></tr></thead><tbody>' +
+        '<div class="sum-metrics-table-wrap"><table class="sum-metrics-table sum-asst-harness-table"><thead><tr><th>Module</th><th class="num">Enabled</th></tr></thead><tbody>' +
         rows +
         "</tbody></table></div>";
     }
     return (
-      '<details class="sum-vm-section" data-vm-section="harness" data-ui-part="virtual-model.harness"' +
+      '<details class="sum-asst-section" data-vm-section="harness" data-ui-part="assistant.harness"' +
       vmSectionOpenAttr(ui, "harness") +
       ">" +
       vmSectionHeaderHtml("Harness", {
-        desc: "Turn-harness modules for this virtual model. Toggle independently of the routing stack above."
+        desc: "Turn-harness modules for this assistant. Toggle independently of the routing stack above."
       }) +
-      '<div class="sum-vm-section__body">' +
+      '<div class="sum-asst-section__body">' +
       body +
       "</div></details>"
     );
   }
 
-  function buildVirtualModelCardHtml(vmSummary) {
+  function buildAssistantCardHtml(vmSummary) {
     vmSummary = vmSummary || {};
     var rowId = String(vmSummary.id != null ? vmSummary.id : "");
     var detail = vmDetail(ctx, rowId);
@@ -981,18 +981,18 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
       adminScopedEvlogPanelFromEvents(
         "Scoped log — " + modelId,
         "vm-" + rowId + "-routing",
-        adminScopedEventsForVirtualModel(modelId),
-        { uiPart: "virtual-model.scoped-evlog" }
+        adminScopedEventsForAssistant(modelId),
+        { uiPart: "assistant.scoped-evlog" }
       );
 
     return (
-      '<details class="sum-card sum-card--virtual-model" id="virtual-model-' +
+      '<details class="sum-card sum-card--assistant" id="assistant-' +
       escapeHtml(rowId) +
-      '" data-virtual-model-id="' +
+      '" data-assistant-id="' +
       escapeHtml(rowId) +
       '">' +
-      '<summary data-ui-part="virtual-model.summary">' +
-      '<span class="sum-avatar sum-av-svc-chimera-gateway">Vm</span>' +
+      '<summary data-ui-part="assistant.summary">' +
+      '<span class="sum-avatar sum-av-svc-chimera-gateway">As</span>' +
       '<span class="sum-main"><span class="sum-title">' +
       escapeHtml(title) +
       "</span>" +
@@ -1004,18 +1004,18 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
       "</span>" +
       operatorCardChevronHtml() +
       "</summary>" +
-      '<div class="sum-body sum-body--virtual-model">' +
+      '<div class="sum-body sum-body--assistant">' +
       sections +
       "</div></details>"
     );
   }
 
-  function buildVirtualModelsSectionIntroHtml(count) {
+  function buildAssistantsSectionIntroHtml(count) {
     return (
       '<div class="sum-workspaces-intro">' +
-      '<p class="sum-workspaces-intro-lead">Operator-managed virtual models (<strong>' +
+      '<p class="sum-workspaces-intro-lead">Operator-managed assistants (<strong>' +
       escapeHtml(String(count)) +
-      "</strong>).Define virtual models with different routing policies and strategies.</p>" +
+      "</strong>).Define assistants with different routing policies and strategies.</p>" +
       "</div>"
     );
   }
@@ -1031,7 +1031,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     return "—";
   }
 
-  function syncVirtualModelDraftCardChrome(cardEl, draft) {
+  function syncAssistantDraftCardChrome(cardEl, draft) {
     if (!cardEl || !draft) return;
     var preview = draftModelIdPreview(draft);
     var codeEl = cardEl.querySelector(".sum-main--workspace-draft .sum-mono-id");
@@ -1060,7 +1060,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     }
   }
 
-  function buildVirtualModelDraftCardHtml(draft) {
+  function buildAssistantDraftCardHtml(draft) {
     draft = draft || {};
     var draftId = String(draft.id != null ? draft.id : "");
     var name = String(draft.name != null ? draft.name : "");
@@ -1070,14 +1070,14 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     var preview = draftModelIdPreview(draft);
     var msg = draft.msg ? String(draft.msg) : "";
     return (
-      '<article class="sum-card sum-card--virtual-model-draft sum-card--workspace-draft" id="virtual-model-draft-' +
+      '<article class="sum-card sum-card--assistant-draft sum-card--workspace-draft" id="assistant-draft-' +
       escapeHtml(draftId) +
-      '" data-virtual-model-draft="' +
+      '" data-assistant-draft="' +
       escapeHtml(draftId) +
       '">' +
       '<header class="sum-card__workspace-draft-hdr">' +
-      '<span class="sum-avatar sum-av-svc-chimera-gateway">Vm</span>' +
-      '<span class="sum-main sum-main--workspace-draft"><span class="sum-title">New virtual model</span>' +
+      '<span class="sum-avatar sum-av-svc-chimera-gateway">As</span>' +
+      '<span class="sum-main sum-main--workspace-draft"><span class="sum-title">New assistant</span>' +
       '<span class="sum-sub sum-sub--clamp muted">Client model id: <code class="sum-mono-id">' +
       escapeHtml(preview) +
       "</code></span></span>" +
@@ -1090,8 +1090,8 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
       '"' +
       (draft.saving ? " disabled" : "") +
       ">Save</button></span></header>" +
-      '<div class="sum-body sum-body--virtual-model" data-ui-part="virtual-model-draft.form">' +
-      '<div class="sg-op-card-note sg-op-card-note--tight">Save to create the model, then configure fallback (required), routing, and tool-router on the new card.</div>' +
+      '<div class="sum-body sum-body--assistant" data-ui-part="assistant-draft.form">' +
+      '<div class="sg-op-card-note sg-op-card-note--tight">Save to create the assistant, then configure fallback (required), routing, and tool-router on the new card.</div>' +
       '<div class="ws-draft-fields">' +
       '<div class="ws-draft-field"><label class="ws-draft-field-label">Name</label>' +
       '<input class="ws-draft-input" data-vm-draft-field="name" data-vm-draft-id="' +
@@ -1123,28 +1123,28 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     );
   }
 
-  function buildVirtualModelsSectionBreakHtml(count) {
-    var intro = buildVirtualModelsSectionIntroHtml(count);
+  function buildAssistantsSectionBreakHtml(count) {
+    var intro = buildAssistantsSectionIntroHtml(count);
     if (typeof ctx.operatorSectionHeadHtml !== "function") {
       return (
-        '<div class="sum-section-label sum-feed-section-title">Virtual models</div>' +
+        '<div class="sum-section-label sum-feed-section-title">Assistants</div>' +
         intro
       );
     }
     var addBtn = "";
     if (typeof ctx.operatorSectionAddBtn === "function") {
-      var hasDraft = ctx.virtualModelDrafts && ctx.virtualModelDrafts.length > 0;
+      var hasDraft = ctx.assistantDrafts && ctx.assistantDrafts.length > 0;
       addBtn = ctx.operatorSectionAddBtn(
         { "data-admin-action": "vm-add" },
-        "Add virtual model",
+        "Add assistant",
         hasDraft
-          ? { disabled: true, title: "Finish or cancel the draft model first" }
-          : { title: "Create a new virtual model" }
+          ? { disabled: true, title: "Finish or cancel the draft assistant first" }
+          : { title: "Create a new assistant" }
       );
     }
     return (
-      '<div class="sg-op-virtual-models-section" id="sg-op-virtual-models-section">' +
-      ctx.operatorSectionHeadHtml("Virtual models", "network_intel_node", {
+      '<div class="sg-op-assistants-section" id="sg-op-assistants-section">' +
+      ctx.operatorSectionHeadHtml("Assistants", "network_intel_node", {
         actionHtml: addBtn
       }) +
       intro +
@@ -1152,16 +1152,16 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminVirtualModels = function (ctx)
     );
   }
 
-  ctx.buildVirtualModelCardHtml = buildVirtualModelCardHtml;
-  ctx.buildVirtualModelDraftCardHtml = buildVirtualModelDraftCardHtml;
-  ctx.buildVirtualModelsSectionIntroHtml = buildVirtualModelsSectionIntroHtml;
-  ctx.buildVirtualModelsSectionBreakHtml = buildVirtualModelsSectionBreakHtml;
-  ctx.adminScopedEventsForVirtualModel = adminScopedEventsForVirtualModel;
+  ctx.buildAssistantCardHtml = buildAssistantCardHtml;
+  ctx.buildAssistantDraftCardHtml = buildAssistantDraftCardHtml;
+  ctx.buildAssistantsSectionIntroHtml = buildAssistantsSectionIntroHtml;
+  ctx.buildAssistantsSectionBreakHtml = buildAssistantsSectionBreakHtml;
+  ctx.adminScopedEventsForAssistant = adminScopedEventsForAssistant;
   ctx.vmCardTitleText = vmCardTitleText;
   ctx.vmCardSubtitleText = vmCardSubtitleText;
-  ctx.syncVirtualModelCardHeader = syncVirtualModelCardHeader;
-  ctx.syncVirtualModelDraftCardChrome = syncVirtualModelDraftCardChrome;
-  ctx.mergeVirtualModelForRender = function (summary, id) {
+  ctx.syncAssistantCardHeader = syncAssistantCardHeader;
+  ctx.syncAssistantDraftCardChrome = syncAssistantDraftCardChrome;
+  ctx.mergeAssistantForRender = function (summary, id) {
     return mergeVm(summary, vmDetail(ctx, id));
   };
 };

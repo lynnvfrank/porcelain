@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/assistant"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/testsupport"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/virtualmodel"
 )
 
 func TestMetaPolicyStageAppliesWorkspaceScopeAndCloudVeto(t *testing.T) {
@@ -29,7 +29,7 @@ func TestMetaPolicyStageAppliesWorkspaceScopeAndCloudVeto(t *testing.T) {
 		ProjectID:     "project-a",
 		FlavorID:      "flavor-a",
 		Stack: harness.VMStack{
-			VM:       &virtualmodel.Resolved{ModelID: "Policy-1.0"},
+			VM:       &assistant.Resolved{ModelID: "Policy-1.0"},
 			Fallback: []string{"groq/cloud", "ollama/local"},
 		},
 	}

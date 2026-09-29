@@ -6,7 +6,7 @@ type TurnEnvelope struct {
 	RequestID      string     `json:"request_id"`
 	ConversationID string     `json:"conversation_id"`
 	TurnIndex      int        `json:"turn_index"`
-	VirtualModelID string     `json:"virtual_model_id"`
+	AssistantID    string     `json:"assistant_id"`
 	Scope          Scope      `json:"scope"`
 	Intent         Intent     `json:"intent"`
 	Plan           Plan       `json:"plan"`
@@ -126,7 +126,7 @@ func newEnvelope(tc *TurnContext) *TurnEnvelope {
 	env.RequestID = tc.RequestID
 	env.ConversationID = tc.ConversationID
 	env.TurnIndex = tc.TurnIndex
-	env.VirtualModelID = tc.VirtualModelID()
+	env.AssistantID = tc.AssistantID()
 	env.Scope = Scope{
 		TenantID:            tc.TenantID,
 		ProjectID:           tc.ProjectID,

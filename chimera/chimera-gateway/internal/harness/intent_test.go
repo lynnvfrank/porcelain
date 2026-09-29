@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/assistant"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/virtualmodel"
 )
 
 func TestIntentStageClassifiesBeforeRetrieval(t *testing.T) {
 	enabled := true
 	env := newEnvelope(&TurnContext{
 		ProjectID: "repo",
-		Stack: VMStack{VM: &virtualmodel.Resolved{
-			HarnessModules: map[string]virtualmodel.HarnessModule{
+		Stack: VMStack{VM: &assistant.Resolved{
+			HarnessModules: map[string]assistant.HarnessModule{
 				operatorstore.HarnessModuleIntent: {Enabled: enabled},
 			},
 		}},
@@ -23,8 +23,8 @@ func TestIntentStageClassifiesBeforeRetrieval(t *testing.T) {
 		"messages": json.RawMessage(`[{"role":"user","content":"Please fix this code bug and add tests."}]`),
 		"tools":    json.RawMessage(`[{"type":"function"},{"type":"function"}]`),
 	}
-	tc := &TurnContext{Stack: VMStack{VM: &virtualmodel.Resolved{
-		HarnessModules: map[string]virtualmodel.HarnessModule{
+	tc := &TurnContext{Stack: VMStack{VM: &assistant.Resolved{
+		HarnessModules: map[string]assistant.HarnessModule{
 			operatorstore.HarnessModuleIntent: {Enabled: true},
 		},
 	}}}
@@ -44,8 +44,8 @@ func TestIntentStageClassifiesBeforeRetrieval(t *testing.T) {
 
 func TestIntentStageLeavesDefaultsWhenDisabled(t *testing.T) {
 	env := newEnvelope(&TurnContext{})
-	tc := &TurnContext{Stack: VMStack{VM: &virtualmodel.Resolved{
-		HarnessModules: map[string]virtualmodel.HarnessModule{
+	tc := &TurnContext{Stack: VMStack{VM: &assistant.Resolved{
+		HarnessModules: map[string]assistant.HarnessModule{
 			operatorstore.HarnessModuleIntent: {Enabled: false},
 		},
 	}}}

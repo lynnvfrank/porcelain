@@ -36,7 +36,7 @@ formatters:
   conversation_fallback_model_not_found:
     description: willRetry-aware model not found during routing
   conversation_routing:
-    description: virtual vs passthrough routing summary
+    description: assistant vs passthrough routing summary
   conversation_routing_rate_limit:
     description: TPM rate limit during routing (service panels)
   conversation_turn_started:
@@ -226,13 +226,13 @@ messages:
     metrics_counter: chatReq
     gallery_preview: Chat completion request accepted and prepared for upstream routing.
   - slug: harness.stage.started
-    summary: Virtual model harness stage started.
+    summary: Assistant harness stage started.
     gallery_preview: Harness pipeline stage started.
   - slug: harness.stage.completed
-    summary: Virtual model harness stage completed.
+    summary: Assistant harness stage completed.
     gallery_preview: Harness pipeline stage completed.
   - slug: harness.turn.completed
-    summary: Virtual model harness turn completed with redacted envelope summary.
+    summary: Assistant harness turn completed with redacted envelope summary.
     gallery_preview: Harness turn completed.
   - slug: harness.retrieval.compress_fallback
     summary: Retrieval summarization failed, so the gateway attached truncated evidence instead.
@@ -241,7 +241,7 @@ messages:
     summary: Multiple workspaces matched the request scope; the lowest workspace id was selected.
     gallery_preview: Multiple workspace scopes matched · using the earliest workspace.
   - slug: harness.stream.policy_applied
-    summary: Evaluator stream policy was applied to the virtual model chat response.
+    summary: Evaluator stream policy was applied to the assistant chat response.
     gallery_preview: Evaluator stream policy applied.
   - slug: harness.evaluator.failed
     summary: Evaluator request failed, so the gateway delivered the primary response.
@@ -357,6 +357,17 @@ messages:
   - slug: gateway.catalog.fallback_unavailable_model
     formatter: gateway_catalog_fallback_unavailable_model
     gallery_preview: Unavailable model still listed in a configured fallback chain.
+  - slug: gateway.assistant.bootstrap_failed
+    summary: Assistant bootstrap failed during gateway startup.
+    gallery_preview: Assistant bootstrap failed
+  - slug: gateway.assistant.gemini_seeded
+    formatter: upstream_models_ok
+    aliases:
+      - Gemini assistant seeded · gemini/flash
+    gallery_preview: Gemini assistant seeded on first operator store open.
+  - slug: gateway.assistant.reload_failed
+    summary: Assistant registry reload failed after operator store bootstrap.
+    gallery_preview: Assistant registry reload failed
   - slug: broker.http.access
     formatter: http_broker_inbound
     aliases:
@@ -387,12 +398,12 @@ messages:
   - slug: chat.routing.attempt
     formatter: broker_routing_relay
     aliases:
-      - virtual model fallback attempt
+      - assistant fallback attempt
     gallery_preview: Routing attempt · gpt-4o · attempt 2/3
   - slug: chat.routing.resolved
     formatter: broker_routing_relay
     aliases:
-      - virtual model routing resolved
+      - assistant routing resolved
     gallery_preview: Routing resolved · gpt-4o · attempt 1/1 · HTTP 200
   - slug: chat.routing.rate_limit
     formatter: conversation_routing_rate_limit
@@ -400,6 +411,11 @@ messages:
   - slug: chat.routing.model_not_found
     formatter: conversation_fallback_model_not_found
     gallery_preview: Model not found (404) · trying next in chain.
+  - slug: chat.routing.assistant_skipped
+    formatter: broker_routing_relay
+    aliases:
+      - assistant skipped (413 excluded)
+    gallery_preview: Skipping upstream model excluded after HTTP 413 on this request.
   - slug: routing.model.unavailable_skipped
     formatter: broker_routing_relay
     aliases:

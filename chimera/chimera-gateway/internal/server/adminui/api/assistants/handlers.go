@@ -1,4 +1,4 @@
-package virtualmodels
+package assistants
 
 import (
 	"context"
@@ -20,8 +20,8 @@ import (
 
 const operatorTenantID = ""
 
-func vmSummary(vm operatorstore.VirtualModel) operatorapi.VirtualModelSummary {
-	return operatorapi.VirtualModelSummary{
+func vmSummary(vm operatorstore.Assistant) operatorapi.AssistantSummary {
+	return operatorapi.AssistantSummary{
 		ID:                   vm.ID,
 		ModelID:              vm.ModelID,
 		Name:                 vm.Name,
@@ -36,9 +36,9 @@ func vmSummary(vm operatorstore.VirtualModel) operatorapi.VirtualModelSummary {
 	}
 }
 
-func vmDetail(vm operatorstore.VirtualModel) operatorapi.VirtualModelDetail {
-	return operatorapi.VirtualModelDetail{
-		VirtualModelSummary:  vmSummary(vm),
+func vmDetail(vm operatorstore.Assistant) operatorapi.AssistantDetail {
+	return operatorapi.AssistantDetail{
+		AssistantSummary:     vmSummary(vm),
 		RoutingPolicyYAML:    vm.RoutingPolicyYAML,
 		FallbackChain:        vm.FallbackChain,
 		ToolRouterConfidence: vm.ToolRouterConfidence,
@@ -49,13 +49,13 @@ func vmDetail(vm operatorstore.VirtualModel) operatorapi.VirtualModelDetail {
 	}
 }
 
-func harnessModulesAPI(mods []operatorstore.HarnessModule) []operatorapi.VirtualModelHarnessModule {
+func harnessModulesAPI(mods []operatorstore.HarnessModule) []operatorapi.AssistantHarnessModule {
 	if len(mods) == 0 {
 		mods = operatorstore.DefaultHarnessModules(false)
 	}
-	out := make([]operatorapi.VirtualModelHarnessModule, 0, len(mods))
+	out := make([]operatorapi.AssistantHarnessModule, 0, len(mods))
 	for _, m := range mods {
-		item := operatorapi.VirtualModelHarnessModule{
+		item := operatorapi.AssistantHarnessModule{
 			ModuleID:     m.ModuleID,
 			Enabled:      m.Enabled,
 			ConfigJSON:   json.RawMessage(operatorstoreNormalizeConfig(m.ConfigJSON)),
@@ -74,7 +74,7 @@ func operatorstoreNormalizeConfig(s string) string {
 	return s
 }
 
-func vmDetailForSession(h *handler.Handler, r *http.Request, vm operatorstore.VirtualModel) operatorapi.VirtualModelDetail {
+func vmDetailForSession(h *handler.Handler, r *http.Request, vm operatorstore.Assistant) operatorapi.AssistantDetail {
 	out := vmDetail(vm)
 	if h == nil || h.RT == nil {
 		return out
@@ -120,7 +120,7 @@ func reloadRegistry(h *handler.Handler, ctx context.Context) {
 	if h == nil || h.RT == nil {
 		return
 	}
-	_ = h.RT.ReloadVirtualModels(ctx)
+	_ = h.RT.ReloadAssistants(ctx)
 }
 
 func parseVMID(r *http.Request) (int64, bool) {
@@ -141,17 +141,17 @@ func handleListGET(h *handler.Handler, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "operator store unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	vms, err := st.ListVirtualModels(r.Context(), operatorTenantID, operatorTenantID)
+	vms, err := st.ListAssistants(r.Context(), operatorTenantID, operatorTenantID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	out := make([]operatorapi.VirtualModelSummary, 0, len(vms))
+	out := make([]operatorapi.AssistantSummary, 0, len(vms))
 	for _, vm := range vms {
 		out = append(out, vmSummary(vm))
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(operatorapi.VirtualModelListResponse{VirtualModels: out})
+	_ = json.NewEncoder(w).Encode(operatorapi.AssistantListResponse{Assistants: out})
 }
 
 func handleCreatePOST(h *handler.Handler, w http.ResponseWriter, r *http.Request) {
@@ -160,7 +160,7 @@ func handleCreatePOST(h *handler.Handler, w http.ResponseWriter, r *http.Request
 		http.Error(w, "operator store unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	var body operatorapi.VirtualModelCreateRequest
+	var body operatorapi.AssistantCreateRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
@@ -171,7 +171,7 @@ func handleCreatePOST(h *handler.Handler, w http.ResponseWriter, r *http.Request
 			ragOn = true
 		}
 	}
-	vm, err := st.CreateVirtualModel(r.Context(), operatorstore.CreateVirtualModelInput{
+	vm, err := st.CreateAssistant(r.Context(), operatorstore.CreateAssistantInput{
 		ModelID:                 body.ModelID,
 		Name:                    body.Name,
 		Version:                 body.Version,
@@ -202,7 +202,7 @@ func handleGetGET(h *handler.Handler, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	vm, err := st.GetAssistantByID(r.Context(), operatorTenantID, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -226,7 +226,7 @@ func handleUpdatePUT(h *handler.Handler, w http.ResponseWriter, r *http.Request)
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	var body operatorapi.VirtualModelUpdateRequest
+	var body operatorapi.AssistantUpdateRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
@@ -241,7 +241,7 @@ func handleUpdatePUT(h *handler.Handler, w http.ResponseWriter, r *http.Request)
 	if body.Description != nil {
 		desc = *body.Description
 	}
-	if err := st.UpdateVirtualModelMetadata(r.Context(), operatorTenantID, id, name, version, desc, body.Enabled, body.Visibility); err != nil {
+	if err := st.UpdateAssistantMetadata(r.Context(), operatorTenantID, id, name, version, desc, body.Enabled, body.Visibility); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.NotFound(w, r)
 			return
@@ -264,7 +264,7 @@ func handleDeleteDELETE(h *handler.Handler, w http.ResponseWriter, r *http.Reque
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	if err := st.DeleteVirtualModel(r.Context(), operatorTenantID, id); err != nil {
+	if err := st.DeleteAssistant(r.Context(), operatorTenantID, id); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.NotFound(w, r)
 			return
@@ -287,12 +287,12 @@ func handleFallbackPUT(h *handler.Handler, w http.ResponseWriter, r *http.Reques
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	var body operatorapi.VirtualModelFallbackSaveRequest
+	var body operatorapi.AssistantFallbackSaveRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
 	}
-	if err := st.SetVirtualModelFallback(r.Context(), operatorTenantID, id, body.FallbackChain); err != nil {
+	if err := st.SetAssistantFallback(r.Context(), operatorTenantID, id, body.FallbackChain); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.NotFound(w, r)
 			return
@@ -316,7 +316,7 @@ func handleRoutingPolicyPUT(h *handler.Handler, w http.ResponseWriter, r *http.R
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	var body operatorapi.VirtualModelRoutingPolicySaveRequest
+	var body operatorapi.AssistantRoutingPolicySaveRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
@@ -327,7 +327,7 @@ func handleRoutingPolicyPUT(h *handler.Handler, w http.ResponseWriter, r *http.R
 			return
 		}
 	}
-	if err := st.SetVirtualModelRoutingPolicy(r.Context(), operatorTenantID, id, body.Enabled, body.RoutingPolicyYAML); err != nil {
+	if err := st.SetAssistantRoutingPolicy(r.Context(), operatorTenantID, id, body.Enabled, body.RoutingPolicyYAML); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.NotFound(w, r)
 			return
@@ -351,7 +351,7 @@ func handleToolRouterPUT(h *handler.Handler, w http.ResponseWriter, r *http.Requ
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	var body operatorapi.VirtualModelToolRouterSaveRequest
+	var body operatorapi.AssistantToolRouterSaveRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
@@ -360,7 +360,7 @@ func handleToolRouterPUT(h *handler.Handler, w http.ResponseWriter, r *http.Requ
 	if th <= 0 {
 		th = 0.5
 	}
-	if err := st.SetVirtualModelToolRouter(r.Context(), operatorTenantID, id, body.Enabled, body.RouterModels, th); err != nil {
+	if err := st.SetAssistantToolRouter(r.Context(), operatorTenantID, id, body.Enabled, body.RouterModels, th); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.NotFound(w, r)
 			return
@@ -384,7 +384,7 @@ func handleHarnessGET(h *handler.Handler, w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	vm, err := st.GetAssistantByID(r.Context(), operatorTenantID, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -394,7 +394,7 @@ func handleHarnessGET(h *handler.Handler, w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(operatorapi.VirtualModelHarnessResponse{
+	_ = json.NewEncoder(w).Encode(operatorapi.AssistantHarnessResponse{
 		Modules: harnessModulesAPI(vm.HarnessModules),
 	})
 }
@@ -410,7 +410,7 @@ func handleHarnessPUT(h *handler.Handler, w http.ResponseWriter, r *http.Request
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	var body operatorapi.VirtualModelHarnessSaveRequest
+	var body operatorapi.AssistantHarnessSaveRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
@@ -427,7 +427,7 @@ func handleHarnessPUT(h *handler.Handler, w http.ResponseWriter, r *http.Request
 			ConfigJSON: cfg,
 		})
 	}
-	if err := st.SetVirtualModelHarness(r.Context(), operatorTenantID, id, mods); err != nil {
+	if err := st.SetAssistantHarness(r.Context(), operatorTenantID, id, mods); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.NotFound(w, r)
 			return
@@ -436,14 +436,14 @@ func handleHarnessPUT(h *handler.Handler, w http.ResponseWriter, r *http.Request
 		return
 	}
 	reloadRegistry(h, r.Context())
-	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	vm, err := st.GetAssistantByID(r.Context(), operatorTenantID, id)
 	if err != nil || vm == nil {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(operatorapi.VirtualModelHarnessResponse{
+	_ = json.NewEncoder(w).Encode(operatorapi.AssistantHarnessResponse{
 		Modules: harnessModulesAPI(vm.HarnessModules),
 	})
 }
@@ -476,12 +476,12 @@ func handleGeneratePOST(h *handler.Handler, w http.ResponseWriter, r *http.Reque
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	vm, err := st.GetAssistantByID(r.Context(), operatorTenantID, id)
 	if err != nil || vm == nil {
 		http.NotFound(w, r)
 		return
 	}
-	var body operatorapi.VirtualModelGenerateRequest
+	var body operatorapi.AssistantGenerateRequest
 	_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&body)
 
 	h.RT.Sync()
@@ -519,11 +519,11 @@ func handleGeneratePOST(h *handler.Handler, w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if body.Save {
-		if err := st.SetVirtualModelFallback(r.Context(), operatorTenantID, id, chain); err != nil {
+		if err := st.SetAssistantFallback(r.Context(), operatorTenantID, id, chain); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if err := st.SetVirtualModelRoutingPolicy(r.Context(), operatorTenantID, id, true, string(routeYAML)); err != nil {
+		if err := st.SetAssistantRoutingPolicy(r.Context(), operatorTenantID, id, true, string(routeYAML)); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -551,7 +551,7 @@ func handleEvaluatePOST(h *handler.Handler, w http.ResponseWriter, r *http.Reque
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	vm, err := st.GetAssistantByID(r.Context(), operatorTenantID, id)
 	if err != nil || vm == nil {
 		http.NotFound(w, r)
 		return
@@ -569,7 +569,7 @@ func handleEvaluatePOST(h *handler.Handler, w http.ResponseWriter, r *http.Reque
 	if len(chain) == 0 {
 		chain = vm.FallbackChain
 	}
-	vmID := strings.TrimSpace(body.VirtualModelID)
+	vmID := strings.TrimSpace(body.AssistantID)
 	if vmID == "" {
 		vmID = vm.ModelID
 	}
@@ -604,7 +604,7 @@ func handleHarnessEvaluatePOST(h *handler.Handler, w http.ResponseWriter, r *htt
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	vm, err := st.GetVirtualModelByID(r.Context(), operatorTenantID, id)
+	vm, err := st.GetAssistantByID(r.Context(), operatorTenantID, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -613,7 +613,7 @@ func handleHarnessEvaluatePOST(h *handler.Handler, w http.ResponseWriter, r *htt
 		http.NotFound(w, r)
 		return
 	}
-	var input operatorapi.VirtualModelHarnessEvaluateRequest
+	var input operatorapi.AssistantHarnessEvaluateRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&input); err != nil {
 		http.Error(w, "invalid json", http.StatusBadRequest)
 		return
@@ -622,14 +622,14 @@ func handleHarnessEvaluatePOST(h *handler.Handler, w http.ResponseWriter, r *htt
 		http.Error(w, "message is required", http.StatusBadRequest)
 		return
 	}
-	reg := h.RT.VirtualModels()
+	reg := h.RT.Assistants()
 	if reg == nil {
-		http.Error(w, "virtual model registry unavailable", http.StatusServiceUnavailable)
+		http.Error(w, "assistant registry unavailable", http.StatusServiceUnavailable)
 		return
 	}
 	resolved, err := reg.Resolve(vm.ModelID, operatorTenantID)
 	if err != nil {
-		http.Error(w, "virtual model unavailable for evaluation", http.StatusBadRequest)
+		http.Error(w, "assistant unavailable for evaluation", http.StatusBadRequest)
 		return
 	}
 	res, _ := h.RT.Snapshot()
@@ -660,7 +660,7 @@ func handleHarnessEvaluatePOST(h *handler.Handler, w http.ResponseWriter, r *htt
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(operatorapi.VirtualModelHarnessEvaluateResponse{OK: true, Envelope: redacted})
+	_ = json.NewEncoder(w).Encode(operatorapi.AssistantHarnessEvaluateResponse{OK: true, Envelope: redacted})
 }
 
 func configHealthTimeout(res *config.Resolved) time.Duration {

@@ -8,17 +8,17 @@ import (
 	"net/http/httptest"
 	"strings"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/assistant"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/chat"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness/evidence"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/transform"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/virtualmodel"
 	"github.com/lynn/porcelain/internal/naming"
 )
 
-// StackResolveStage validates the resolved virtual model stack is present.
+// StackResolveStage validates the resolved assistant stack is present.
 type StackResolveStage struct{}
 
 func (StackResolveStage) Name() string   { return "stack_resolve" }
@@ -30,13 +30,13 @@ func (StackResolveStage) Run(_ context.Context, tc *TurnContext, env *TurnEnvelo
 			Status: http.StatusServiceUnavailable,
 			Body: map[string]any{
 				"error": map[string]any{
-					"message": "Virtual model stack unavailable",
+					"message": "Assistant stack unavailable",
 					"type":    "gateway_config",
 				},
 			},
 		}
 	}
-	env.VirtualModelID = tc.Stack.VM.ModelID
+	env.AssistantID = tc.Stack.VM.ModelID
 	return nil
 }
 
@@ -77,7 +77,7 @@ func (ToolRouterStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelo
 		}
 		tc.RouteLog.Debug("conversation tool router", "msg", naming.MsgConversationToolRouter,
 			"tools_before", sum.ToolsBefore, "tools_after", sum.ToolsAfter,
-			"router_model", sum.RouterModel, "virtual_model_id", tc.VirtualModelID(),
+			"router_model", sum.RouterModel, "assistant_id", tc.AssistantID(),
 			"err", errStr, "timeline_kind", naming.TimelineKindBroker)
 	}
 	return nil
@@ -96,7 +96,7 @@ func (RetrievalStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 	if tc.BodyBeforeRetrieval == nil {
 		tc.BodyBeforeRetrieval = cloneBody(body)
 	}
-	virtualID := tc.VirtualModelID()
+	assistantID := tc.AssistantID()
 	coords := vectorstore.Coords{TenantID: tc.TenantID, ProjectID: tc.ProjectID, FlavorID: tc.FlavorID}
 	collection := vectorstore.CollectionName(coords)
 	retrievalOn := true
@@ -110,7 +110,7 @@ func (RetrievalStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 				reason = "vm_harness_off"
 			}
 			tc.RouteLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
-				"reason", reason, "virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindVectorstore)
+				"reason", reason, "assistant_id", assistantID, "timeline_kind", naming.TimelineKindVectorstore)
 		}
 		return nil
 	}
@@ -118,7 +118,7 @@ func (RetrievalStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 	if strings.TrimSpace(q) == "" {
 		if tc.RouteLog != nil {
 			tc.RouteLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
-				"reason", "empty_query", "virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindVectorstore)
+				"reason", "empty_query", "assistant_id", assistantID, "timeline_kind", naming.TimelineKindVectorstore)
 		}
 		return nil
 	}
@@ -136,7 +136,7 @@ func (RetrievalStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 	if shouldSkipRetrieval(retrievalCfg.SkipIf, tc, env) {
 		if tc.RouteLog != nil {
 			tc.RouteLog.Debug("conversation RAG skipped", "msg", naming.MsgConversationRagSkipped,
-				"reason", "module_skip_if", "virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindVectorstore)
+				"reason", "module_skip_if", "assistant_id", assistantID, "timeline_kind", naming.TimelineKindVectorstore)
 		}
 		return nil
 	}
@@ -148,7 +148,7 @@ func (RetrievalStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 	if rerr != nil {
 		if tc.RouteLog != nil {
 			tc.RouteLog.Warn("rag retrieve failed; proceeding without context", "msg", naming.MsgRagRetrieveError,
-				"err", rerr, "virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindVectorstore)
+				"err", rerr, "assistant_id", assistantID, "timeline_kind", naming.TimelineKindVectorstore)
 		}
 		return nil
 	}
@@ -161,7 +161,7 @@ func (RetrievalStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 		if cerr != nil && retrievalCfg.CompressStrategy == "summarize" {
 			if tc.RouteLog != nil {
 				tc.RouteLog.Warn("retrieval summarize failed; using truncated evidence",
-					"msg", naming.MsgHarnessRetrievalCompressFallback, "virtual_model_id", virtualID,
+					"msg", naming.MsgHarnessRetrievalCompressFallback, "assistant_id", assistantID,
 					"turn_index", tc.TurnIndex, "stage", "retrieval", "module", operatorstore.HarnessModuleRetrieval,
 					"err", cerr, "timeline_kind", naming.TimelineKindVectorstore)
 			}
@@ -170,7 +170,7 @@ func (RetrievalStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 		if cerr != nil {
 			if tc.RouteLog != nil {
 				tc.RouteLog.Warn("retrieval evidence compression failed; proceeding without context",
-					"msg", naming.MsgRagRetrieveError, "err", cerr, "virtual_model_id", virtualID,
+					"msg", naming.MsgRagRetrieveError, "err", cerr, "assistant_id", assistantID,
 					"timeline_kind", naming.TimelineKindVectorstore)
 			}
 			return nil
@@ -183,7 +183,7 @@ func (RetrievalStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 		ApplyRetrievalToEnvelope(env, block.Hits, retrievalCfg.TopK, strategy)
 		if tc.RouteLog != nil {
 			tc.RouteLog.Info("conversation RAG attached", "msg", naming.MsgConversationRagAttached,
-				"virtual_model_id", virtualID, "tenant", coords.TenantID, "project", coords.ProjectID,
+				"assistant_id", assistantID, "tenant", coords.TenantID, "project", coords.ProjectID,
 				"flavor", coords.FlavorID, "hits", len(block.Hits), "collection", collection,
 				"timeline_kind", naming.TimelineKindVectorstore)
 		}
@@ -239,23 +239,23 @@ func (InitialPickStage) Run(_ context.Context, tc *TurnContext, env *TurnEnvelop
 	if tc == nil || tc.Stack.VM == nil {
 		return nil
 	}
-	virtualID := tc.VirtualModelID()
+	assistantID := tc.AssistantID()
 	modelAvailable := tc.ModelAvailable
 	if modelAvailable == nil {
 		modelAvailable = func(string) bool { return true }
 	}
 	stackVM := *tc.Stack.VM
 	stackVM.FallbackChain = tc.Stack.Fallback
-	initial, _ := virtualmodel.PickInitialModelWithAvailability(&stackVM, body, tc.RouteLog, modelAvailable)
+	initial, _ := assistant.PickInitialModelWithAvailability(&stackVM, body, tc.RouteLog, modelAvailable)
 	if initial == "" {
 		if tc.RouteLog != nil {
 			tc.RouteLog.Warn("conversation errored", "msg", naming.MsgConversationErrored,
 				"statusCode", http.StatusServiceUnavailable, "errorType", "gateway_config",
-				"virtual_model_id", virtualID, "timeline_kind", naming.TimelineKindBroker)
+				"assistant_id", assistantID, "timeline_kind", naming.TimelineKindBroker)
 		}
 		errBody := map[string]any{
 			"error": map[string]any{
-				"message": "Could not resolve an initial upstream model for the virtual model (check routing policy and fallback chain).",
+				"message": "Could not resolve an initial upstream model for the assistant (check routing policy and fallback chain).",
 				"type":    "gateway_config",
 			},
 		}
@@ -274,13 +274,13 @@ func (InitialPickStage) Run(_ context.Context, tc *TurnContext, env *TurnEnvelop
 	env.Plan.PrimaryModelID = &initial
 	if tc.RouteLog != nil {
 		tc.RouteLog.Info("chat routing resolved", "msg", naming.MsgChatRoutingResolved,
-			"virtual_model_id", virtualID, "clientModel", virtualID, "upstreamModel", initial,
+			"assistant_id", assistantID, "clientModel", assistantID, "upstreamModel", initial,
 			"timeline_kind", naming.TimelineKindBroker)
 	}
 	return nil
 }
 
-// FallbackProxyStage proxies to upstream with virtual-model fallback retry semantics.
+// FallbackProxyStage proxies to upstream with assistant fallback retry semantics.
 type FallbackProxyStage struct{}
 
 func (FallbackProxyStage) Name() string   { return "fallback_proxy" }
@@ -305,7 +305,7 @@ func (FallbackProxyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnv
 	if tc.ModelAvailable != nil {
 		opts.ModelAvailable = tc.ModelAvailable
 	}
-	opts.VirtualModelID = tc.VirtualModelID()
+	opts.AssistantID = tc.AssistantID()
 	evaluator, evaluatorEnabled := evaluatorConfig(tc)
 	if evaluatorEnabled {
 		logStreamPolicy(tc, evaluator.StreamPolicy)
@@ -321,7 +321,7 @@ func (FallbackProxyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnv
 		answer, err := runMultiDraft(ctx, tc, env, evaluator, lastUserText(body))
 		if err != nil {
 			logEvaluatorFailure(tc, err)
-			chat.WithVirtualModelFallback(ctx, buffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
+			chat.WithAssistantFallback(ctx, buffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
 				tc.APIKey, false, body, tc.Timeout, tc.RouteLog, tc.Metrics, tc.LimitsGuard, opts)
 		} else {
 			writeCompletionResponse(buffer, answer, evaluator.SynthesizeModelID)
@@ -373,7 +373,7 @@ func (FallbackProxyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnv
 		return ErrTurnComplete
 	}
 	if !evaluatorEnabled || evaluator.StreamPolicy == operatorstore.StreamPolicyImmediate {
-		chat.WithVirtualModelFallback(ctx, tc.W, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
+		chat.WithAssistantFallback(ctx, tc.W, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
 			tc.APIKey, tc.Stream, body, tc.Timeout, tc.RouteLog, tc.Metrics, tc.LimitsGuard, opts)
 		return ErrTurnComplete
 	}
@@ -382,7 +382,7 @@ func (FallbackProxyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnv
 	// recorder, preserving its admission/retry semantics while withholding bytes
 	// until the evaluator has decided whether escalation is needed.
 	buffer := httptest.NewRecorder()
-	chat.WithVirtualModelFallback(ctx, buffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
+	chat.WithAssistantFallback(ctx, buffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
 		tc.APIKey, false, body, tc.Timeout, tc.RouteLog, tc.Metrics, tc.LimitsGuard, opts)
 	if env != nil && env.Evaluation.RecommendEscalation {
 		applyEscalation(ctx, tc, env, body, evaluator.StreamPolicy, buffer)
@@ -396,7 +396,7 @@ func logStreamPolicy(tc *TurnContext, policy string) {
 		return
 	}
 	tc.RouteLog.Info("harness evaluator stream policy applied", "msg", naming.MsgHarnessStreamPolicyApplied,
-		"virtual_model_id", tc.VirtualModelID(), "turn_index", tc.TurnIndex, "stage", "fallback_proxy",
+		"assistant_id", tc.AssistantID(), "turn_index", tc.TurnIndex, "stage", "fallback_proxy",
 		"module", operatorstore.HarnessModuleEvaluator, "stream_policy", policy,
 		"timeline_kind", naming.TimelineKindBroker)
 }
@@ -406,7 +406,7 @@ func logEvaluatorFailure(tc *TurnContext, err error) {
 		return
 	}
 	tc.RouteLog.Warn("harness evaluator failed; delivering primary response", "msg", naming.MsgHarnessEvaluatorFailed,
-		"virtual_model_id", tc.VirtualModelID(), "turn_index", tc.TurnIndex, "stage", "evaluator",
+		"assistant_id", tc.AssistantID(), "turn_index", tc.TurnIndex, "stage", "evaluator",
 		"module", operatorstore.HarnessModuleEvaluator, "err", err, "timeline_kind", naming.TimelineKindBroker)
 }
 
@@ -437,7 +437,7 @@ func applyEscalation(ctx context.Context, tc *TurnContext, env *TurnEnvelope, bo
 			next := nextFallback(resolved, tc.Stack.Fallback)
 			if len(next) > 0 {
 				nextBuffer := httptest.NewRecorder()
-				chat.WithVirtualModelFallback(ctx, nextBuffer, next[0], next, tc.Resolved.UpstreamBaseURL,
+				chat.WithAssistantFallback(ctx, nextBuffer, next[0], next, tc.Resolved.UpstreamBaseURL,
 					tc.APIKey, false, body, tc.Timeout, tc.RouteLog, tc.Metrics, tc.LimitsGuard, nil)
 				if nextBuffer.Code >= 200 && nextBuffer.Code < 300 {
 					*buffer = *nextBuffer
@@ -458,7 +458,7 @@ func applyEscalation(ctx context.Context, tc *TurnContext, env *TurnEnvelope, bo
 			replaceBody(body, cloneBody(tc.BodyBeforeRetrieval))
 			_ = (RetrievalStage{}).Run(ctx, tc, env, body) // retrieval remains fail-open
 			nextBuffer := httptest.NewRecorder()
-			chat.WithVirtualModelFallback(ctx, nextBuffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
+			chat.WithAssistantFallback(ctx, nextBuffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
 				tc.APIKey, false, body, tc.Timeout, tc.RouteLog, tc.Metrics, tc.LimitsGuard, nil)
 			if nextBuffer.Code >= 200 && nextBuffer.Code < 300 {
 				*buffer = *nextBuffer
@@ -526,7 +526,7 @@ func writeHumanEscalationResponse(w *httptest.ResponseRecorder, cfg operatorstor
 	prompt.WriteString("Copy the request and the external answer back in your next message using this delimiter:\n")
 	prompt.WriteString(cfg.PasteBackDelimiter)
 	prompt.WriteString("\n")
-	writeCompletionResponse(w, prompt.String(), tc.VirtualModelID())
+	writeCompletionResponse(w, prompt.String(), tc.AssistantID())
 }
 
 func mergeHumanPasteBack(body Body, cfg operatorstore.EscalationConfig, tc *TurnContext) {
@@ -552,7 +552,7 @@ func mergeHumanPasteBack(body Body, cfg operatorstore.EscalationConfig, tc *Turn
 		body["messages"] = encoded
 		if tc != nil && tc.RouteLog != nil {
 			tc.RouteLog.Info("harness human answer merged", "msg", naming.MsgHarnessHumanPasteBackMerged,
-				"virtual_model_id", tc.VirtualModelID(), "turn_index", tc.TurnIndex, "stage", "escalation",
+				"assistant_id", tc.AssistantID(), "turn_index", tc.TurnIndex, "stage", "escalation",
 				"module", operatorstore.HarnessModuleEscalation, "timeline_kind", naming.TimelineKindBroker)
 		}
 	}
@@ -587,7 +587,7 @@ func logEscalation(tc *TurnContext, msg, action, outcome string) {
 	if tc == nil || tc.RouteLog == nil {
 		return
 	}
-	tc.RouteLog.Info("harness escalation", "msg", msg, "virtual_model_id", tc.VirtualModelID(),
+	tc.RouteLog.Info("harness escalation", "msg", msg, "assistant_id", tc.AssistantID(),
 		"turn_index", tc.TurnIndex, "stage", "escalation", "module", operatorstore.HarnessModuleEscalation,
 		"action", action, "outcome", outcome, "timeline_kind", naming.TimelineKindBroker)
 }

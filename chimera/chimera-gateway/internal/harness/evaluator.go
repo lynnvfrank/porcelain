@@ -140,7 +140,7 @@ func runMultiDraft(ctx context.Context, tc *TurnContext, env *TurnEnvelope, cfg 
 	}
 	if tc.RouteLog != nil {
 		tc.RouteLog.Info("harness multi-draft started", "msg", naming.MsgHarnessMultiDraftPhase,
-			"virtual_model_id", tc.VirtualModelID(), "turn_index", tc.TurnIndex, "stage", "evaluator",
+			"assistant_id", tc.AssistantID(), "turn_index", tc.TurnIndex, "stage", "evaluator",
 			"module", operatorstore.HarnessModuleEvaluator, "phase", "draft", "draft_count", len(models),
 			"models", models, "timeline_kind", naming.TimelineKindBroker)
 	}
@@ -175,7 +175,7 @@ func runMultiDraft(ctx context.Context, tc *TurnContext, env *TurnEnvelope, cfg 
 	}
 	if tc.RouteLog != nil {
 		tc.RouteLog.Info("harness multi-draft completed", "msg", naming.MsgHarnessMultiDraftPhase,
-			"virtual_model_id", tc.VirtualModelID(), "turn_index", tc.TurnIndex, "stage", "evaluator",
+			"assistant_id", tc.AssistantID(), "turn_index", tc.TurnIndex, "stage", "evaluator",
 			"module", operatorstore.HarnessModuleEvaluator, "phase", "synthesize", "draft_count", len(valid),
 			"models", append(models, cfg.SynthesizeModelID), "timeline_kind", naming.TimelineKindBroker)
 	}

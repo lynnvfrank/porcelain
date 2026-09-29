@@ -1,4 +1,4 @@
-// Package harness runs the virtual-model chat turn pipeline as ordered stages
+// Package harness runs the assistant chat turn pipeline as ordered stages
 // with a shared turn envelope.
 //
 // Fail-safe defaults by stage kind (normative for v0.4):
@@ -10,5 +10,5 @@
 //   - Policy / initial pick: fail-closed — when no upstream model resolves,
 //     return 503 to the client.
 //   - Fallback proxy: retriable upstream errors advance the chain; non-retriable
-//     errors stop the walk per chat.WithVirtualModelFallback rules.
+//     errors stop the walk per chat.WithAssistantFallback rules.
 package harness

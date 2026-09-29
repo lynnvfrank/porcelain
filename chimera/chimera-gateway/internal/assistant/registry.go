@@ -1,4 +1,4 @@
-package virtualmodel
+package assistant
 
 import (
 	"context"
@@ -15,13 +15,13 @@ import (
 )
 
 var (
-	ErrNotFound   = errors.New("virtual model not found")
-	ErrDisabled   = errors.New("virtual model disabled")
-	ErrForbidden  = errors.New("virtual model not visible to principal")
-	ErrNoFallback = errors.New("virtual model has empty fallback chain")
+	ErrNotFound   = errors.New("assistant not found")
+	ErrDisabled   = errors.New("assistant disabled")
+	ErrForbidden  = errors.New("assistant not visible to principal")
+	ErrNoFallback = errors.New("assistant has empty fallback chain")
 )
 
-// Resolved holds runtime routing state for one virtual model.
+// Resolved holds runtime routing state for one assistant.
 type Resolved struct {
 	ID                   int64
 	ModelID              string
@@ -38,7 +38,7 @@ type Resolved struct {
 	policy               *routing.InMemoryPolicy
 }
 
-// HarnessModule is runtime config for one harness module on a virtual model.
+// HarnessModule is runtime config for one harness module on a assistant.
 type HarnessModule struct {
 	Enabled    bool
 	ConfigJSON string
@@ -53,7 +53,7 @@ func (r *Resolved) HarnessEnabled(moduleID string) bool {
 	return ok && m.Enabled
 }
 
-// Policy returns the compiled routing policy for this virtual model.
+// Policy returns the compiled routing policy for this assistant.
 func (r *Resolved) Policy() *routing.InMemoryPolicy {
 	if r == nil {
 		return nil
@@ -61,7 +61,7 @@ func (r *Resolved) Policy() *routing.InMemoryPolicy {
 	return r.policy
 }
 
-// Registry caches enabled virtual models from operator SQLite.
+// Registry caches enabled assistants from operator SQLite.
 type Registry struct {
 	mu          sync.RWMutex
 	revision    atomic.Int64
@@ -100,7 +100,7 @@ func (reg *Registry) BootstrapModelID() string {
 	return reg.bootstrapID
 }
 
-// AllEnabled returns a snapshot slice of enabled virtual models in the registry.
+// AllEnabled returns a snapshot slice of enabled assistants in the registry.
 func (reg *Registry) AllEnabled() []*Resolved {
 	if reg == nil {
 		return nil
@@ -127,16 +127,16 @@ func (reg *Registry) Reload(ctx context.Context, store *operatorstore.Store) err
 		reg.BumpRevision()
 		return nil
 	}
-	vms, err := store.ListEnabledVirtualModels(ctx)
+	vms, err := store.ListEnabledAssistants(ctx)
 	if err != nil {
 		return err
 	}
 	next := make(map[string]*Resolved, len(vms))
 	var bootstrap string
 	for _, vm := range vms {
-		resolved, err := compileVirtualModel(vm)
+		resolved, err := compileAssistant(vm)
 		if err != nil {
-			return fmt.Errorf("compile virtual model %q: %w", vm.ModelID, err)
+			return fmt.Errorf("compile assistant %q: %w", vm.ModelID, err)
 		}
 		next[vm.ModelID] = resolved
 		if bootstrap == "" {
@@ -151,7 +151,7 @@ func (reg *Registry) Reload(ctx context.Context, store *operatorstore.Store) err
 	return nil
 }
 
-func compileVirtualModel(vm operatorstore.VirtualModel) (*Resolved, error) {
+func compileAssistant(vm operatorstore.Assistant) (*Resolved, error) {
 	if len(vm.FallbackChain) == 0 {
 		return nil, ErrNoFallback
 	}
@@ -249,7 +249,7 @@ func (reg *Registry) ListCatalog(principalID string) []*Resolved {
 	return out
 }
 
-// PickInitialModel applies per-VM routing policy to select the first upstream model.
+// PickInitialModel applies per-assistant routing policy to select the first upstream model.
 func PickInitialModel(vm *Resolved, body map[string]json.RawMessage, log *slog.Logger) (model string, via routing.Via) {
 	return PickInitialModelWithAvailability(vm, body, log, nil)
 }

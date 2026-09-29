@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Harness module ids persisted per virtual model (v0.4 turn harness).
+// Harness module ids persisted per assistant (v0.4 turn harness).
 const (
 	HarnessModuleRetrieval    = "retrieval"
 	HarnessModuleIntent       = "intent"
@@ -26,14 +26,14 @@ var HarnessModuleIDs = []string{
 	HarnessModuleToolExecutor,
 }
 
-// HarnessModule is one toggleable harness module on a virtual model.
+// HarnessModule is one toggleable harness module on a assistant.
 type HarnessModule struct {
 	ModuleID   string
 	Enabled    bool
 	ConfigJSON string
 }
 
-// DefaultHarnessModules returns the default profile for a new virtual model.
+// DefaultHarnessModules returns the default profile for a new assistant.
 // retrievalEnabled should mirror gateway-global RAG (search.enabled) at create time.
 func DefaultHarnessModules(retrievalEnabled bool) []HarnessModule {
 	out := make([]HarnessModule, 0, len(HarnessModuleIDs))
@@ -58,10 +58,10 @@ func normalizeHarnessConfigJSON(raw string) string {
 	return raw
 }
 
-func (s *Store) loadVirtualModelHarness(ctx context.Context, vm *VirtualModel) error {
+func (s *Store) loadAssistantHarness(ctx context.Context, vm *Assistant) error {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT module_id, enabled, config_json
-FROM virtual_model_harness_modules WHERE virtual_model_id = ?
+FROM assistant_harness_modules WHERE assistant_id = ?
 ORDER BY module_id`, vm.ID)
 	if err != nil {
 		return err
@@ -84,7 +84,7 @@ ORDER BY module_id`, vm.ID)
 		return err
 	}
 	if len(byID) == 0 {
-		// CreateVirtualModel always seeds rows; empty means incomplete row — defaults with retrieval off.
+		// CreateAssistant always seeds rows; empty means incomplete row — defaults with retrieval off.
 		vm.HarnessModules = DefaultHarnessModules(false)
 		return nil
 	}
@@ -103,7 +103,7 @@ ORDER BY module_id`, vm.ID)
 func (s *Store) insertDefaultHarnessModulesTx(ctx context.Context, tx *sql.Tx, vmID int64, retrievalEnabled bool, now string) error {
 	for _, m := range DefaultHarnessModules(retrievalEnabled) {
 		if _, err := tx.ExecContext(ctx, `
-INSERT INTO virtual_model_harness_modules (virtual_model_id, module_id, enabled, config_json, updated_at)
+INSERT INTO assistant_harness_modules (assistant_id, module_id, enabled, config_json, updated_at)
 VALUES (?,?,?,?,?)`,
 			vmID, m.ModuleID, boolToInt(m.Enabled), normalizeHarnessConfigJSON(m.ConfigJSON), now); err != nil {
 			return err
@@ -112,17 +112,17 @@ VALUES (?,?,?,?,?)`,
 	return nil
 }
 
-// SetVirtualModelHarness replaces all known harness modules for a virtual model.
-func (s *Store) SetVirtualModelHarness(ctx context.Context, tenantID string, id int64, modules []HarnessModule) error {
+// SetAssistantHarness replaces all known harness modules for a assistant.
+func (s *Store) SetAssistantHarness(ctx context.Context, tenantID string, id int64, modules []HarnessModule) error {
 	if s == nil || s.db == nil {
 		return fmt.Errorf("operator store unavailable")
 	}
-	w, err := s.GetVirtualModelByID(ctx, tenantID, id)
+	w, err := s.GetAssistantByID(ctx, tenantID, id)
 	if err != nil {
 		return err
 	}
 	if w == nil {
-		return fmt.Errorf("virtual model not found")
+		return fmt.Errorf("assistant not found")
 	}
 	byID := make(map[string]HarnessModule, len(modules))
 	for _, m := range modules {
@@ -158,9 +158,9 @@ func (s *Store) SetVirtualModelHarness(ctx context.Context, tenantID string, id 
 			m = HarnessModule{ModuleID: moduleID, Enabled: false, ConfigJSON: "{}"}
 		}
 		if _, err := tx.ExecContext(ctx, `
-INSERT INTO virtual_model_harness_modules (virtual_model_id, module_id, enabled, config_json, updated_at)
+INSERT INTO assistant_harness_modules (assistant_id, module_id, enabled, config_json, updated_at)
 VALUES (?,?,?,?,?)
-ON CONFLICT(virtual_model_id, module_id) DO UPDATE SET
+ON CONFLICT(assistant_id, module_id) DO UPDATE SET
 	enabled = excluded.enabled,
 	config_json = excluded.config_json,
 	updated_at = excluded.updated_at`,
@@ -168,14 +168,14 @@ ON CONFLICT(virtual_model_id, module_id) DO UPDATE SET
 			return err
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE virtual_models SET updated_at = ? WHERE id = ?`, now, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE assistants SET updated_at = ? WHERE id = ?`, now, id); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
 // HarnessModuleEnabled reports whether moduleID is enabled on the model.
-func (vm *VirtualModel) HarnessModuleEnabled(moduleID string) bool {
+func (vm *Assistant) HarnessModuleEnabled(moduleID string) bool {
 	if vm == nil {
 		return false
 	}

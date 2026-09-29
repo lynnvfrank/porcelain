@@ -12,7 +12,7 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
 )
 
-// IntentConfig controls the per-VM intent classifier. LLM mode is deliberately
+// IntentConfig controls the per-assistant intent classifier. LLM mode is deliberately
 // fail-open: unsupported or failed assistance retains the deterministic result.
 type IntentConfig struct {
 	Mode    string `json:"mode"`

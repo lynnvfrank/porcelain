@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/assistant"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/chat"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/conversationhistory"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gatewaymetrics"
@@ -14,14 +15,13 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/transform"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/vectorstore"
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/virtualmodel"
 	"github.com/lynn/porcelain/chimera/internal/config"
 	"github.com/lynn/porcelain/chimera/internal/providerlimits"
 )
 
-// VMStack is the resolved virtual model routing configuration for one chat turn.
+// VMStack is the resolved assistant routing configuration for one chat turn.
 type VMStack struct {
-	VM           *virtualmodel.Resolved
+	VM           *assistant.Resolved
 	Fallback     []string
 	ToolEnabled  bool
 	RouterModels []string
@@ -29,7 +29,7 @@ type VMStack struct {
 }
 
 // TurnContext carries immutable request dependencies and mutable stage outputs for
-// one virtual-model chat turn.
+// one assistant chat turn.
 type TurnContext struct {
 	W        http.ResponseWriter
 	Resolved *config.Resolved
@@ -74,8 +74,8 @@ type TurnContext struct {
 	RetrievalTopKOverride int
 }
 
-// VirtualModelID returns the client-facing virtual model id when stack is loaded.
-func (tc *TurnContext) VirtualModelID() string {
+// AssistantID returns the client-facing assistant id when stack is loaded.
+func (tc *TurnContext) AssistantID() string {
 	if tc == nil || tc.Stack.VM == nil {
 		return ""
 	}

@@ -20,11 +20,11 @@ func openTestStore(t *testing.T) *Store {
 	return s
 }
 
-func TestVirtualModel_CRUDAndCascade(t *testing.T) {
+func TestAssistant_CRUDAndCascade(t *testing.T) {
 	s := openTestStore(t)
 	ctx := context.Background()
 
-	vm, err := s.CreateVirtualModel(ctx, CreateVirtualModelInput{
+	vm, err := s.CreateAssistant(ctx, CreateAssistantInput{
 		Name: "Test", Version: "1.0.0", Visibility: VisibilityPublic, Enabled: true,
 	})
 	if err != nil {
@@ -35,15 +35,15 @@ func TestVirtualModel_CRUDAndCascade(t *testing.T) {
 	}
 
 	chain := []string{"groq/a", "groq/b"}
-	if err := s.SetVirtualModelFallback(ctx, "", vm.ID, chain); err != nil {
+	if err := s.SetAssistantFallback(ctx, "", vm.ID, chain); err != nil {
 		t.Fatal(err)
 	}
 	pol := "ambiguous_default_model: groq/a\nrules: []\n"
-	if err := s.SetVirtualModelRoutingPolicy(ctx, "", vm.ID, true, pol); err != nil {
+	if err := s.SetAssistantRoutingPolicy(ctx, "", vm.ID, true, pol); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := s.GetVirtualModelByModelID(ctx, "Test-1.0.0")
+	got, err := s.GetAssistantByModelID(ctx, "Test-1.0.0")
 	if err != nil || got == nil {
 		t.Fatalf("get: err=%v got=%+v", err, got)
 	}
@@ -51,30 +51,30 @@ func TestVirtualModel_CRUDAndCascade(t *testing.T) {
 		t.Fatalf("routing=%+v", got)
 	}
 
-	dup, err := s.CreateVirtualModel(ctx, CreateVirtualModelInput{
+	dup, err := s.CreateAssistant(ctx, CreateAssistantInput{
 		ModelID: "Test-1.0.0", Name: "X", Version: "1.0.0",
 	})
 	if err == nil {
 		t.Fatalf("expected unique model_id violation, got %+v", dup)
 	}
 
-	if err := s.DeleteVirtualModel(ctx, "", vm.ID); err != nil {
+	if err := s.DeleteAssistant(ctx, "", vm.ID); err != nil {
 		t.Fatal(err)
 	}
-	after, err := s.GetVirtualModelByModelID(ctx, "Test-1.0.0")
+	after, err := s.GetAssistantByModelID(ctx, "Test-1.0.0")
 	if err != nil || after != nil {
 		t.Fatalf("after delete: %+v err=%v", after, err)
 	}
 }
 
-func TestBootstrapVirtualModels_seedsRuleCatalogOnly(t *testing.T) {
+func TestBootstrapAssistants_seedsRuleCatalogOnly(t *testing.T) {
 	s := openTestStore(t)
 	ctx := context.Background()
 	res := &config.Resolved{Semver: "0.2.0"}
-	if err := BootstrapVirtualModels(ctx, s, res, nil); err != nil {
+	if err := BootstrapAssistants(ctx, s, res, nil); err != nil {
 		t.Fatal(err)
 	}
-	vm, err := s.GetVirtualModelByModelID(ctx, "Chimera-0.2.0")
+	vm, err := s.GetAssistantByModelID(ctx, "Chimera-0.2.0")
 	if err != nil || vm != nil {
 		t.Fatalf("expected no bootstrap vm, got %+v err=%v", vm, err)
 	}
@@ -83,22 +83,22 @@ func TestBootstrapVirtualModels_seedsRuleCatalogOnly(t *testing.T) {
 		t.Fatalf("routing rule catalog: count=%d err=%v", len(rules), err)
 	}
 	// idempotent
-	if err := BootstrapVirtualModels(ctx, s, res, nil); err != nil {
+	if err := BootstrapAssistants(ctx, s, res, nil); err != nil {
 		t.Fatal(err)
 	}
-	all, err := s.ListVirtualModels(ctx, "", "")
+	all, err := s.ListAssistants(ctx, "", "")
 	if err != nil || len(all) != 0 {
-		t.Fatalf("virtual model count=%d err=%v", len(all), err)
+		t.Fatalf("assistant count=%d err=%v", len(all), err)
 	}
 }
 
-func TestEnsureGeminiVirtualModel(t *testing.T) {
+func TestEnsureGeminiAssistant(t *testing.T) {
 	s := openTestStore(t)
 	ctx := context.Background()
-	if err := EnsureGeminiVirtualModel(ctx, s, []string{"gemini/a", "gemini/b"}, nil); err != nil {
+	if err := EnsureGeminiAssistant(ctx, s, []string{"gemini/a", "gemini/b"}, nil); err != nil {
 		t.Fatal(err)
 	}
-	vm, err := s.GetVirtualModelByModelID(ctx, "Gemini-0.1.0")
+	vm, err := s.GetAssistantByModelID(ctx, "Gemini-0.1.0")
 	if err != nil || vm == nil {
 		t.Fatalf("gemini vm: %+v err=%v", vm, err)
 	}

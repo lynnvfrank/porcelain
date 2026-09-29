@@ -22,7 +22,7 @@ func (e *AbortError) Error() string {
 	return "harness: abort"
 }
 
-// Stage is one ordered step in the virtual-model turn harness.
+// Stage is one ordered step in the assistant turn harness.
 type Stage interface {
 	// Name is a stable stage id for logs (e.g. "tool_router").
 	Name() string

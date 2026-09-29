@@ -24,7 +24,7 @@ func (MetaPolicyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelo
 	if err != nil {
 		if tc.RouteLog != nil {
 			tc.RouteLog.Warn("workspace scope resolution failed; proceeding without workspace policy",
-				"err", err, "virtual_model_id", tc.VirtualModelID(), "turn_index", tc.TurnIndex,
+				"err", err, "assistant_id", tc.AssistantID(), "turn_index", tc.TurnIndex,
 				"timeline_kind", naming.TimelineKindBroker)
 		}
 		return nil
@@ -47,7 +47,7 @@ func (MetaPolicyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelo
 		tc.RouteLog.Info("multiple workspaces matched policy scope; selected lowest id",
 			"msg", naming.MsgHarnessScopeWorkspaceAmbiguous,
 			"matched_ids", matchedIDs, "chosen_id", workspace.ID,
-			"virtual_model_id", tc.VirtualModelID(), "turn_index", tc.TurnIndex,
+			"assistant_id", tc.AssistantID(), "turn_index", tc.TurnIndex,
 			"timeline_kind", naming.TimelineKindBroker)
 	}
 	if !workspace.AllowCloud {
@@ -72,7 +72,7 @@ func filterCloudFallback(tc *TurnContext) {
 	if len(filtered) == 0 {
 		if tc.RouteLog != nil {
 			tc.RouteLog.Warn("workspace cloud policy removed every fallback candidate; restoring chain fail-open",
-				"virtual_model_id", tc.VirtualModelID(), "turn_index", tc.TurnIndex,
+				"assistant_id", tc.AssistantID(), "turn_index", tc.TurnIndex,
 				"timeline_kind", naming.TimelineKindBroker)
 		}
 		return

@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-func TestVirtualModelHarness_DefaultsAndToggle(t *testing.T) {
+func TestAssistantHarness_DefaultsAndToggle(t *testing.T) {
 	s := openTestStore(t)
 	ctx := context.Background()
 
-	vm, err := s.CreateVirtualModel(ctx, CreateVirtualModelInput{
+	vm, err := s.CreateAssistant(ctx, CreateAssistantInput{
 		Name: "Harness", Version: "1.0", Enabled: true, DefaultRetrievalEnabled: true,
 	})
 	if err != nil {
@@ -28,10 +28,10 @@ func TestVirtualModelHarness_DefaultsAndToggle(t *testing.T) {
 			mods[i].Enabled = true
 		}
 	}
-	if err := s.SetVirtualModelHarness(ctx, "", vm.ID, mods); err != nil {
+	if err := s.SetAssistantHarness(ctx, "", vm.ID, mods); err != nil {
 		t.Fatal(err)
 	}
-	got, err := s.GetVirtualModelByID(ctx, "", vm.ID)
+	got, err := s.GetAssistantByID(ctx, "", vm.ID)
 	if err != nil || got == nil {
 		t.Fatalf("get: %v %+v", err, got)
 	}

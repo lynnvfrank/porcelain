@@ -13,7 +13,7 @@ import (
 )
 
 // ToolExecutorStage replaces client tool declarations with the fixed,
-// gateway-owned workspace tool contract for enabled virtual models.
+// gateway-owned workspace tool contract for enabled assistants.
 type ToolExecutorStage struct{}
 
 func (ToolExecutorStage) Name() string   { return "tool_executor" }
@@ -81,7 +81,7 @@ func runWorkspaceToolLoop(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 	}
 	for round := 0; round < toolRounds(tc); round++ {
 		buffer := httptest.NewRecorder()
-		chat.WithVirtualModelFallback(ctx, buffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
+		chat.WithAssistantFallback(ctx, buffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
 			tc.APIKey, false, body, tc.Timeout, tc.RouteLog, tc.Metrics, tc.LimitsGuard, &baseOpts)
 		raw := buffer.Body.Bytes()
 		calls, assistant := completionToolCalls(raw)
@@ -97,7 +97,7 @@ func runWorkspaceToolLoop(ctx context.Context, tc *TurnContext, env *TurnEnvelop
 	// The model repeatedly requested tools. A final completion gives it the
 	// bounded-loop result without executing another call.
 	buffer := httptest.NewRecorder()
-	chat.WithVirtualModelFallback(ctx, buffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
+	chat.WithAssistantFallback(ctx, buffer, tc.InitialModel, tc.Stack.Fallback, tc.Resolved.UpstreamBaseURL,
 		tc.APIKey, false, body, tc.Timeout, tc.RouteLog, tc.Metrics, tc.LimitsGuard, &baseOpts)
 	if opts.OnResponseCaptured != nil {
 		opts.OnResponseCaptured(buffer.Code, lastModel, false, buffer.Body.Bytes())

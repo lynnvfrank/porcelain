@@ -71,7 +71,12 @@ func ApplyMigrations(db *sql.DB, migrationsDir string, log *slog.Logger) error {
 		if err != nil {
 			return fmt.Errorf("begin operator migration %s: %w", name, err)
 		}
-		if _, err := tx.Exec(string(body)); err != nil {
+		if v == 11 {
+			if err := applyRenameVirtualModelsToAssistants(tx); err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("exec operator migration %s: %w", name, err)
+			}
+		} else if _, err := tx.Exec(string(body)); err != nil {
 			_ = tx.Rollback()
 			return fmt.Errorf("exec operator migration %s: %w", name, err)
 		}

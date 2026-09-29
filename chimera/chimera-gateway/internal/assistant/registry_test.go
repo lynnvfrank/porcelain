@@ -1,4 +1,4 @@
-package virtualmodel
+package assistant
 
 import (
 	"context"
@@ -19,7 +19,7 @@ func TestRegistry_ReloadAndResolve(t *testing.T) {
 	defer s.Close()
 	ctx := context.Background()
 	seed := operatorstore.ChimeraSeed("0.2.0", []string{"groq/a", "groq/b"}, "groq/a")
-	if _, err := s.InsertVirtualModelFull(ctx, seed); err != nil {
+	if _, err := s.InsertAssistantFull(ctx, seed); err != nil {
 		t.Fatal(err)
 	}
 	reg := NewRegistry()

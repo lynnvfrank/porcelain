@@ -17,7 +17,7 @@ import (
 	"github.com/lynn/porcelain/internal/naming"
 )
 
-func TestUIVirtualModelGenerate_filtersBySessionTenantAvailability(t *testing.T) {
+func TestUIAssistantGenerate_filtersBySessionTenantAvailability(t *testing.T) {
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 
 	broker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +67,7 @@ func TestUIVirtualModelGenerate_filtersBySessionTenantAvailability(t *testing.T)
 	t.Cleanup(front.Close)
 	client := vmTestLoginClient(t, front.URL, "gw-vm-gen")
 
-	genRes, err := client.Post(front.URL+"/api/ui/virtual-models/1/routing/generate", "application/json", strings.NewReader(`{"save":false}`))
+	genRes, err := client.Post(front.URL+"/api/ui/assistants/1/routing/generate", "application/json", strings.NewReader(`{"save":false}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestUIVirtualModelGenerate_filtersBySessionTenantAvailability(t *testing.T)
 	}
 }
 
-func TestUIVirtualModelGet_reportsFallbackUnavailable(t *testing.T) {
+func TestUIAssistantGet_reportsFallbackUnavailable(t *testing.T) {
 	t.Setenv(naming.EnvBrokerAPIKeyTarget, "ukey")
 
 	broker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -117,7 +117,7 @@ func TestUIVirtualModelGet_reportsFallbackUnavailable(t *testing.T) {
 	if st == nil {
 		t.Fatal("operator store required")
 	}
-	if err := st.SetVirtualModelFallback(context.Background(), "", 1, []string{"groq/free", "groq/paid"}); err != nil {
+	if err := st.SetAssistantFallback(context.Background(), "", 1, []string{"groq/free", "groq/paid"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.ReplaceProviderModelAvailability(context.Background(), "tenant-a", "groq", map[string]bool{
@@ -134,7 +134,7 @@ func TestUIVirtualModelGet_reportsFallbackUnavailable(t *testing.T) {
 	t.Cleanup(front.Close)
 	client := vmTestLoginClient(t, front.URL, "gw-vm-get")
 
-	getRes, err := client.Get(front.URL + "/api/ui/virtual-models/1")
+	getRes, err := client.Get(front.URL + "/api/ui/assistants/1")
 	if err != nil {
 		t.Fatal(err)
 	}

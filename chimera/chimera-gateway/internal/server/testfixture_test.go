@@ -42,7 +42,7 @@ func mustRuntimeLog(t *testing.T, gwPath string, log *slog.Logger) *Runtime {
 }
 
 // writeGateway writes a minimal chimera.yaml for tests. When qdrantURL is non-empty, search is enabled.
-// chain is ignored (virtual models are seeded via seedChimeraTestVM); kept for call-site compatibility.
+// chain is ignored (assistants are seeded via seedChimeraTestVM); kept for call-site compatibility.
 func writeGateway(t *testing.T, path, upstream string, chain []string, qdrantURL string) {
 	t.Helper()
 	_ = chain
@@ -92,10 +92,10 @@ func seedChimeraTestVMWithPolicy(t *testing.T, rt *Runtime, semver string, fallb
 	}
 	ctx := context.Background()
 	vm := operatorstore.ChimeraSeed(semver, fallbackChain, policyDefaultModel)
-	if _, err := st.InsertVirtualModelFull(ctx, vm); err != nil {
+	if _, err := st.InsertAssistantFull(ctx, vm); err != nil {
 		t.Fatal(err)
 	}
-	if err := rt.ReloadVirtualModels(ctx); err != nil {
+	if err := rt.ReloadAssistants(ctx); err != nil {
 		t.Fatal(err)
 	}
 }

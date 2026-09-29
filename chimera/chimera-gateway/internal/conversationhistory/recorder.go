@@ -42,7 +42,7 @@ func NewRecorder(store *operatorstore.Store, log *slog.Logger, ctx context.Conte
 	return &Recorder{store: store, log: log, ctx: ctx, turn: turn}
 }
 
-// SetRAGHits attaches retrieval hits for the current exchange (virtual-model path).
+// SetRAGHits attaches retrieval hits for the current exchange (assistant path).
 func (r *Recorder) SetRAGHits(hits []vectorstore.Hit) {
 	if r == nil {
 		return

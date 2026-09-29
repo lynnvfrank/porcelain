@@ -77,7 +77,7 @@
           }
         },
         gateway: {
-          virtual_models: [
+          assistants: [
             {
               id: 42,
               model_id: "Chimera-0.2.0",
@@ -170,7 +170,7 @@
         day_rollups: [{ provider: "groq", model_id: "groq/free", calls: 12, status: 200 }]
       },
       gatewayOverviewCache: {
-        virtual_model_id: "virtual/claude-opus-proxy",
+        assistant_id: "virtual/claude-opus-proxy",
         service_overview: {
           refreshed_at: new Date().toISOString(),
           services: {
@@ -182,8 +182,8 @@
       },
       tokenListCache: [{ tenant_id: "tenant-a", label: "Gallery", index: 0 }],
       tokenLabelByTenant: { "tenant-a": "Gallery" },
-      virtualModelDrafts: [],
-      virtualModelUi: {
+      assistantDrafts: [],
+      assistantUi: {
         "42": { panelOpen: true, hydrated: true, sectionOpen: { identity: true, fallback: true, harness: true } },
         "43": { panelOpen: true, hydrated: true, sectionOpen: { harness: true } }
         ,"44": { panelOpen: true, hydrated: true, sectionOpen: { harness: true } }
@@ -192,7 +192,7 @@
         ,"47": { panelOpen: true, hydrated: true, sectionOpen: { harness: true } }
         ,"48": { panelOpen: true, hydrated: true, sectionOpen: { harness: true } }
       },
-      virtualModelDetails: {
+      assistantDetails: {
         "42": {
           fallback_chain: ["groq/free"],
           fallback_unavailable: [],
@@ -388,21 +388,21 @@
     var vmList =
       ctx.adminStateCache &&
       ctx.adminStateCache.gateway &&
-      Array.isArray(ctx.adminStateCache.gateway.virtual_models)
-        ? ctx.adminStateCache.gateway.virtual_models
+      Array.isArray(ctx.adminStateCache.gateway.assistants)
+        ? ctx.adminStateCache.gateway.assistants
         : [];
-    if (vmList.length && typeof ctx.buildVirtualModelCardHtml === "function") {
-      setHtml("gallery-fixture-virtual-model", ctx.buildVirtualModelCardHtml(vmList[0]));
+    if (vmList.length && typeof ctx.buildAssistantCardHtml === "function") {
+      setHtml("gallery-fixture-assistant", ctx.buildAssistantCardHtml(vmList[0]));
       if (vmList[1]) {
-        setHtml("gallery-fixture-virtual-model-harness-on", ctx.buildVirtualModelCardHtml(vmList[1]));
+        setHtml("gallery-fixture-assistant-harness-on", ctx.buildAssistantCardHtml(vmList[1]));
       }
       if (vmList[2]) {
-        setHtml("gallery-fixture-virtual-model-intent-llm", ctx.buildVirtualModelCardHtml(vmList[2]));
+        setHtml("gallery-fixture-assistant-intent-llm", ctx.buildAssistantCardHtml(vmList[2]));
       }
-      if (vmList[3]) setHtml("gallery-fixture-virtual-model-evaluator-gated", ctx.buildVirtualModelCardHtml(vmList[3]));
-      if (vmList[4]) setHtml("gallery-fixture-virtual-model-evaluator-buffered", ctx.buildVirtualModelCardHtml(vmList[4]));
-      if (vmList[5]) setHtml("gallery-fixture-virtual-model-evaluator-multi-draft", ctx.buildVirtualModelCardHtml(vmList[5]));
-      if (vmList[6]) setHtml("gallery-fixture-virtual-model-human-escalation", ctx.buildVirtualModelCardHtml(vmList[6]));
+      if (vmList[3]) setHtml("gallery-fixture-assistant-evaluator-gated", ctx.buildAssistantCardHtml(vmList[3]));
+      if (vmList[4]) setHtml("gallery-fixture-assistant-evaluator-buffered", ctx.buildAssistantCardHtml(vmList[4]));
+      if (vmList[5]) setHtml("gallery-fixture-assistant-evaluator-multi-draft", ctx.buildAssistantCardHtml(vmList[5]));
+      if (vmList[6]) setHtml("gallery-fixture-assistant-human-escalation", ctx.buildAssistantCardHtml(vmList[6]));
     }
     if (ctx.lastIndexerOperatorWorkspacesNested && typeof ctx.buildIndexerOperatorWorkspaceCard === "function") {
       var workspaces = ctx.lastIndexerOperatorWorkspacesNested;
@@ -438,10 +438,10 @@
     if (typeof ctx.buildConvCard === "function") {
       var turnEvents = [
         { seq: 1, ts: "2026-07-25T14:00:00Z", parsed: { rawFlat: { msg: "conversation.received", turn_index: 3 } } },
-        { seq: 2, ts: "2026-07-25T14:00:01Z", parsed: { rawFlat: { msg: "harness.stage.started", turn_index: 3, virtual_model_id: "Research-1.0", stage: "retrieval" } } },
-        { seq: 3, ts: "2026-07-25T14:00:02Z", parsed: { rawFlat: { msg: "harness.stage.completed", turn_index: 3, virtual_model_id: "Research-1.0", stage: "retrieval" } } },
-        { seq: 4, ts: "2026-07-25T14:00:03Z", parsed: { rawFlat: { msg: "harness.stage.completed", turn_index: 3, virtual_model_id: "Research-1.0", stage: "primary" } } },
-        { seq: 5, ts: "2026-07-25T14:00:04Z", parsed: { rawFlat: { msg: "harness.stage.completed", turn_index: 3, virtual_model_id: "Research-1.0", stage: "evaluator" } } },
+        { seq: 2, ts: "2026-07-25T14:00:01Z", parsed: { rawFlat: { msg: "harness.stage.started", turn_index: 3, assistant_id: "Research-1.0", stage: "retrieval" } } },
+        { seq: 3, ts: "2026-07-25T14:00:02Z", parsed: { rawFlat: { msg: "harness.stage.completed", turn_index: 3, assistant_id: "Research-1.0", stage: "retrieval" } } },
+        { seq: 4, ts: "2026-07-25T14:00:03Z", parsed: { rawFlat: { msg: "harness.stage.completed", turn_index: 3, assistant_id: "Research-1.0", stage: "primary" } } },
+        { seq: 5, ts: "2026-07-25T14:00:04Z", parsed: { rawFlat: { msg: "harness.stage.completed", turn_index: 3, assistant_id: "Research-1.0", stage: "evaluator" } } },
         { seq: 6, ts: "2026-07-25T14:00:05Z", parsed: { rawFlat: { msg: "conversation.delivered", turn_index: 3 } } }
       ];
       setHtml("gallery-fixture-conversation-harness", ctx.buildConvCard({ pid: "tenant-a", cid: "gallery-harness-turn", events: turnEvents }));
