@@ -32,7 +32,7 @@ Operators create **assistants** in operator SQLite—each with a client-facing `
 **Invariants**
 
 - Assistants persist in **operator SQLite** (`assistants` and attachment tables); not in `chimera.yaml` for new config.
-- Client protocol unchanged: callers send one `model` string on chat/completions.
+- Client protocol unchanged: callers send one `model` string on chat/completions (wire details: [`configuration.md`](../configuration.md#chat-completions-client-contract)).
 - Each assistant compiles routing policy into `routing.InMemoryPolicy` at registry reload.
 - Fallback walk skips unavailable models (provider availability), quota/context limits, and retriable upstream errors.
 - Structured logs include `assistant_id` on routing resolution and fallback attempts (legacy log fields may still carry `virtual_model_id` during transition).
@@ -117,3 +117,4 @@ Manual: create two assistants with different fallback chains; chat with each; co
 - Harness umbrella: [`plans/assistant-turn-harness.md`](../plans/assistant-turn-harness.md)
 - Provider filtering: [Operator provider model availability](operator-provider-model-availability.md)
 - Settings surface: [Operator settings UI](operator-settings-ui.md)
+- Chat wire contract: [`configuration.md`](../configuration.md#chat-completions-client-contract)

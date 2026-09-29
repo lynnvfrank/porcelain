@@ -27,7 +27,7 @@ The `chimera` program (`go build -o chimera ./cmd/chimera`) reads:
 - **Broker endpoint (YAML `broker.*`):** `broker.base_url`, `broker.api_key_env`, `health.*`, `paths.*` — see tables below. Points at **chimera-broker** (or a standalone OpenAI-compatible proxy during local dev).
 - **`.env`:** At startup, the runtime loads an optional `.env` in the **process working directory** (via `github.com/joho/godotenv`). Missing file is normal when the environment is injected by your shell or service manager.
 
-`GET /health` returns JSON including `checks.vectorstore` when RAG is enabled and `checks.upstream` (broker/backend probe). `GET /v1/models` lists **enabled virtual models** from operator SQLite (when any exist) merged with the **chimera-broker** catalog. `POST /v1/chat/completions` validates the gateway Bearer token; when `body.model` matches a virtual model id the gateway applies that VM's routing stack (policy, fallback, tool router); otherwise it proxies directly to the upstream model id.
+`GET /health` returns JSON including `checks.vectorstore` when RAG is enabled and `checks.upstream` (broker/backend probe). `GET /v1/models` lists **enabled assistants** from operator SQLite (when any exist) merged with the **chimera-broker** catalog (API/SQLite may still label these rows *virtual models*). `POST /v1/chat/completions` validates the gateway Bearer token; when `body.model` matches an assistant id the gateway runs that assistant's harness and routing stack; otherwise it proxies directly to the upstream `provider/model` id. See [Chat completions client contract](#chat-completions-client-contract) below.
 
 To run **chimera-broker** and **chimera-vectorstore** as supervised wrappers, use `chimera serve` or make target `chimera-supervisor-run` — see [supervisor.md](supervisor.md). BiFrost/Qdrant remain the typical local backends behind those wrappers.
 
@@ -41,7 +41,7 @@ To run **chimera-broker** and **chimera-vectorstore** as supervised wrappers, us
 
 Provider keys (`GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, etc.) are **not** read by the gateway; **BiFrost** (`config/bifrost.config.json`) consumes them.
 
-**Model listing (BiFrost):** `GET /v1/models` on BiFrost alone may return entries like `groq/*`. The gateway first calls BiFrost’s `GET /api/models?unfiltered=true&limit=500`, maps each `{ provider, name }` to an OpenAI-style id `provider/name`, then merges enabled **virtual models** from operator SQLite. If that route is missing, the gateway uses `GET /v1/models` only. See `scripts/list-bifrost-models.sh`.
+**Model listing (BiFrost):** `GET /v1/models` on BiFrost alone may return entries like `groq/*`. The gateway first calls BiFrost’s `GET /api/models?unfiltered=true&limit=500`, maps each `{ provider, name }` to an OpenAI-style id `provider/name`, then merges enabled **assistants** from operator SQLite. If that route is missing, the gateway uses `GET /v1/models` only. See `scripts/list-bifrost-models.sh`.
 
 ## `config/gateway.yaml`
 
@@ -74,16 +74,86 @@ Provider keys (`GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, etc.) are **n
 
 Reload: change file and **save** (mtime update). On reload, if token paths change, those stores are re-opened.
 
-### Chat routing (virtual models)
+### Chat routing (assistants)
 
-Routing (fallback chains, policy rules, tool router, harness modules) is configured **per assistant** in operator SQLite via `/ui/settings` assistant cards — not in `gateway.yaml`. See [Operator assistants](features/operator-assistants.md) and [Gateway chat routing pipeline](features/gateway-chat-routing-pipeline.md).
+Fallback chains, policy rules, tool router, and harness modules are configured **per assistant** in operator SQLite via `/ui/settings` assistant cards — not in `gateway.yaml`. See [Operator assistants](features/operator-assistants.md) and [Gateway chat routing pipeline](features/gateway-chat-routing-pipeline.md).
 
-| Client `model` value | Gateway behavior |
-|----------------------|------------------|
-| Virtual model id (e.g. `MyModel-1.0.0`) | Apply that VM's routing stack; walk fallback on 429/selected 5xx |
-| Upstream id (e.g. `groq/llama-3.1-8b-instant`) | Direct proxy to chimera-broker; no fallback walk |
+| Client `body.model` value | Gateway behavior |
+|---------------------------|------------------|
+| Assistant id (explicit operator name, e.g. `Research-1.0`) | Resolve assistant registry → run harness stages (retrieval, tools, evaluator, escalation) inside one HTTP turn; walk fallback on 429/selected 5xx |
+| Upstream id (e.g. `groq/llama-3.1-8b-instant`) | Direct proxy to chimera-broker; **no** harness, fallback walk, or workspace tool injection |
 
-Fresh installs have **zero** virtual models until the operator creates them in settings.
+Fresh installs have **zero** assistants until the operator creates them in settings.
+
+### Chat completions client contract
+
+Integrators call `POST /v1/chat/completions` with the gateway Bearer token from `api-keys.yaml` (same as OpenAI-style clients). The gateway owns orchestration: the client sends **one user turn per HTTP request** and does **not** run tool loops, evaluator passes, or escalation hops — those run internally when `body.model` is an assistant id.
+
+**Related behavior (not duplicated here):** [Operator chat UI](features/operator-chat-ui.md), [Gateway chat routing pipeline](features/gateway-chat-routing-pipeline.md), [Gateway RAG ingest and retrieval](features/gateway-rag-ingest-and-retrieval.md), [Operator conversation history](features/operator-conversation-history.md), [Operator assistants](features/operator-assistants.md).
+
+#### Request body
+
+| Field | Contract |
+|-------|----------|
+| `model` | **Assistant path:** operator-named assistant id (must match an enabled row in the assistant registry). **Escape hatch:** `provider/model` broker catalog id → plain upstream relay, no harness. |
+| `messages` | Standard chat roles; gateway may prepend retrieval/system content on the assistant path. |
+| `stream` | Client preference for SSE streaming. On the assistant path, per-assistant evaluator **`stream_policy`** may override `true` (see [Streaming](#streaming) below). |
+| `tools` | **Assistant path:** when `tool_executor` is enabled, the gateway **injects** workspace tool declarations and **ignores** client `tools`. When the module is off, behavior follows the routing stack (tool router may slim client `tools` if configured). **Direct upstream path:** optional `tools` array is forwarded (tool router may slim it). Chimera `/ui/chat` does not send `tools`. |
+
+#### Request headers (chat)
+
+| Header | Purpose |
+|--------|---------|
+| `X-Chimera-Conversation-Id` | Stable thread id for history and logs. Omit to let the gateway generate one; response echoes the effective id. |
+| `X-Chimera-Project` | RAG collection scope (tenant + project + flavor). |
+| `X-Chimera-Flavor-Id` | RAG scope and **workspace policy** lookup (with project). |
+| `X-Chimera-Workspace-Id` | Operator SQLite **workspace row id** for conversation metadata and history snapshot — **not** the primary policy/RAG scope key (use project + flavor for that). Chimera chat sends the selected workspace row id. |
+| `X-Chimera-Tool-Router` | Set to `skip` to disable tool slimming for this request (direct upstream / integrators with large `tools` lists). |
+| `X-Chimera-Tool-Confidence-Threshold` | Optional per-request override (0–1) for tool-router confidence floor when slimming applies. |
+
+#### Response headers (chat)
+
+| Header | Purpose |
+|--------|---------|
+| `X-Chimera-Upstream-Model` | Broker-resolved `provider/model` that produced the assistant text (after fallback/evaluator/escalation on the assistant path). |
+| `X-Chimera-RAG-Hits` | Base64-encoded JSON array of retrieval snippets for the turn. Each hit includes at least `source`, `text`, and `score`; when manifest ingest applies, entries may also carry `start_line`, `end_line`, and related line-metadata fields (see [Gateway RAG ingest and retrieval](features/gateway-rag-ingest-and-retrieval.md)). |
+| `X-Chimera-Conversation-Id` | Effective conversation id for the turn (echo or assign). |
+| `X-Chimera-Harness-Summary` | Base64-encoded **redacted** harness `TurnEnvelope` JSON (`schema_version: 1`). Secrets and large payloads are stripped before encoding; use for integrator debugging, not as a full audit log. Persisted history stores a similar payload on each turn (`harness_summary_json`). |
+
+#### Streaming
+
+When the evaluator module is enabled, each assistant's `stream_policy` controls how `body.stream: true` is honored:
+
+| `stream_policy` | Behavior (summary) |
+|-----------------|-------------------|
+| `immediate` | Stream primary SSE as it arrives; evaluator runs after the primary completes; escalation cannot replace an answer already streamed to the client. |
+| `gate_on_evaluator` | Buffer primary output until the evaluator runs; on pass, deliver buffered content (stream or chunk); on fail, run escalation v1 before client delivery when recommended. |
+| `buffer_until_complete` | No client streaming while the evaluator is enabled; deliver after eval (and any remediation) completes — often as non-stream JSON or a single SSE chunk. |
+
+If policy conflicts with `body.stream: true`, the gateway applies the assistant policy and may log `harness.stream.policy_applied`. Details: [assistant harness evaluator plan](plans/assistant-harness-evaluator-escalation.md).
+
+#### Chimera `/ui/chat` vs integrators
+
+On a **live** turn, the embed client reads **`X-Chimera-Upstream-Model`**, **`X-Chimera-RAG-Hits`**, and **`X-Chimera-Conversation-Id`** from the HTTP response (including streaming responses) for footnotes and model labels. It does **not** parse **`X-Chimera-Harness-Summary`** on the live stream. **Turn details** (stage timeline) come from persisted **`harness_summary`** on history reload — see [Operator conversation history](features/operator-conversation-history.md).
+
+#### Example request
+
+```bash
+curl -sS -X POST 'http://127.0.0.1:7720/v1/chat/completions' \
+  -H 'Authorization: Bearer YOUR_API_SECRET' \
+  -H 'Content-Type: application/json' \
+  -H 'X-Chimera-Conversation-Id: 550e8400-e29b-41d4-a716-446655440000' \
+  -H 'X-Chimera-Project: demo' \
+  -H 'X-Chimera-Flavor-Id: default' \
+  -H 'X-Chimera-Workspace-Id: 1' \
+  -d '{
+    "model": "Research-1.0",
+    "messages": [{"role": "user", "content": "Summarize the indexed README."}],
+    "stream": false
+  }'
+```
+
+Replace host/port with `gateway.listen_host` / `gateway.listen_port`, use a real assistant id from `GET /v1/models`, and align project/flavor with an indexed workspace.
 
 ### Supervised file indexer (`indexer.supervised`)
 

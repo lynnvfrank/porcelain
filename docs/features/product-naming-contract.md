@@ -46,7 +46,7 @@ Operators see Chimera names in the UI, logs, CLI help, and packaging. Config pat
 
 **HTTP headers (`X-Chimera-*`)**
 
-Includes `X-Chimera-Project`, `X-Chimera-Flavor-Id`, `X-Chimera-RAG-Hits`, `X-Chimera-Conversation-Id`, `X-Chimera-Upstream-Model`, `X-Chimera-Workspace-Id`, and related chat/indexer correlation headers — see `internal/naming/contracts.go` for the full list.
+Includes `X-Chimera-Project`, `X-Chimera-Flavor-Id`, `X-Chimera-RAG-Hits`, `X-Chimera-Conversation-Id`, `X-Chimera-Upstream-Model`, `X-Chimera-Workspace-Id`, `X-Chimera-Harness-Summary`, `X-Chimera-Tool-Router`, `X-Chimera-Tool-Confidence-Threshold`, and related chat/indexer correlation headers — canonical list in `internal/naming/contracts.go`; operator chat wire guide in [`configuration.md`](../configuration.md#chat-completions-client-contract).
 
 **Config / data layout**
 

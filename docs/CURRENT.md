@@ -22,7 +22,7 @@ Short map for humans and agents: **what is authoritative now**, what is historic
 | [`version-v0.1.1.md`](version-v0.1.1.md) | Shipped train | `shipped` |
 | [`version-v0.2.md`](version-v0.2.md) | Shipped train | `shipped` |
 | [`version-v0.3.md`](version-v0.3.md) | Shipped train (setup wizard themes may continue in settings) | `shipped` |
-| [`version-v0.4.md`](version-v0.4.md) | Harness + workspace policy train | `active` / mostly `done` |
+| [`version-v0.4.md`](version-v0.4.md) | Harness + workspace policy train | `active` — execution themes `done`; roadmap status `draft` until release sign-off |
 | [`version-v0.5.md`](version-v0.5.md) | Desired-state gateway, search, settings cleanup | `draft` |
 
 Version docs are **release-train roadmaps**, not the day-to-day work queue. Prefer an **Active**, **Version 0.5**, or **Draft** plan (or a feature record for follow-up) when starting implementation. Execution plans linked from a version doc may remain in `docs/plans/` even when phases are `done`.

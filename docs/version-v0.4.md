@@ -18,7 +18,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 | Focus | Outcome | Status |
 |-------|---------|--------|
 | [Turn harness (execution plan)](#turn-harness-execution-plan) | Composable per-assistant stages, turn envelope, module toggles, observability | `done` |
-| [Client contract](#client-contract) | One `model` string per turn; gateway owns orchestration; no Continue dependency | `partial` |
+| [Client contract](#client-contract) | One `model` string per turn; gateway owns orchestration; no Continue dependency | `done` |
 | [Per-assistant retrieval](#per-assistant-retrieval) | VM-scoped top_k, thresholds, skip rules on project/flavor/conversation scope | `done` |
 | [Workspace policy](#workspace-policy) | Sensitivity, cloud rules, file action policy on workspace rows | `done` |
 | [Gateway workspace tools](#gateway-workspace-tools) | Read/write files under workspace roots inside one chat turn | `done` |
@@ -91,10 +91,10 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 
 **Scope**
 
-* **Assistant id** — Primary path: `body.model` resolves through VM registry to an **explicit** operator-named id (e.g. `Research-1.0`). No reserved aliases.
+* **Assistant id** — Primary path: `body.model` resolves through the assistant registry to an **explicit** operator-named id (e.g. `Research-1.0`). No reserved aliases.
 * **Direct upstream** — `provider/model` ids still proxy without harness (escape hatch).
 * **Single request** — Client does not run tool loops or multi-hop agent logic; workspace scope via `X-Chimera-Project` + `X-Chimera-Flavor-Id` (gateway derives workspace policy from DB lookup). `X-Chimera-Workspace-Id` is conversation-history metadata only.
-* **Response metadata** — `X-Chimera-Resolved-Model`, `X-Chimera-RAG-Hits`, optional `X-Chimera-Harness-Summary` (redacted envelope).
+* **Response metadata** — `X-Chimera-Upstream-Model`, `X-Chimera-RAG-Hits`, optional `X-Chimera-Harness-Summary` (redacted envelope).
 * **Streaming** — Flexible per VM: evaluator `stream_policy` (`immediate`, `gate_on_evaluator`, `buffer_until_complete`) may defer client streaming until internal stages complete. See [evaluator plan](plans/assistant-harness-evaluator-escalation.md).
 
 **Acceptance**
@@ -102,7 +102,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 * Chimera `/ui/chat` completes turns without external agent tooling.
 * Documented contract in [`configuration.md`](configuration.md): model string, headers, harness summary header.
 
-**Status:** `partial` — runtime headers and VM id resolution ship; full operator contract prose in [`configuration.md`](configuration.md) remains thin.
+**Status:** `done` — wire contract documented in [`configuration.md`](configuration.md) (model string, scope headers, response metadata, streaming policy, Chimera chat behavior).
 
 ---
 

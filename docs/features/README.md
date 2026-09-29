@@ -17,7 +17,7 @@ Durable contracts for new binaries, wrappers, and cross-cutting integration — 
 | [Operator UI session auth](operator-ui-session-auth.md) | UI session cookie, `principal_id`, `/api/ui/*` gate | Admin UI session store | `current` |
 | [Operator SQLite store](operator-sqlite-store.md) | `operator.sqlite`, migrations, shared persistence for UI features | `internal/operatorstore` | `current` |
 | [Operator UI filesystem dev mode](operator-ui-filesystem-dev-mode.md) | `CHIMERA_ADMINUI_ROOT` serves embed UI from disk on loopback | Gateway embed assets | `current` |
-| [Gateway chat routing pipeline](gateway-chat-routing-pipeline.md) | Tool router, RAG inject, policy pick, fallback loop; extensibility target for routers | Gateway chat path | `current` |
+| [Gateway chat routing pipeline](gateway-chat-routing-pipeline.md) | Turn harness stages, tool router, per-assistant retrieval, policy pick, fallback loop | Gateway chat path | `current` |
 
 ## Operator features
 

@@ -131,7 +131,7 @@ Engineering task breakdown: [plans/README.md](plans/README.md).
 2. Network architecture ([network.md](network.md)).
 3. Installation, setup, startup ([installation.md](installation.md)).
 4. Operations commands (`make`, logs, rebuild).
-5. Configuration reference ([configuration.md](configuration.md)).
+5. Configuration reference ([configuration.md](configuration.md)), including the [chat completions client contract](configuration.md#chat-completions-client-contract).
 6. Structured logging expectations.
 7. VS Code Continue samples (`vscode-continue/`).
 
