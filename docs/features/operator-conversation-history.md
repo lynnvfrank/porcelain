@@ -6,7 +6,7 @@
 | **Areas** | Gateway operator SQLite, chat persistence, gateway embed UI, admin UI session |
 | **Status** | `current` |
 | **Introduced** | Gateway operator shell v0.2 train |
-| **Originated from** | [`plans/operator-conversation-history.md`](../plans/operator-conversation-history.md) |
+| **Originated from** | [`plans/operator-conversation-history.md`](../plans/archive/operator-conversation-history.md) |
 | **Related features** | [Operator chat UI](operator-chat-ui.md), [Operator left navigation ribbon](operator-left-navigation-ribbon.md), [Operator UI session auth](operator-ui-session-auth.md), [Operator SQLite store](operator-sqlite-store.md) |
 | **Depends on** | [Operator UI session auth](operator-ui-session-auth.md), operator SQLite, live chat renderer |
 | **Last updated** | See git history |
@@ -57,8 +57,8 @@ Operators can return to past gateway chats days later. Each saved thread include
 
 **Persistence**
 
-- Tables: `conversations`, `conversation_turns`, `conversation_retrievals` (migrations `000004`, `000007_manifest_retrieval_lines`, `000008_harness_turn_summary`).
-- Per turn: user/assistant/error content, selected and resolved model ids, token counts, optional redacted `harness_summary_json` on assistant/error rows (virtual-model harness), RAG hit snippets with `vector_point_id`, optional `content_sha256`, and line range (`start_line`, `end_line`, `starts_mid_line`). Reopened history exposes that summary to the shared assistant-message renderer; it does not reconstruct a turn from raw logs.
+- Tables: `conversations`, `conversation_turns`, `conversation_retrievals` (migrations `000004` + `000007_manifest_retrieval_lines`).
+- Per turn: user/assistant/error content, selected and resolved model ids, token counts, RAG hit snippets with `vector_point_id`, optional `content_sha256`, and line range (`start_line`, `end_line`, `starts_mid_line`).
 - Live chat `X-Chimera-Conversation-Id` aligns with `conversations.conversation_id`.
 
 ## Interfaces
@@ -66,12 +66,11 @@ Operators can return to past gateway chats days later. Each saved thread include
 | Surface | Detail |
 |---------|--------|
 | `GET /api/ui/conversations` | List: `limit`, `offset`, optional `flagged=1`. Returns id, title, preview, flag, workspace fields, timestamps. |
-| `GET /api/ui/conversations/{id}` | Full transcript for session principal; assistant/error turns may include `harness_summary` (redacted JSON). |
+| `GET /api/ui/conversations/{id}` | Full transcript for session principal. |
 | `PATCH /api/ui/conversations/{id}` | Body `{ "title": "…" }` — trim, max length; empty rejected. |
 | `POST /api/ui/conversations/{id}/flag` | Body `{ "flagged": true\|false }`. |
 | `DELETE /api/ui/conversations/{id}` | 204; 404 when wrong principal. |
 | Header | `X-Chimera-Conversation-Id` — client-held id; cleared on new chat. |
-| Header | `X-Chimera-Harness-Summary` — base64 redacted harness envelope JSON on virtual-model chat turns (pre-proxy snapshot; resolved model in persisted summary). |
 | Chat hook | Persistence runs once per completed client delivery (stream end, non-stream body, dedup short-circuit, or error response). |
 
 All conversation routes require authenticated UI session JSON handlers (`RequireAuthJSON`).
@@ -80,13 +79,13 @@ All conversation routes require authenticated UI session JSON handlers (`Require
 
 | Concern | Location |
 |---------|----------|
-| History panel UI / harness details | `chimera/chimera-gateway/internal/server/adminui/embed/embedui/chat/historyPanel.js`, `historyClient.js`, `render/messages.js`, `styles/chat.css` |
+| History panel UI | `chimera/chimera-gateway/internal/server/adminui/embed/embedui/chat/historyPanel.js`, `historyClient.js`, `styles/chat.css` |
 | Chat shell | `embed/embedui/chat.html`, `chat/app.js`, `chat/state.js` |
 | History API | `internal/server/adminui/api/conversations/` |
 | Session / principal | `internal/server/adminui/session/session.go`, `handler/handler.go` |
 | Store | `internal/operatorstore/conversations.go`, `store.go` |
 | Title helper | `conversationtitle.FromFirstUserMessage` |
-| Chat persistence hooks | `internal/server/server.go`, `virtualmodel_chat.go`, `internal/harness/`, `internal/conversationhistory/` |
+| Chat persistence hooks | `internal/server/server.go`, `virtualmodel_chat.go` |
 | RAG metadata | `internal/rag/response_meta.go` |
 | Migration | `migrations/chimera-gateway/operator/000003_conversation_history.sql` |
 | Tests | `embed/embedui_test/chat_history_test.go`, operatorstore unit tests |
@@ -109,6 +108,6 @@ Manual: sign in at `/ui`, send chat messages, open history panel, flag/rename/de
 
 ## References
 
-- Delivery plan: [`plans/operator-conversation-history.md`](../plans/operator-conversation-history.md)
-- Shipped chat UI plan: [`plans/operator-chat-ui.md`](../plans/operator-chat-ui.md)
+- Delivery plan: [`plans/operator-conversation-history.md`](../plans/archive/operator-conversation-history.md)
+- Shipped chat UI plan: [`plans/operator-chat-ui.md`](../plans/archive/operator-chat-ui.md)
 - Operator configuration: [`configuration.md`](../configuration.md)

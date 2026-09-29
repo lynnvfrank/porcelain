@@ -30,7 +30,7 @@ make contracts-check
 ```
 
 5. Emit in Go with generated constants from `internal/naming/log_messages.go` (`naming.Msg…`), never a raw new string in hot paths.
-6. Include useful KV: `virtual_model_id`, `turn_index`, `stage`, `module`, `timeline_kind` as appropriate (match existing harness stage logs).
+6. Include useful KV: `assistant_id`, `turn_index`, `stage`, `module`, `timeline_kind` as appropriate (match existing harness stage logs).
 
 ## Harness conventions
 

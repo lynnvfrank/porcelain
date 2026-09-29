@@ -1,21 +1,21 @@
 ---
 name: harness-plan-delivery
 description: >-
-  Closes out a virtual-model harness child plan: acceptance, gallery, feature
+  Closes out a assistant harness child plan: acceptance, gallery, feature
   records, hard-cut check, design validation, and make precommit. Use when
-  marking a virtual-model-harness-* plan done, shipping a harness phase train,
+  marking a assistant-harness-* plan done, shipping a harness phase train,
   or the user asks for plan delivery / precommit delivery gates.
 ---
 
 # Harness plan delivery
 
-Orchestrates **plan delivery** for `docs/plans/virtual-model-harness-*.md`
+Orchestrates **plan delivery** for `docs/plans/assistant-harness-*.md`
 (and the umbrella when wrapping up a slice). Mid-phase check-ins may skip this;
 **marking a child plan `done` requires it**.
 
 ## Normative gates
 
-From [`docs/plans/virtual-model-turn-harness.md`](../../docs/plans/virtual-model-turn-harness.md) § Delivery gates:
+From [`docs/plans/assistant-turn-harness.md`](../../docs/plans/assistant-turn-harness.md) § Delivery gates:
 
 1. `make precommit` must pass
 2. Debt owned by this plan cleared or reassigned with **Fix by** in `docs/plans/backlog/harness-ui-design-debt.md`
@@ -46,7 +46,7 @@ Delivery — {plan file}
 
 **Gallery** — Inventory in umbrella § Gallery; fixtures use production builders.
 
-**Feature records** — Typical touches: `operator-virtual-models.md`, `gateway-chat-routing-pipeline.md`, and plan-specific features (RAG, workspaces, chat UI, conversation history). Create new feature record only if behavior is a distinct operator-visible surface.
+**Feature records** — Typical touches: `operator-assistants.md`, `gateway-chat-routing-pipeline.md`, and plan-specific features (RAG, workspaces, chat UI, conversation history). Create new feature record only if behavior is a distinct operator-visible surface.
 
 **Plan front-matter** — Set **Status** `done` (or `shipped` if used); fill **As-built** link(s).
 

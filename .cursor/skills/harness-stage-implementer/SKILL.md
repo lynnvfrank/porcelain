@@ -1,7 +1,7 @@
 ---
 name: harness-stage-implementer
 description: >-
-  Implements or extends chimera-gateway virtual-model turn harness stages in
+  Implements or extends chimera-gateway assistant turn harness stages in
   internal/harness. Use when adding retrieval, intent, meta-policy, evaluator,
   escalation, tool executor, or other harness stages; when wiring VM module
   toggles into stages; or when editing TurnEnvelope / DefaultStages.
@@ -10,11 +10,11 @@ description: >-
 # Harness stage implementer
 
 Patterns for `chimera/chimera-gateway/internal/harness/` stages used by the
-v0.4 virtual-model turn harness.
+v0.4 assistant turn harness.
 
 ## Before coding
 
-1. Read the child plan + [umbrella](../../docs/plans/virtual-model-turn-harness.md) module table.
+1. Read the child plan + [umbrella](../../docs/plans/assistant-turn-harness.md) module table.
 2. Read [gateway-chat-routing-pipeline.md](../../docs/features/gateway-chat-routing-pipeline.md) for stage order invariants.
 3. Verify current registry/stages in code (draft plans may lag).
 
@@ -42,7 +42,7 @@ type Stage interface {
 - [ ] Mutate `TurnEnvelope` fields for the module; keep redaction rules (`redact.go`)
 - [ ] Prefer existing `harness.stage.started` / `.completed` from the runner — add **extra** slugs only for meaningful events (`harness.escalation.*`, compress fallback, etc.)
 - [ ] New slugs → [operator-log-slug-registry](../operator-log-slug-registry/SKILL.md)
-- [ ] Config on VM → `operatorstore` harness module `config_json` + compile into `virtualmodel.Resolved` / `VMStack` as needed
+- [ ] Config on VM → `operatorstore` harness module `config_json` + compile into `assistant.Resolved` / `VMStack` as needed
 - [ ] Tests in `harness/*_test.go` (parity / skip / fail-open)
 - [ ] Hard cut — no legacy parallel path beside the new stage
 
@@ -63,7 +63,7 @@ Normative sketch in the umbrella plan. Lock field names when touching `envelope.
 
 ## Anti-patterns
 
-- Orchestrating multi-stage loops inside `virtualmodel_chat.go` instead of registered stages
+- Orchestrating multi-stage loops inside `assistant_chat.go` instead of registered stages
 - Streaming policy forks scattered outside evaluator plan decisions
 - Enabling `tool_executor` behavior before workspace-tools plan ships
 - Silent skip without a debug log reason when a module is off
@@ -71,5 +71,5 @@ Normative sketch in the umbrella plan. Lock field names when touching `envelope.
 ## References
 
 - Code: `internal/harness/{stage,runner,stages,context,envelope,redact}.go`
-- Store modules: `internal/operatorstore/virtual_model_harness.go`
-- Runtime compile: `internal/virtualmodel/registry.go`
+- Store modules: `internal/operatorstore/assistant_harness.go`
+- Runtime compile: `internal/assistant/registry.go`

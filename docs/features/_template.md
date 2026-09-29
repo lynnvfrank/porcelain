@@ -6,7 +6,7 @@
 | **Areas** | Gateway embed UI, operator SQLite, … |
 | **Status** | `current` |
 | **Introduced** | e.g. gateway v0.2, PR #… |
-| **Originated from** | [`plans/example-plan.md`](../plans/example-plan.md) |
+| **Originated from** | [`plans/…`](../plans/README.md) (open) or [`plans/archive/…`](../plans/archive/README.md) |
 | **Related features** | None |
 | **Depends on** | Session auth, operator SQLite, … |
 | **Last updated** | See git history |
@@ -50,7 +50,7 @@ Only surfaces adjacent features or agents need when modifying this area:
 |---------|--------|
 | HTTP routes | `GET /api/ui/…` — purpose |
 | Headers | `X-Chimera-…` — meaning |
-| Config | `chimera.yaml` keys |
+| Config | `gateway.yaml` keys |
 | Events / SSE | … |
 
 ## Code map
@@ -78,7 +78,7 @@ How to confirm behavior without re-reading the full implementation:
 
 ## References
 
-- Delivery plan (historical): [`plans/example-plan.md`](../plans/example-plan.md)
+- Delivery plan (historical): [`plans/archive/…`](../plans/archive/README.md)
 - Operator docs (run/configure): [`configuration.md`](../configuration.md)
 - PRs / commits: …
 

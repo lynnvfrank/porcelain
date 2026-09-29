@@ -33,7 +33,7 @@ Architectures: **linux/darwin** **amd64** and **arm64**; **windows amd64** only 
 
 ## Prerequisites on the target machine
 
-- **Config:** `config/chimera.yaml`, `config/chimera-broker.config.json`, `provider-free-tier.yaml` (archives ship examples as starting points). Routing policy lives on virtual models in operator SQLite, not a global YAML file. `config/api-keys.yaml` from setup or copy of `api-keys.example.yaml`. See [configuration.md](configuration.md).
+- **Config:** `config/gateway.yaml`, `config/chimera-broker.config.json`, `provider-free-tier.yaml` (archives ship examples as starting points). Routing policy lives on virtual models in operator SQLite, not a global YAML file. `config/api-keys.yaml` from setup or copy of `api-keys.example.yaml`. See [configuration.md](configuration.md).
 - **Environment:** provider keys in `.env` (copy from `env.example`).
 - **BiFrost:** install `bifrost-http` separately, or use `make release-package` for a local bundle that includes it.
 
@@ -82,7 +82,7 @@ Qdrant is **Apache-2.0**. Archives redistribute the official prebuilt binary fro
 
 ## Desktop UI (WebView)
 
-Native panel UI: `make locus-desktop-build` → `locus-desktop`. GoReleaser archives use **CGO_ENABLED=0** (no WebView). Use `make release-package` for a double-clickable desktop stack. See [gui-testing.md](gui-testing.md).
+Native panel UI: `make locus-desktop-build` → `locus-desktop`. GoReleaser archives use **CGO_ENABLED=0** (no WebView). Use `make release-package` for a double-clickable desktop stack. See [installation.md](installation.md) and [supervisor.md](supervisor.md).
 
 ## Follow-ups
 

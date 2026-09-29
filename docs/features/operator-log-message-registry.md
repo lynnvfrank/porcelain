@@ -6,7 +6,7 @@
 | **Areas** | Gateway logs UI, structured log emission, indexer/broker/vectorstore copy |
 | **Status** | `current` |
 | **Introduced** | 2026-05 operator copy refactor |
-| **Originated from** | [`plans/operator-message-registry.md`](../plans/operator-message-registry.md) |
+| **Originated from** | [`plans/operator-message-registry.md`](../plans/archive/operator-message-registry.md) |
 | **Related features** | [Operator settings UI](operator-settings-ui.md), [Indexer health and operator logs](indexer-health-and-operator-logs.md) |
 | **Depends on** | `messages.yaml`, go generate pipeline, settings embed renderers |
 | **Last updated** | See git history |
@@ -20,7 +20,7 @@ Structured log lines use stable **`msg` slugs** in Go (`slog` fields). The **ope
 - **Summary column** — Event log and summarized cards show plain-language lines derived from registry `summary` / `formatter` / `append` rules.
 - **Gallery previews** — Every slug requires `gallery_preview` for `/ui/settings/gallery` documentation rows.
 - **Service-specific tone** — Gateway, conversation, broker, vectorstore, and indexer slugs share one registry; indexer-heavy lines use `operatorMessageIndexer.js` formatters where needed.
-- **Shape-driven UI** — Tags like `http.access`, `chat.routing`, `rag`, `ingest` drive `inferShape` and card metric rollups. The canonical `harness.stage.*` and `harness.escalation.*` entries provide the settings conversation timeline and virtual-model scoped logs with stable operator copy.
+- **Shape-driven UI** — Tags like `http.access`, `chat.routing`, `rag`, `ingest` drive `inferShape` and card metric rollups.
 
 ## System behavior and contracts
 
@@ -86,6 +86,6 @@ Manual: edit a slug `summary` in YAML, regenerate, rebuild gateway, confirm sett
 
 ## References
 
-- Plan: [`plans/operator-message-registry.md`](../plans/operator-message-registry.md)
-- Presentation shapes: [`plans/log-presentation-layer.md`](../plans/log-presentation-layer.md)
+- Plan: [`plans/operator-message-registry.md`](../plans/archive/operator-message-registry.md)
+- Presentation shapes: [`plans/log-presentation-layer.md`](../plans/archive/log-presentation-layer.md)
 - Package README: [`internal/operatorcopy/README.md`](../../internal/operatorcopy/README.md)

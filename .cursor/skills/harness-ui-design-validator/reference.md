@@ -5,30 +5,30 @@
 | Surface | Path |
 |---------|------|
 | Settings gallery | `chimera/.../embedui/settings/gallery.html` + `embedui/gallery/*` |
-| VM cards | `embedui/settings/render/cards/adminVirtualModels.js` |
-| VM actions | `embedui/settings/handlers/virtualModelsAdmin.js` |
+| VM cards | `embedui/settings/render/cards/adminAssistants.js` |
+| VM actions | `embedui/settings/handlers/assistantsAdmin.js` |
 | Part registry | `embedui/settings/card-parts-registry.md` |
 | Tokens / CSS | `embedui/theme-tokens.css`, `embedui/settings.css` |
-| Gallery contract | `docs/plans/virtual-model-turn-harness.md` § Gallery |
+| Gallery contract | `docs/plans/assistant-turn-harness.md` § Gallery |
 
 ## Patterns to copy
 
 ### Section shell
 ```html
-<details class="sum-vm-section" data-vm-section="harness" data-ui-part="virtual-model.harness">
-  <summary class="sum-vm-section__hdr">…</summary>
-  <div class="sum-vm-section__body">…</div>
+<details class="sum-asst-section" data-vm-section="harness" data-ui-part="assistant.harness">
+  <summary class="sum-asst-section__hdr">…</summary>
+  <div class="sum-asst-section__body">…</div>
 </details>
 ```
 
 ### Header toggles
-Use `vmSectionHdrToggleHtml` / `sum-router-toggle` + `sum-vm-hdr-toggle-label` / `sum-vm-hdr-toggle-state muted` — same as routing policy and tool router.
+Use `vmSectionHdrToggleHtml` / `sum-router-toggle` + `sum-asst-hdr-toggle-label` / `sum-asst-hdr-toggle-state muted` — same as routing policy and tool router.
 
 ### Toolbar
-`sum-vm-section__toolbar` with leading + actions; configure/save/cancel via shared edit toolbar icons when editing dense config.
+`sum-asst-section__toolbar` with leading + actions; configure/save/cancel via shared edit toolbar icons when editing dense config.
 
 ### Gallery
-- Mount via `gallery-card-fixtures.js` using production `buildVirtualModelCardHtml`
+- Mount via `gallery-card-fixtures.js` using production `buildAssistantCardHtml`
 - Multiple states = multiple fixture VMs or sequential mounts with labels
 - Caption part slugs under the demo (`styleguide-part-slugs`)
 
@@ -43,7 +43,7 @@ Use `vmSectionHdrToggleHtml` / `sum-router-toggle` + `sum-vm-hdr-toggle-label` /
 
 ## Related shipped UI to compare
 
-Open `/ui/settings/gallery` § Virtual models and Workspaces before judging new harness sections.
+Open `/ui/settings/gallery` § Assistants and Workspaces before judging new harness sections.
 
 ## Plan delivery
 

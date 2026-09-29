@@ -1,6 +1,6 @@
 # Feature records — as-built system behavior
 
-**Plans** ([`docs/plans/`](../plans/)) describe what to build and track delivery phases. **Feature records** in this directory describe **what shipped**: behavior, invariants, interfaces, and code entry points. Use them when starting a chat that touches an existing capability, or after implementation to capture decisions from plan + follow-up refinement.
+**Plans** ([`docs/plans/`](../plans/README.md)) describe open work (`draft` / `active`). Completed plans live in [`plans/archive/`](../plans/archive/README.md). **Feature records** in this directory describe **what shipped**: behavior, invariants, interfaces, and code entry points. Authority map: [`CURRENT.md`](../CURRENT.md). Use feature records when starting a chat that touches an existing capability, or after implementation to capture decisions from plan + follow-up refinement.
 
 **New record:** copy [`_template.md`](_template.md) into this folder, rename, fill in, delete the authoring notes, and add a row to the appropriate index below.
 
@@ -11,14 +11,13 @@ Durable contracts for new binaries, wrappers, and cross-cutting integration — 
 | Feature | Summary | Areas | Status |
 |---------|---------|-------|--------|
 | [Chimera wrapper binary contract](chimera-wrapper-binary-contract.md) | Shared `/healthz`, `/readyz`, lifecycle, exit codes, metrics for `chimera-*` wrappers | `internal/wrapper`, broker, vectorstore, gateway, indexer | `current` |
-| [Chimera stack config](chimera-stack-config.md) | `chimera.yaml` suite vs launch, emit vs collector logs, search platform, indexer materialize | config, supervisor, naming | `current` |
 | [Structured operator log lines](structured-operator-log-lines.md) | JSON line schema, `*line` normalizers, lossless supervisor reorder | `wrapper/line`, servicelogs, settings UI | `current` |
 | [Product naming contract](product-naming-contract.md) | Binary basenames, `CHIMERA__*` / `BROKER__*` env, `X-Chimera-*` headers | `internal/naming`, scripts | `current` |
 | [Locus desktop ↔ supervisor](locus-desktop-supervisor.md) | Connect-first launch, readiness handshake, shutdown ownership | `locus-desktop`, `chimera-supervisor` | `partial` |
 | [Operator UI session auth](operator-ui-session-auth.md) | UI session cookie, `principal_id`, `/api/ui/*` gate | Admin UI session store | `current` |
 | [Operator SQLite store](operator-sqlite-store.md) | `operator.sqlite`, migrations, shared persistence for UI features | `internal/operatorstore` | `current` |
 | [Operator UI filesystem dev mode](operator-ui-filesystem-dev-mode.md) | `CHIMERA_ADMINUI_ROOT` serves embed UI from disk on loopback | Gateway embed assets | `current` |
-| [Gateway chat routing pipeline](gateway-chat-routing-pipeline.md) | Virtual-model turn harness stages (meta-policy, intent, retrieval, tools, evaluator, escalation); extensibility target for routers | Gateway chat path | `current` |
+| [Gateway chat routing pipeline](gateway-chat-routing-pipeline.md) | Tool router, RAG inject, policy pick, fallback loop; extensibility target for routers | Gateway chat path | `current` |
 
 ## Operator features
 
@@ -36,7 +35,9 @@ Durable contracts for new binaries, wrappers, and cross-cutting integration — 
 | [Operator conversation history](operator-conversation-history.md) | Durable chat threads in operator SQLite; history panel with title, flag, delete | Gateway embed UI, operator SQLite, session | `current` |
 | [Operator settings UI](operator-settings-ui.md) | `/ui/settings` cards + event log; unified admin/observability surface | Gateway embed UI, servicelogs | `current` |
 | [Operator embed UI mobile layout](operator-embed-ui-mobile-layout.md) | Phone-width settings cards, scoped event log, VM toggles; site-wide mobile baseline; gallery fixtures | Gateway embed UI | `active` |
-| [Operator virtual models](operator-virtual-models.md) | Per-VM routing stacks and harness module toggles in SQLite; catalog + chat resolution | Gateway runtime, operator SQLite, settings UI | `current` |
+| [Operator assistants](operator-assistants.md) | Per-assistant routing stacks and harness modules in SQLite; catalog + chat resolution | Gateway runtime, operator SQLite, settings UI | `current` |
 | [Operator provider model availability](operator-provider-model-availability.md) | Tenant-scoped upstream model enable/disable; catalog filter | Operator SQLite, settings provider cards | `current` |
 | [Operator log message registry](operator-log-message-registry.md) | Canonical log slugs + operator copy in YAML; generated JS/Go constants | `internal/operatorcopy`, settings UI | `current` |
 | [Context window admission](context-window-admission.md) | Pre-upstream context/body limits; retriable `request_too_large` fallback | Chat routing, `providerlimits` | `partial` |
+| [Moto X receiver manager](moto-x-receiver-manager.md) | Hidden login startup, failure restart, duplicate protection, and Claudia tray controls | Moto X receiver, Windows | `current` |
+| [Moto X review and corrections](moto-x-review-and-corrections.md) | Phone-first audio review, reversible transcript labels, and anonymous voice-group proposals | Moto X review UI, SQLite, offline audio worker | `partial` |

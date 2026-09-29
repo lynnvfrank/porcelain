@@ -6,8 +6,8 @@
 | **Areas** | `locus-desktop`, `chimera-supervisor`, packaging |
 | **Status** | `partial` |
 | **Introduced** | v0.4 desktop/supervisor boundary |
-| **Originated from** | [`plans/locus-desktop-supervisor-contract.md`](../plans/locus-desktop-supervisor-contract.md) |
-| **Related features** | [Chimera wrapper binary contract](chimera-wrapper-binary-contract.md), [Structured operator log lines](structured-operator-log-lines.md), [Chimera stack config](chimera-stack-config.md) |
+| **Originated from** | [`plans/locus-desktop-supervisor-contract.md`](../plans/archive/locus-desktop-supervisor-contract.md) |
+| **Related features** | [Chimera wrapper binary contract](chimera-wrapper-binary-contract.md), [Structured operator log lines](structured-operator-log-lines.md) |
 | **Depends on** | Wrapper health/readiness endpoints on supervisor control plane |
 | **Last updated** | See git history |
 
@@ -24,7 +24,7 @@ Double-clicking `locus-desktop` opens the gateway operator UI in a webview after
 **Process ownership**
 
 - `locus-desktop` — window lifecycle, folder picker bridges, external URL open, startup UX.
-- `chimera-supervisor` — spawns children listed in `supervisor.services` (default: all suite-enabled services among gateway, broker, vectorstore, indexer); exposes control HTTP plane. Collector log gate is `supervisor.log_level`.
+- `chimera-supervisor` — spawns `chimera-gateway`, `chimera-broker`, `chimera-vectorstore`, optional `chimera-indexer`; exposes control HTTP plane.
 
 **Startup**
 
@@ -42,9 +42,7 @@ Double-clicking `locus-desktop` opens the gateway operator UI in a webview after
 **Shutdown**
 
 - `RequestShutdown` → `POST /shutdown` on supervisor control URL (owned supervisor path).
-- When HTTP shutdown is accepted, desktop does **not** also send SIGINT — `signal.NotifyContext`'s cancel restores default SIGINT disposition, and a follow-up Interrupt can kill the supervisor before children are signaled (orphaning wrappers on Unix, especially `chimera-broker`).
-- Interrupt is used only when HTTP shutdown is unavailable.
-- Owned supervisor stop timeout `40s`; on timeout, desktop force-kills the supervisor **process tree** (Windows `taskkill /T`; Unix PPID walk + SIGKILL) so wrapper backends are not left under launchd/`init`.
+- Owned supervisor stop timeout `40s`.
 - Attach mode: desktop close does **not** stop an existing supervisor.
 
 **Version compatibility**
@@ -79,12 +77,10 @@ Double-clicking `locus-desktop` opens the gateway operator UI in a webview after
 | Concern | Location |
 |---------|----------|
 | Launcher + ownership | `locus/locus-desktop/internal/launcher/launcher.go` |
-| Owned stop / tree kill | `locus/locus-desktop/internal/launcher/stop_tree_*.go` |
 | Supervisor HTTP client | `locus/locus-desktop/internal/supervisor/client.go` |
 | Shared names/paths | `internal/locus/res.go` |
 | App shell | `locus/locus-desktop/internal/app/app.go` |
 | Supervisor control plane | `chimera/chimera-supervisor/internal/control/` |
-| Supervisor child tree kill | `chimera/chimera-supervisor/internal/proc/treekill_*.go` |
 
 ## Verification
 
@@ -97,11 +93,11 @@ Manual: `make locus-desktop-run` — confirm connect-first, login route, owned s
 
 ## Out of scope and known gaps
 
-- **Phase 4 packaging** ([`locus-desktop-supervisor-contract`](../plans/locus-desktop-supervisor-contract.md)) — cross-platform bundle layout enforcement still `todo`.
+- **Phase 4 packaging** ([`locus-desktop-supervisor-contract`](../plans/archive/locus-desktop-supervisor-contract.md)) — cross-platform bundle layout enforcement still `todo`.
 - Curated supervisor arg allowlist — explicitly deferred (pass-through v1).
 
 ## References
 
-- Delivery plan: [`locus-desktop-supervisor-contract.md`](../plans/locus-desktop-supervisor-contract.md)
+- Delivery plan: [`locus-desktop-supervisor-contract.md`](../plans/archive/locus-desktop-supervisor-contract.md)
 - Stack runbook: [`supervisor.md`](../supervisor.md)
 - Packaging: [`packaging.md`](../packaging.md)

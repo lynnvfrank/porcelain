@@ -1,7 +1,7 @@
 ---
 name: harness-ui-design-validator
 description: >-
-  Validates virtual-model harness UI and gallery fixtures against Chimera
+  Validates assistant harness UI and gallery fixtures against Chimera
   operator embed UI design patterns. Use after completing a harness plan phase,
   when delivering a harness plan (with make precommit), or when the user asks
   to design-validate harness work.
@@ -9,7 +9,7 @@ description: >-
 
 # Harness UI design validator
 
-Run after each **UI-bearing** phase of `docs/plans/virtual-model-harness-*.md`,
+Run after each **UI-bearing** phase of `docs/plans/assistant-harness-*.md`,
 and again at **plan delivery** (when marking the child plan shipped / `done`).
 
 Backend-only phases (e.g. runtime with no controls) may skip visual checks but
@@ -48,7 +48,7 @@ still run `make precommit` at plan delivery.
 - [ ] **Plan delivery:** no leftover legacy/dual-path code for this feature surface
 
 ### Look and feel
-- [ ] Reuses `sum-vm-section` / `sum-vm-section__hdr*` / `sum-router-toggle` (or documented sibling)
+- [ ] Reuses `sum-asst-section` / `sum-asst-section__hdr*` / `sum-router-toggle` (or documented sibling)
 - [ ] Typography uses existing classes (`sg-op-card-note`, `muted`, `sum-section-label`)
 - [ ] Toggles match routing/tool-router patterns
 - [ ] Section open/edit/save/cancel mirrors other VM sections
@@ -106,6 +106,6 @@ Launch a `generalPurpose` Task agent with this skill and:
 ## Additional resources
 
 - [reference.md](reference.md) — class names, file anchors, anti-patterns
-- Umbrella: `docs/plans/virtual-model-turn-harness.md` (gallery + delivery gates)
+- Umbrella: `docs/plans/assistant-turn-harness.md` (gallery + delivery gates)
 - Sibling skills: [harness-plan-delivery](../harness-plan-delivery/SKILL.md), [harness-gallery-fixtures](../harness-gallery-fixtures/SKILL.md), [feature-record-sync](../feature-record-sync/SKILL.md)
 - Index: [README.md](../README.md)

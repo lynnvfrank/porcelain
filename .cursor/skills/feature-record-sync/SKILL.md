@@ -38,15 +38,15 @@ See [`.cursor/rules/docs-plans-vs-features.mdc`](../../rules/docs-plans-vs-featu
 
 | Change | Likely feature record |
 |--------|------------------------|
-| VM toggles / harness API | `operator-virtual-models.md` |
+| VM toggles / harness API | `operator-assistants.md` |
 | Stage order / chat path | `gateway-chat-routing-pipeline.md` |
-| RAG per-VM / compress | `gateway-rag-ingest-and-retrieval.md` |
+| RAG per-assistant / compress | `gateway-rag-ingest-and-retrieval.md` |
 | Workspace sensitivity / files | `indexer-workspaces.md` |
 | Turn details / history JSON | `operator-conversation-history.md` |
 | Chat Turn details UI | `operator-chat-ui.md` |
 | New slugs | `operator-log-message-registry.md` (plus YAML) |
 
-Only create a new `docs/features/virtual-model-turn-harness.md` (or similar) if the umbrella becomes a lasting cross-cutting contract beyond those pages.
+Only create a new `docs/features/assistant-turn-harness.md` (or similar) if the umbrella becomes a lasting cross-cutting contract beyond those pages.
 
 ## Verify against code
 

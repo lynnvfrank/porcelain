@@ -6,7 +6,7 @@
 | **Areas** | All `chimera-*` / `locus-*` binaries, docs, scripts, HTTP headers |
 | **Status** | `current` |
 | **Introduced** | v0.3 naming hard cut |
-| **Originated from** | [`plans/v0-3-naming-migration.md`](../plans/v0-3-naming-migration.md) |
+| **Originated from** | [`plans/v0-3-naming-migration.md`](../plans/archive/v0-3-naming-migration.md) |
 | **Related features** | [Chimera wrapper binary contract](chimera-wrapper-binary-contract.md) |
 | **Depends on** | None |
 | **Last updated** | See git history |
@@ -17,7 +17,7 @@ Porcelain uses **stable product names** for binaries, environment variables, HTT
 
 ## Operator-visible behavior
 
-Operators see Chimera names in the UI, logs, CLI help, and packaging. Config paths use `chimera.yaml`, `api-keys.yaml` under `config/`. Desktop binary is `locus-desktop`; supervised stack entrypoint is `chimera-supervisor`.
+Operators see Chimera names in the UI, logs, CLI help, and packaging. Config paths use `gateway.yaml`, `api-keys.yaml`, `routing-policy.yaml` under `config/`. Desktop binary is `locus-desktop`; supervised stack entrypoint is `chimera-supervisor`.
 
 ## System behavior and contracts
 
@@ -41,7 +41,7 @@ Operators see Chimera names in the UI, logs, CLI help, and packaging. Config pat
 | `GATEWAY__*` | `chimera-gateway` wrapper |
 | `BROKER__*` | `chimera-broker` wrapper |
 | `VECTORSTORE__*` | `chimera-vectorstore` wrapper |
-| `CHIMERA_*` | Cross-stack targets (`CHIMERA_CONFIG`, `CHIMERA_GATEWAY_URL`, `CHIMERA_GATEWAY_TOKEN`, `CHIMERA_BROKER_API_KEY`, `CHIMERA_SUPERVISOR_CONTROL_URL`, `CHIMERA_ADMINUI_ROOT`) |
+| `CHIMERA_*` | Cross-stack targets (`CHIMERA_GATEWAY_URL`, `CHIMERA_GATEWAY_TOKEN`, `CHIMERA_GATEWAY_CONFIG`, `CHIMERA_BROKER_API_KEY`, `CHIMERA_SUPERVISOR_CONTROL_URL`, `CHIMERA_ADMINUI_ROOT`) |
 | `LOCUS_DESKTOP_*` | Desktop trace/log dir |
 
 **HTTP headers (`X-Chimera-*`)**
@@ -52,12 +52,11 @@ Includes `X-Chimera-Project`, `X-Chimera-Flavor-Id`, `X-Chimera-RAG-Hits`, `X-Ch
 
 | Item | Path / name |
 |------|-------------|
-| Stack config | `config/chimera.yaml` |
-| Env | `CHIMERA_CONFIG` |
+| Gateway config | `config/gateway.yaml` |
 | API keys | `config/api-keys.yaml` |
+| Routing policy | `config/routing-policy.yaml` |
 | Runtime data root | `data/` |
 | Supervisor state | `data/chimera-supervisor/` |
-| Indexer materialize | `data/gateway/indexer.materialized.yaml` |
 | Indexer hidden state | `.locus/` (per-workspace sync files) |
 
 **Invariants**
@@ -73,7 +72,7 @@ Includes `X-Chimera-Project`, `X-Chimera-Flavor-Id`, `X-Chimera-RAG-Hits`, `X-Ch
 | Go constants | `internal/naming/contracts.go` |
 | Codegen | `internal/naming/cmd/gencontracts/` |
 | Locus shared names | `internal/locus/res.go` (desktop runtime files, bridge names) |
-| Migration map | [`migration-v0-3-naming.md`](../migration-v0-3-naming.md) |
+| Migration map | [`v0-3-naming-migration.md`](../plans/archive/v0-3-naming-migration.md) |
 
 ## Code map
 
@@ -97,6 +96,6 @@ go test ./internal/naming/...
 
 ## References
 
-- Delivery plan: [`v0-3-naming-migration.md`](../plans/v0-3-naming-migration.md)
-- Operator migration: [`migration-v0-3-naming.md`](../migration-v0-3-naming.md)
+- Delivery plan: [`v0-3-naming-migration.md`](../plans/archive/v0-3-naming-migration.md)
+- Operator migration notes: [`v0-3-naming-migration.md`](../plans/archive/v0-3-naming-migration.md)
 - Wrapper env details: [`chimera-wrapper-binary-contract.md`](chimera-wrapper-binary-contract.md)

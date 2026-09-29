@@ -6,10 +6,12 @@ This document holds **vision and normative product requirements**. It does **not
 
 | Need | Read |
 |------|------|
+| **What is current / authoritative** | [CURRENT.md](CURRENT.md) |
 | **Install, run, configure** | [docs/README.md](README.md) operator runbooks |
 | **As-built behavior** (routes, invariants, code map) | [features/README.md](features/README.md) |
-| **Delivery history and phase notes** | [plans/README.md](plans/README.md) |
-| **Shipped release trains** | [version-v0.1.md](version-v0.1.md) … [version-v0.4.md](version-v0.4.md) |
+| **Open work** (draft / active plans) | [plans/README.md](plans/README.md) |
+| **Delivery history** | [plans/archive/](plans/archive/README.md) |
+| **Shipped release trains** | [version-v0.1.md](version-v0.1.md) … [version-v0.5.md](version-v0.5.md) |
 | **North-star architecture** (future routing depth) | [design.md](design.md) |
 | **BiFrost upstream reference** | [reference/bifrost-upstream.md](reference/bifrost-upstream.md) |
 
@@ -33,7 +35,7 @@ Future scope only; shipped behavior lives in version docs and feature records.
 | **v0.1.1** | Tool router, metrics, provider quotas | [version-v0.1.1.md](version-v0.1.1.md) |
 | **v0.2** | RAG ingest/retrieval, indexer REST, Qdrant, workspace indexer | [version-v0.2.md](version-v0.2.md) |
 | **v0.3** | Branding, onboarding, operator virtual models, SQLite operator store, desktop shell | [version-v0.3.md](version-v0.3.md) |
-| **v0.4** | Virtual model turn harness (per-VM stages, retrieval, workspace tools, evaluator/escalation) | [version-v0.4.md](version-v0.4.md) |
+| **v0.4** | Assistant turn harness (per-assistant stages, retrieval, workspace tools, evaluator/escalation) | [version-v0.4.md](version-v0.4.md) |
 | **v0.5** | Gateway MCP (optional); conversation archive ingestion | — |
 | **v0.7** | TLS, trust stores, `/health` hardening, rate limits, audit/redaction | — |
 | **v0.8** | Queues and priority scheduling under load | — |
@@ -63,7 +65,7 @@ Engineering task breakdown: [plans/README.md](plans/README.md).
 
 ### Gateway turn orchestration
 
-1. **Virtual models** — Operators define one or more **virtual model ids** with per-model routing stacks (fallback, policy rules, tool router, RAG). Clients send a virtual model id for orchestrated turns; the gateway applies that stack. As-built: [operator-virtual-models](features/operator-virtual-models.md), [gateway-chat-routing-pipeline](features/gateway-chat-routing-pipeline.md).
+1. **Assistants** — Operators define one or more **assistant ids** with per-model routing stacks (fallback, policy rules, tool router, RAG). Clients send an assistant id for orchestrated turns; the gateway applies that stack. As-built: [operator-assistants](features/operator-assistants.md), [gateway-chat-routing-pipeline](features/gateway-chat-routing-pipeline.md).
 2. **Sequential fallback chain** — On upstream failure, **429**, or admission block, walk the configured **ordered** upstream model list (**fail-fast** until queue milestone — *Resilience · 2*).
 
 ---
@@ -221,21 +223,19 @@ As-built: [gateway-rag-ingest-and-retrieval](features/gateway-rag-ingest-and-ret
 
 ---
 
-### Ensemble orchestration (future — v0.4 harness)
+### Ensemble orchestration (future — v0.4)
 
-Ensemble is implemented as **evaluator `multi_draft` mode** inside the virtual model turn harness — not a standalone feature.
+1. **Two-phase ensemble** — N parallel drafts, then critique/synthesize → one answer; default N = 3; cap by available backends.
+2. **Ensemble triggers** — Automatic + manual `//deep` (trimmed); virtual-model-only; gateway may strip `//deep` upstream.
+3. **Ensemble integration** — Orchestration in gateway; upstream executes parallel calls.
 
-1. **Multi-draft evaluator** — N parallel drafts, then critique/synthesize → one answer; default N = 3; cap by available backends.
-2. **Depth triggers** — Per-virtual-model rules (complexity, optional message/header flag); replaces fixed `//deep` on a single semver id.
-3. **Harness integration** — Orchestration in gateway; upstream executes parallel calls; escalation module handles failures.
-
-Detail: [`version-v0.4.md`](version-v0.4.md), [`plans/virtual-model-harness-advanced-modules.md`](plans/virtual-model-harness-advanced-modules.md).
+Detail: [version-v0.4.md](version-v0.4.md).
 
 ---
 
-### External human escalation (future — v0.4 harness)
+### External human escalation (future — v0.4)
 
-When internal routing cannot satisfy policy, the gateway may use **human-in-the-loop** copy/paste to an external UI — implemented as the harness **escalation `human` target** ([`plans/virtual-model-harness-advanced-modules.md`](plans/virtual-model-harness-advanced-modules.md)).
+When internal routing cannot satisfy policy, the gateway may use **human-in-the-loop** copy/paste to an external UI — not an API integration to that vendor.
 
 1. **Configurable external surfaces** — Name + URL entries in configuration.
 2. **Privacy disclosure** — Escalation responses disclose that task or context may leave the operator stack.

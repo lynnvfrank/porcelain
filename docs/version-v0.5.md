@@ -32,7 +32,7 @@ The same train ships **actionable operator alerts** built from recurring upstrea
 
 **v0.5** is the **operator autonomy** milestone: Chimera should help operators **recover from misconfiguration** and **reach a known-good state** without reading every YAML file or spelunking logs. The gateway already skips failing models and logs routing decisions; v0.5 **closes the loop** by turning repeated failures into **alerts with next steps**, and by letting a model **read what a page means** and **call the same APIs** the settings UI uses.
 
-This builds on v0.4’s **virtual model turn harness** (orchestration depth, per-VM retrieval, workspace tools). v0.5 adds **MCP tool backends**, operator desired-state, and deferred configuration/search themes. v0.5 does **not** replace human review for destructive actions (purge, key rotation, embedding model changes) — confirmations and audit logs remain required.
+This builds on v0.4’s **assistant turn harness** (orchestration depth, per-assistant retrieval, workspace tools). v0.5 adds **MCP tool backends**, operator desired-state, and deferred configuration/search themes. v0.5 does **not** replace human review for destructive actions (purge, key rotation, embedding model changes) — confirmations and audit logs remain required.
 
 **Companion docs:** [`chimera.plan.md`](chimera.plan.md), [`configuration.md`](configuration.md), [`version-v0.3.md`](version-v0.3.md) (setup wizard + deferred validation), [`version-v0.4.md`](version-v0.4.md), [`plans/_template.md`](plans/_template.md).
 
@@ -48,21 +48,21 @@ Authoritative **architecture and numbered requirements** remain in [`chimera.pla
 
 ### Desired state vs live state
 
-- **Desired state** — What the operator configured: provider keys, model availability, virtual model stacks, workspace rows, embedding model id, routing toggles, etc. (sources: operator SQLite, `chimera.yaml`, broker management API, `api-keys.yaml` as applicable).
+- **Desired state** — What the operator configured: provider keys, model availability, assistant stacks, workspace rows, embedding model id, routing toggles, etc. (sources: operator SQLite, `chimera.yaml`, broker management API, `api-keys.yaml` as applicable).
 - **Live state** — What the running stack actually reflects after reload/sync, catalog polls, and child process health.
 - **Drift** — Documented differences (e.g. fallback chain references unavailable model, embedding model absent from catalog, indexer watching paths that fail materialize).
 
 ### Reconciliation behaviors
 
 - **Detect** — Periodic or on-demand comparison of desired vs live (extend catalog auditors, provider health strip, VM `fallback_unavailable` hints).
-- **Report** — Operator-visible summary per domain (providers, RAG/indexer, virtual models) with links to the screen that owns the fix.
+- **Report** — Operator-visible summary per domain (providers, RAG/indexer, assistants) with links to the screen that owns the fix.
 - **Remediate (guided)** — Suggest or execute **safe** fixes: regenerate VM routing from catalog, re-sync broker after key save, reload gateway config after YAML patch — always through existing authenticated APIs.
 - **Remediate (model-assisted)** — Optional path where a model proposes a remediation plan from page self-description + drift report; operator confirms before apply (see [Model-assisted configuration](#model-assisted-configuration)).
 - **Non-goals for v0.5** — Fully autonomous self-healing without confirmation; cross-host peer reconciliation; automatic corpus re-embed without explicit operator ack.
 
 **Acceptance**
 
-- Documented flow: operator introduces intentional drift (e.g. disable all Groq models) → gateway surfaces drift → guided fix restores chat for a virtual model without manual YAML editing.
+- Documented flow: operator introduces intentional drift (e.g. disable all Groq models) → gateway surfaces drift → guided fix restores chat for a assistant without manual YAML editing.
 - Reconciliation actions are logged with stable slugs and `principal_id` when applied via UI or model-assist.
 
 **Status:** `todo`
@@ -94,7 +94,7 @@ Each guide should include, at minimum:
 ### Coverage priority
 
 1. Provider cards (keys, availability, health).
-2. Virtual model cards (fallback, routing, generate).
+2. Assistant cards (fallback, routing, generate).
 3. Indexer / workspace cards (paths, embedding model, purge).
 4. Users / tokens, chimera-broker service card.
 5. Chat and workspace search surfaces.
@@ -124,7 +124,7 @@ Each guide should include, at minimum:
 
 ### Gateway responsibilities
 
-- **Virtual model routing** — Assist calls use a dedicated VM or scoped upstream model with low temperature; tool use limited to documented operator APIs (no arbitrary shell).
+- **Assistant routing** — Assist calls use a dedicated VM or scoped upstream model with low temperature; tool use limited to documented operator APIs (no arbitrary shell).
 - **Auth** — Same UI session as the operator; model cannot escalate privilege.
 - **Audit** — Log `operator.model_assist.proposed` and `operator.model_assist.applied` with page id and API slugs.
 
@@ -151,7 +151,7 @@ Each guide should include, at minimum:
 
 - Routing fallback skip lines (unavailable, quota, context, upstream HTTP errors).
 - `broker.provider.health.fail`, `broker.provider.model_discovery.fail`.
-- Virtual model `fallback_unavailable` hints from VM detail API.
+- Assistant `fallback_unavailable` hints from VM detail API.
 - RAG/indexer errors tied to embedding model or collection health.
 
 ### Alert object (conceptual)
@@ -219,7 +219,7 @@ Each guide should include, at minimum:
 
 ## See also
 
-- [`version-v0.4.md`](version-v0.4.md) — previous version (virtual model turn harness)
+- [`version-v0.4.md`](version-v0.4.md) — previous version (assistant turn harness)
 - [`version-v0.3.md`](version-v0.3.md) — setup wizard; light-touch provider validation
 - [`chimera.plan.md`](chimera.plan.md) — product roadmap and requirements
 - [`configuration.md`](configuration.md) — configuration reference

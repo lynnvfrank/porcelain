@@ -5,15 +5,15 @@
 | **Doc kind** | `platform-contract` |
 | **Areas** | Gateway chat path, routing, transforms, RAG, fallback, tool router |
 | **Status** | `current` (pipeline shipped; **formal router plugin API** not yet) |
-| **Introduced** | v0.1 routing + v0.1.1 tool router; virtual-model stacks v0.2+ |
-| **Originated from** | [`plans/virtual-models-operator.md`](../plans/virtual-models-operator.md), [`plans/context-window-admission.md`](../plans/context-window-admission.md), [`docs/version-v0.1.1.md`](../version-v0.1.1.md) |
-| **Related features** | [Operator virtual models](operator-virtual-models.md), [Gateway RAG ingest and retrieval](gateway-rag-ingest-and-retrieval.md), [Context window admission](context-window-admission.md), [Operator provider model availability](operator-provider-model-availability.md) |
-| **Depends on** | Virtual model registry, broker upstream |
+| **Introduced** | v0.1 routing + v0.1.1 tool router; assistant stacks v0.2+; turn harness v0.4+ |
+| **Originated from** | [`plans/archive/virtual-models-operator.md`](../plans/archive/virtual-models-operator.md), [`plans/assistant-turn-harness.md`](../plans/assistant-turn-harness.md), [`plans/archive/context-window-admission.md`](../plans/archive/context-window-admission.md), [`docs/version-v0.1.1.md`](../version-v0.1.1.md) |
+| **Related features** | [Operator assistants](operator-assistants.md), [Gateway RAG ingest and retrieval](gateway-rag-ingest-and-retrieval.md), [Context window admission](context-window-admission.md), [Operator provider model availability](operator-provider-model-availability.md) |
+| **Depends on** | Assistant registry, broker upstream |
 | **Last updated** | See git history |
 
 ## At a glance
 
-Every `POST /v1/chat/completions` request that resolves to a **virtual model** passes through a fixed **routing pipeline** before and during upstream proxying: deterministic **meta-policy and intent classification**, optional **body transforms** (tool router today), **retrieval augmentation** (RAG), **initial upstream selection** (routing policy + fallback chain), primary completion, then optional evaluator and bounded escalation. Configuration lives on the [virtual model routing stack](operator-virtual-models.md). Requests whose `model` is a direct upstream id skip the pipeline and proxy to chimera-broker unchanged.
+Every `POST /v1/chat/completions` request that resolves to an **assistant** passes through a **routing pipeline** and optional **turn harness** before and during upstream proxying: meta-policy and intent, optional **body transforms** (tool router), **retrieval augmentation** (RAG), **initial upstream selection** (routing policy + fallback chain), primary completion, then optional evaluator and escalation. Configuration lives on the [assistant routing stack](operator-assistants.md) (fallback chain, policy YAML, tool-router block, harness modules). Requests whose `model` is a direct upstream id skip the pipeline and proxy to chimera-broker unchanged.
 
 ## Operator-visible behavior
 
@@ -31,27 +31,21 @@ Stages run in this order inside `handleVirtualModelChat` (after auth, merge, and
 
 ```mermaid
 flowchart TD
-  A[Resolve virtual model + stack] --> B[Resolve workspace meta-policy]
-  B --> C[Intent classification]
-  C --> D[Tool router transform]
-  D --> E[RAG retrieve + system inject]
-  E --> F[Request witness logs]
-  F --> G[Pick initial upstream model]
-  G --> H[Workspace tool loop]
-  H --> I[Fallback attempt loop]
-  I --> J[Proxy to broker per attempt]
+  A[Resolve virtual model + stack] --> B[Tool router transform]
+  B --> C[RAG retrieve + system inject]
+  C --> D[Request witness logs]
+  D --> E[Pick initial upstream model]
+  E --> F[Fallback attempt loop]
+  F --> G[Proxy to broker per attempt]
 ```
 
 | Stage | Purpose | Shipped implementation |
 |-------|---------|------------------------|
 | **1. Stack resolve** | Load fallback, policy, tool-router config | `virtualmodel.Registry.Resolve` |
-| **2. Meta-policy** | Resolve server-owned workspace scope and filter cloud-only fallback candidates when cloud is forbidden | `harness.MetaPolicyStage` |
-| **3. Intent** | Populate deterministic turn intent; optionally accept valid LLM JSON | `harness.IntentStage` |
-| **4. Body transform** | Mutate proxied JSON before upstream | `transform.ApplyToolRouter` only |
-| **5. Retrieval augment** | Inject context into messages | `rag.Service.Retrieve` + `InjectSystemMessage` |
-| **6. Initial pick** | Choose first upstream id in chain walk | `virtualmodel.PickInitialModelWithAvailability` → `routing.InMemoryPolicy` |
-| **7. Attempt loop** | Try upstream; skip/retry on guards and errors | `chat.WithVirtualModelFallback` + `providerlimits.Guard` |
-| **8. Workspace tools** | Execute fixed gateway-owned file tools and re-prompt the primary model | `harness.ToolExecutorStage` + `harness/tools` |
+| **2. Body transform** | Mutate proxied JSON before upstream | `transform.ApplyToolRouter` only |
+| **3. Retrieval augment** | Inject context into messages | `rag.Service.Retrieve` + `InjectSystemMessage` |
+| **4. Initial pick** | Choose first upstream id in chain walk | `virtualmodel.PickInitialModelWithAvailability` → `routing.InMemoryPolicy` |
+| **5. Attempt loop** | Try upstream; skip/retry on guards and errors | `chat.WithVirtualModelFallback` + `providerlimits.Guard` |
 
 **Invariants**
 
@@ -62,19 +56,15 @@ flowchart TD
 - **Admission before call** — TPM/RPM and context-window checks can skip a candidate before proxy (see [context window admission](context-window-admission.md)).
 - **Retriable errors** — 429, 5xx, 413, context overflow, and rate-limit signals advance to the next chain entry when one exists.
 - **Non-retriable** — Some 400 classes (e.g. model not found) stop the walk.
-- **RAG placement** — Retrieval runs **after** tool router, **before** initial pick; gateway RAG controls enablement while the selected VM config controls top-k, score floor, context budget, skip rules, and evidence compression. Summarize failures fail open to truncation.
-- **Workspace policy placement** — Meta-policy derives scope from `X-Chimera-Project` plus `X-Chimera-Flavor-Id`, never `X-Chimera-Workspace-Id`; it runs before LLM-assisted stages. Duplicate workspace rows select the lowest id. A no-cloud workspace filters `provider/model` candidates whose provider is not `ollama`, restoring the original chain only if that filter would empty it.
-- **Intent placement** — Intent runs after meta-policy and before retrieval. Heuristics use last-user-message length, declared tools, and resolved scope; retrieval `skip_if` may match its tags. LLM mode posts a constrained JSON request only when the intent module has both `mode: "llm"` and `model_id`; failures preserve the heuristic result.
+- **RAG placement** — Retrieval runs **after** tool router, **before** initial pick; uses gateway-global RAG service (not per-VM config yet).
 - **Client model unchanged** — Body may still show virtual model id; each attempt sets upstream id in proxied payload.
-- **Workspace tools** — When the VM `tool_executor` module is enabled, client `tools` and `tool_choice` are discarded and the gateway injects only `read_file`, `write_file`, `list_dir`, and `search`. The primary completion loop is buffered and bounded to `max_tool_rounds` (default 5); tool calls cannot escape the resolved workspace roots. Workspace `file_action_policy` is authoritative: `none` rejects all tools, `read` rejects writes, and `read_write` permits atomic writes.
-- **Evaluator streaming** — An enabled evaluator applies its VM `stream_policy`: `immediate` preserves the primary stream and records single-pass evaluation after it completes; `gate_on_evaluator` and `buffer_until_complete` buffer the primary before evaluation. `multi_draft` always buffers, runs available fallback models in parallel, synthesizes one answer, then evaluates it before returning that answer. Evaluator errors fail open. Escalation retries are bounded to two rounds and use `re_retrieve` or the next fallback-chain candidate; after those internal actions exhaust, a configured `human` target replaces the buffered body with a privacy-framed paste-back request. A later delimiter-bearing user message merges the external answer as context; messages without it proceed normally.
 
 **Routing policy (initial pick)**
 
 - YAML rules: `when.min_message_chars` on last user message; first match wins.
 - Outcomes: `ViaRule`, `ViaAmbiguousDefault`, `ViaChainOnly` (`internal/routing`).
 - Disabled or invalid policy YAML → chain-only (first **available** entry).
-- Evaluate API: `POST /api/ui/virtual-models/{id}/routing/evaluate` (dry-run, no upstream completion).
+- Evaluate API: `POST /api/ui/assistants/{id}/routing/evaluate` (dry-run, no upstream completion).
 
 **Tool router (body transform)**
 
@@ -96,7 +86,7 @@ Future work should treat the pipeline as a **composable router stack**, not ad-h
 | Router kind | Responsibility | Config home (today) | Plugin status |
 |-------------|----------------|----------------------|---------------|
 | **Transform** | Mutate request body (tools, messages, params) | VM tool-router block | One impl (`transform`); **no registry** |
-| **Retrieval** | Augment context (vector, manifest, web, …) | Gateway RAG + VM retrieval module | Harness stage + evidence compressor |
+| **Retrieval** | Augment context (vector, manifest, web, …) | Global RAG + headers | Hard-coded RAG only |
 | **Policy** | Pick initial upstream + rule metadata | VM routing policy YAML | `InMemoryPolicy`; **no shared Router interface** |
 | **Admission** | Skip candidates pre-flight | Limits YAML + availability SQLite | `providerlimits.Guard`; extend via new checkers |
 | **Fallback** | Attempt loop + retry classification | VM fallback chain | `chat.WithVirtualModelFallback`; extend retry rules carefully |
@@ -121,7 +111,7 @@ Until a registry lands, add stages by extending the ordered calls in `handleVirt
 | Tool threshold override | Header `X-Chimera-Tool-Confidence-Threshold` |
 | RAG scope | Headers `X-Chimera-Project`, `X-Chimera-Flavor-Id` |
 | Response metadata | `X-Chimera-Upstream-Model`, `X-Chimera-RAG-Hits`, `X-Chimera-Conversation-Id` |
-| Settings APIs | VM fallback, policy, tool-router, evaluate — see [virtual models](operator-virtual-models.md) |
+| Settings APIs | VM fallback, policy, tool-router, evaluate — see [virtual models](operator-assistants.md) |
 | Direct upstream | `body.model` = `provider/model` → `chat.ProxyChatCompletion` (no VM stack) |
 
 ## Code map
@@ -129,10 +119,9 @@ Until a registry lands, add stages by extending the ordered calls in `handleVirt
 | Concern | Location |
 |---------|----------|
 | Chat HTTP entry | `internal/server/server.go` — `handleV1Chat` |
-| VM pipeline orchestration | `internal/server/virtualmodel_chat.go` — `handleVirtualModelChat`; stages in `internal/harness/` |
-| Workspace tool execution | `internal/harness/tools/`; loop in `internal/harness/tools_stage.go` |
-| Tool router transform | `internal/transform/toolrouter.go`; harness stage `ToolRouterStage` |
-| RAG inject | `internal/harness/stages.go` — `RetrievalStage`; `internal/rag/` |
+| VM pipeline orchestration | `internal/server/virtualmodel_chat.go` — `handleVirtualModelChat` |
+| Tool router transform | `internal/transform/toolrouter.go` |
+| RAG inject | `internal/server/virtualmodel_chat.go` + `internal/rag/` |
 | Policy compile | `internal/routing/inmemory.go`, `internal/routing/routing.go` |
 | VM registry | `internal/virtualmodel/registry.go` |
 | Fallback loop | `internal/chat/chat.go` — `WithVirtualModelFallback`, `shouldRetryVirtualModelFallback` |
@@ -143,7 +132,6 @@ Until a registry lands, add stages by extending the ordered calls in `handleVirt
 ## Verification
 
 ```bash
-go test ./chimera/chimera-gateway/internal/harness/...
 go test ./chimera/chimera-gateway/internal/chat/... -run VirtualModelFallback
 go test ./chimera/chimera-gateway/internal/transform/...
 go test ./chimera/chimera-gateway/internal/virtualmodel/...
@@ -156,14 +144,14 @@ Manual: configure VM with short-context + long-context models in fallback; send 
 ## Out of scope and known gaps
 
 - **Formal `ChatRouter` plugin registry** — not implemented; pipeline is sequential Go calls.
-- Workspace policy-driven retrieval scope and cloud-summary eligibility.
+- **Per-VM RAG / retrieval routers** — RAG config is gateway-global ([gateway RAG feature](gateway-rag-ingest-and-retrieval.md)).
 - **LLM-generated routing policy** — exploration only ([`docs/version-v0.1.md`](../version-v0.1.md)).
 - **Additional transform stages** (prompt compression, tool format normalizers) — add via future Transform router slot.
 - **Shared routing-rule catalog** across VMs — policy YAML is per-VM today.
 
 ## References
 
-- Virtual model config: [`operator-virtual-models.md`](operator-virtual-models.md)
+- Virtual model config: [`operator-assistants.md`](operator-assistants.md)
 - Tool router plan: [`docs/version-v0.1.1.md`](../version-v0.1.1.md)
 - Context admission: [`context-window-admission.md`](context-window-admission.md)
-- Delivery plan: [`virtual-models-operator.md`](../plans/virtual-models-operator.md)
+- Delivery plan: [`virtual-models-operator.md`](../plans/archive/virtual-models-operator.md)

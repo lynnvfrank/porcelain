@@ -28,33 +28,33 @@ Stand up the chimera-gateway in Go in front of BiFrost: chat completions work, t
 
 This document is for **Audrey** (and a Cursor agent helping her) to **explore** what "done enough" for **v0.1** means in practice, how the repo behaves **today**, and which directions are **worth investigating** versus **already decided** in the product plan.
 
-**Tone:** everything under *Explorations* is **optional research**, not a commitment. The authoritative roadmap and locked decisions remain in [`chimera.plan.md`](chimera.plan.md). Normative UI/desktop detail lives in [`plans/desktop-ui.md`](plans/desktop-ui.md).
+**Tone:** everything under *Explorations* is **optional research**, not a commitment. The authoritative roadmap and locked decisions remain in [`chimera.plan.md`](chimera.plan.md). Normative UI/desktop detail lives in [`plans/desktop-ui.md`](plans/archive/desktop-ui.md).
 
 ---
 
 ## Current state (as implemented)
 
 The gateway is a **small Go** service in front of **BiFrost** (OpenAI-compatible HTTP). It exposes the URLs:
-- **/**
+- **/** 
 - **GET /health**
-- **GET /v1/models**,
+- **GET /v1/models**, 
 - **POST /v1/chat/completions**
 - **GET /status** (when `**chimera serve**` supervises children)
 
 **What works today**
 
-- **Virtual model** `chimera-<semver>` (semver from `config/chimera.yaml`) appears first on `**GET /v1/models`**; concrete upstream ids pass through.
+- **Virtual model** `chimera-<semver>` (semver from `config/gateway.yaml`) appears first on `**GET /v1/models`**; concrete upstream ids pass through.
 - **Token auth** from YAML (`config/tokens.yaml` by default), with **mtime reload**.
-- **Routing policy** (`config/routing-policy.yaml`): for the virtual model only, **rule-based** selection of the **first** upstream model to try (`internal/routing`). Conditions today are thin (e.g. `min_message_chars` on the **last** user message); then optional `ambiguous_default_model`, else `**routing.fallback_chain[0]`** in `config/chimera.yaml`.
+- **Routing policy** (`config/routing-policy.yaml`): for the virtual model only, **rule-based** selection of the **first** upstream model to try (`internal/routing`). Conditions today are thin (e.g. `min_message_chars` on the **last** user message); then optional `ambiguous_default_model`, else `**routing.fallback_chain[0]`** in `config/gateway.yaml`.
 - **Fallback chain**: on **429 / 5xx** from the upstream, the gateway walks `**routing.fallback_chain`** starting at the index of the model that was attempted (`internal/chat`).
 - **Streaming** (SSE) and non-streaming proxying to BiFrost.
 - `**GET /health`**: probes the configured upstream (JSON field `**checks.upstream`). **Qdrant** is optional via `chimera serve`**; the **v0.1** gateway does not call Qdrant for chat.
-- **Upstream API key**: if missing in config and env, `**EnsureGeneratedUpstreamAPIKey`** can **generate and persist** `upstream.api_key` in `chimera.yaml` (see `internal/config/upstream_api_key.go`).
+- **Upstream API key**: if missing in config and env, `**EnsureGeneratedUpstreamAPIKey`** can **generate and persist** `upstream.api_key` in `gateway.yaml` (see `internal/config/upstream_api_key.go`).
 - **Operator UI** (gateway-served): `**GET /ui/login`**, `**GET /ui/panel` (session after `POST /api/ui/login`), BiFrost provider rows via `/api/ui/***` (`internal/server/ui_handlers.go`, embedded HTML in `internal/server/embedui/`). `**GET /ui/models` mirrors the merged model list for tools.
 - **Desktop shell** (optional build): `go build -tags desktop`** produces a binary whose **default no-subcommand** path runs **supervisor + gateway + webview** (`cmd/chimera/default_mode_desktop.go`, `webview_desktop.go`). `**chimera desktop`**, `**chimera serve`, `--headless`, and `chimera-gateway` behave as documented in `chimera help**`. The webview **opens the panel URL** derived from the listen address (`cmd/chimera/serve.go` → `panelURLFromListenAddr`); unauthenticated users are **redirected** to `**/ui/login`**.
 - **Supervisor children** (BiFrost, Qdrant): subprocess **stdout/stderr** are wired to `**os.Stdout` / `os.Stderr`** (`internal/supervisor/bifrost.go`, `qdrant.go`), so all service logs go to the **same console** as the gateway. On **Windows**, a **desktop** build can still show a **console window** (and users report an extra command window alongside the webview); hiding that console and surfacing logs only in-app is **not** done yet (see below).
 
-**Default local stack:** `**make up`** or `**go run ./cmd/chimera serve` with `./bin/bifrost-http` after `make chimera-install` (or `make install` for desktop OS deps too), plus provider env keys for `config/bifrost.config.json`. Desktop: `make desktop-build` / `make desktop-run**` per [`gui-testing.md`](gui-testing.md).
+**Default local stack:** `**make up`** or `**go run ./cmd/chimera serve` with `./bin/bifrost-http` after `make chimera-install` (or `make install` for desktop OS deps too), plus provider env keys for `config/bifrost.config.json`. Desktop: `make desktop-build` / `make desktop-run**` (see [installation.md](installation.md) and [supervisor.md](supervisor.md)).
 
 ---
 
@@ -82,7 +82,7 @@ These are the **last mile** items for v0.1 UX and routing, articulated from the 
 
 | Tab       | Purpose                                                                                                                                               |
 |-----------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Main**  | Primary operator surface — welcome, status, or landing agreed with [`plans/desktop-ui.md`](plans/desktop-ui.md) (not only jumping straight to panel). |
+| **Main**  | Primary operator surface — welcome, status, or landing agreed with [`plans/desktop-ui.md`](plans/archive/desktop-ui.md) (not only jumping straight to panel). |
 | **Logs**  | Live tail of gateway + supervised services (feeds §1).                                                                                                |
 | **Admin** | Existing admin console — equivalent to today’s `**/ui/panel`** (and login flow when needed).                                                          |
 
@@ -93,7 +93,7 @@ Implementation options include **native tab UI** around multiple webviews, **one
 
 Making a fast, portable application is important for the v0.1 release as it dictates the framework we are building on top of going forward.
 
-**Default deployment shape:** **Go** `**chimera`** / `**chimera serve**` with **BiFrost** — see [`plans/upstream-llm-bifrost.md`](plans/upstream-llm-bifrost.md) for the phased history.
+**Default deployment shape:** **Go** `**chimera`** / `**chimera serve**` with **BiFrost** — see [`plans/upstream-llm-bifrost.md`](plans/archive/upstream-llm-bifrost.md) for the phased history.
 
 **4c. Vector store without a dedicated Qdrant process**
 
@@ -126,12 +126,12 @@ Making a fast, portable application is important for the v0.1 release as it dict
    - **Keep** the file in the repo and **continue to ship** it in archives (documentation and manual YAML editing).
    - **Do not** automatically create `config/tokens.yaml` from the example on first boot, in `scripts/configure.sh`, or in **release / Goreleaser** steps. Operators get `tokens.yaml` only after they **create a token in the UI** (bootstrap) or **copy/edit the example themselves**.
 
-2. **When bootstrap mode applies**
+2. **When bootstrap mode applies**  
    Enter **bootstrap** when the resolved `tokens.yaml` path is **missing**, **unreadable**, **unparseable**, or contains **zero valid token rows** (same rule as today’s parser: e.g. `token` and `tenant_id` must be non-empty). Do **not** treat “empty tokens” as normal mode.
 
 3. **Listen address**
-   - **Bootstrap:** bind only to **loopback**, **dual-stack**: `127.0.0.1` and `[::1]` (or equivalent so both IPv4 and IPv6 `localhost` work). Ignore `chimera.yaml` `listen_host` / port for the public gateway socket in this mode only, or override to loopback with a documented effective listen (agents: pick one implementation strategy and document it in code comments).
-   - **Normal mode** (after at least one valid token exists): use `chimera.yaml` (and CLI overrides) as today, e.g. `0.0.0.0` when configured.
+   - **Bootstrap:** bind only to **loopback**, **dual-stack**: `127.0.0.1` and `[::1]` (or equivalent so both IPv4 and IPv6 `localhost` work). Ignore `gateway.yaml` `listen_host` / port for the public gateway socket in this mode only, or override to loopback with a documented effective listen (agents: pick one implementation strategy and document it in code comments).
+   - **Normal mode** (after at least one valid token exists): use `gateway.yaml` (and CLI overrides) as today, e.g. `0.0.0.0` when configured.
 
 4. **Supervisor: BiFrost and Qdrant**
    - **Do not start** BiFrost or Qdrant while in **bootstrap** (no valid tokens). The gateway HTTP server still runs to serve the **limited** bootstrap surface.
@@ -173,7 +173,7 @@ Use this to track work; tick in PRs or remove items as completed.
 #### Rationale (short)
 
 - **Loopback + no children** during bootstrap limits exposure while `tokens.yaml` is absent.
-- **Dedicated setup page** avoids half-working admin widgets that need **BiFrost** / **Qdrant** / `chimera.yaml` listen.
+- **Dedicated setup page** avoids half-working admin widgets that need **BiFrost** / **Qdrant** / `gateway.yaml` listen.
 - **Restart** keeps a single clear transition to **normal** bind and **supervised** stack.
 
 This aligns with **§ Portable “first run”** but narrows v0.1 to **bootstrap token UI → persist `tokens.yaml` → restart → normal login and panel**, not a full multi-step provider wizard.
@@ -194,7 +194,7 @@ This aligns with **§ Portable “first run”** but narrows v0.1 to **bootstrap
 
 1. **Source of truth:** Upstream `GET /v1/models` (already proxied/merged on the gateway) and/or static config already known to BiFrost.
 2. **Heuristic:** Build or **suggest** `routing.fallback_chain` ordered **remote / higher-performance first**, then **local** (e.g. Ollama) — using **metadata** when available (provider id, known model families, optional operator overrides) and a **small curated map** or rules file when metadata is thin.
-3. **Persist with safety:** Updates to `config/routing-policy.yaml` and `routing.fallback_chain` in `config/chimera.yaml` must **validate** (parseable YAML, policy shape the gateway accepts, gateway reloadable) **before** writing; on failure, **do not** partially update files — return a clear error to the operator.
+3. **Persist with safety:** Updates to `config/routing-policy.yaml` and `routing.fallback_chain` in `config/gateway.yaml` must **validate** (parseable YAML, policy shape the gateway accepts, gateway reloadable) **before** writing; on failure, **do not** partially update files — return a clear error to the operator.
 4. **Admin panel UX (desired):** A **Routing** area in the operator UI (after provider setup is usable) that:
    - Explains how the **virtual model** (`chimera-<semver>`), `routing-policy.yaml`, and `routing.fallback_chain` interact (initial model vs 429/5xx failover).
    - Offers a primary control to **regenerate routing from the live catalog** (same behavior as the API below), respecting `routing.filter_free_tier_models` and `config/provider-free-tier.yaml` when that flag is on.
@@ -267,7 +267,7 @@ Instead of hand-authoring `routing-policy.yaml` and fallback chains from scratch
 | Config load / reload                                                     | `internal/config/`                                                              |
 | Routing policy                                                           | `internal/routing/`                                                             |
 | Supervisor (BiFrost / Qdrant)                                            | `internal/supervisor/`                                                          |
-| Gateway config                                                           | `config/chimera.yaml`                                                           |
+| Gateway config                                                           | `config/gateway.yaml`                                                           |
 | Gateway tokens (example ships; live file not auto-created on first boot) | `config/tokens.example.yaml`, `config/tokens.yaml` (see §5)                     |
 | BiFrost bootstrap                                                        | `config/bifrost.config.json`                                                    |
 | Routing rules                                                            | `config/routing-policy.yaml`                                                    |

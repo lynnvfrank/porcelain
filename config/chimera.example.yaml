@@ -1,7 +1,7 @@
 # Copy to `chimera.yaml` and edit. Full reference: docs/configuration.md
 #
 # Supervised-stack config for chimera-supervisor / locus-desktop.
-# Virtual models and workspaces live in operator SQLite (/ui/settings), not here.
+# Assistants and workspaces live in operator SQLite (/ui/settings), not here.
 
 supervisor:
   listen: "127.0.0.1:7710"
@@ -56,7 +56,7 @@ indexer:
   # sync_state_path: "data/indexer/sync-state.json"
 
 # Search platform (ingest + retrieval). HTTP routes remain /v1/rag/*.
-# retrieval_defaults seed new virtual models; per-VM retrieval overrides live in SQLite (v0.4).
+# retrieval_defaults seed new assistants; per-assistant retrieval overrides live in SQLite (v0.4).
 search:
   enabled: true
   embedding:

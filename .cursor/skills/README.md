@@ -4,7 +4,7 @@ Skills under `.cursor/skills/` guide harness and operator delivery work.
 
 | Skill | Use for |
 |-------|---------|
-| [harness-plan-delivery](harness-plan-delivery/SKILL.md) | Mark a `virtual-model-harness-*` plan done (`make precommit`, hard cut, docs) |
+| [harness-plan-delivery](harness-plan-delivery/SKILL.md) | Mark a `assistant-harness-*` plan done (`make precommit`, hard cut, docs) |
 | [harness-stage-implementer](harness-stage-implementer/SKILL.md) | Add/extend `internal/harness` stages |
 | [harness-gallery-fixtures](harness-gallery-fixtures/SKILL.md) | Multi-state `/ui/settings/gallery` samples |
 | [harness-ui-design-validator](harness-ui-design-validator/SKILL.md) | UI look-and-feel + gallery review |
@@ -13,4 +13,4 @@ Skills under `.cursor/skills/` guide harness and operator delivery work.
 
 **Typical loop:** stage-implementer → (UI) gallery-fixtures → design-validator → (logs) slug-registry → plan-delivery → feature-record-sync.
 
-Umbrella: [`docs/plans/virtual-model-turn-harness.md`](../../docs/plans/virtual-model-turn-harness.md).
+Umbrella: [`docs/plans/assistant-turn-harness.md`](../../docs/plans/assistant-turn-harness.md).

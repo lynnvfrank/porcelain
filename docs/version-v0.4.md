@@ -1,4 +1,4 @@
-# Version 0.4 - Virtual model turn harness
+# Version 0.4 - Assistant turn harness
 
 | Field | Value |
 |-------|-------|
@@ -11,75 +11,75 @@
 
 ## At a glance
 
-**v0.4** builds the **virtual model turn harness**: when an operator picks a **named virtual model** in chat (single-model picker UX — one visible model choice, even when the gateway uses multiple upstream models internally), the gateway runs a configurable multi-stage workflow inside a **single client request** — intent signals, retrieval planning, primary model execution, optional evaluation and escalation, then one reply. Each virtual model toggles harness modules on or off and holds per-module settings. Stages are visible in conversation logs and chat turn details.
+**v0.4** builds the **assistant turn harness**: when an operator picks a **named assistant** in chat (single-model picker UX — one visible model choice, even when the gateway uses multiple upstream models internally), the gateway runs a configurable multi-stage workflow inside a **single client request** — intent signals, retrieval planning, primary model execution, optional evaluation and escalation, then one reply. Each assistant toggles harness modules on or off and holds per-module settings. Stages are visible in conversation logs and chat turn details.
 
-Supporting work in the same train: **workspace policy** (sensitivity, cloud eligibility, file permissions), **per-virtual-model retrieval**, and **gateway-native workspace file tools** (read/write within permission). MCP tool backends, peer routing, and broad settings-search themes move to **v0.5** or **deferred** unless they unblock harness delivery.
+Supporting work in the same train: **workspace policy** (sensitivity, cloud eligibility, file permissions), **per-assistant retrieval**, and **gateway-native workspace file tools** (read/write within permission). MCP tool backends, peer routing, and broad settings-search themes move to **v0.5** or **deferred** unless they unblock harness delivery.
 
 | Focus | Outcome | Status |
 |-------|---------|--------|
-| [Turn harness (execution plan)](#turn-harness-execution-plan) | Composable per-VM stages, turn envelope, module toggles, observability | `done` |
+| [Turn harness (execution plan)](#turn-harness-execution-plan) | Composable per-assistant stages, turn envelope, module toggles, observability | `done` |
 | [Client contract](#client-contract) | One `model` string per turn; gateway owns orchestration; no Continue dependency | `partial` |
-| [Per-virtual-model retrieval](#per-virtual-model-retrieval) | VM-scoped top_k, thresholds, skip rules on project/flavor/conversation scope | `done` |
+| [Per-assistant retrieval](#per-assistant-retrieval) | VM-scoped top_k, thresholds, skip rules on project/flavor/conversation scope | `done` |
 | [Workspace policy](#workspace-policy) | Sensitivity, cloud rules, file action policy on workspace rows | `done` |
 | [Gateway workspace tools](#gateway-workspace-tools) | Read/write files under workspace roots inside one chat turn | `done` |
 | [Evaluator and escalation](#evaluator-and-escalation) | Unified module: single-pass first, multi-draft ensemble later, human escalation target | `done` |
 | [Harness observability](#harness-observability) | Stage timeline in settings conversation cards and chat turn details | `done` |
 | [Deferred to v0.5+](#deferred-to-v05) | MCP tools, peer backends, desired-state gateway, app-wide search, indexer Phase 7 | `deferred` |
 
-**Execution plan:** [`plans/virtual-model-turn-harness.md`](plans/virtual-model-turn-harness.md) (umbrella index) — child plans `virtual-model-harness-*.md` cover runtime, settings, retrieval, workspace policy, intent, evaluator/escalation, tools, observability, and advanced modules.
+**Execution plan:** [`plans/assistant-turn-harness.md`](plans/assistant-turn-harness.md) (umbrella index) — child plans `assistant-harness-*.md` cover runtime, settings, retrieval, workspace policy, intent, evaluator/escalation, tools, observability, and advanced modules.
 
 ---
 
 ## What this version is
 
-**v0.4** is the **orchestration depth** milestone: the gateway stops being a thin router with global RAG and becomes a **turn harness** configurable per virtual model. This supersedes the earlier v0.4 plan that treated **two-phase ensemble**, **`//deep` triggers**, and **external human escalation** as separate top-level features. Those capabilities are now **modules inside the harness** (evaluator `multi_draft` mode, escalation `human` target, VM-level depth triggers).
+**v0.4** is the **orchestration depth** milestone: the gateway stops being a thin router with global RAG and becomes a **turn harness** configurable per assistant. This supersedes the earlier v0.4 plan that treated **two-phase ensemble**, **`//deep` triggers**, and **external human escalation** as separate top-level features. Those capabilities are now **modules inside the harness** (evaluator `multi_draft` mode, escalation `human` target, VM-level depth triggers).
 
 **Normative principles for v0.4**
 
-1. **Virtual model = harness profile** — module toggles and config in operator SQLite.
+1. **Assistant = harness profile** — module toggles and config in operator SQLite.
 2. **Single HTTP request per user turn** — internal multi-stage loop with bounded `max_tool_rounds`, `max_escalation_rounds`, `max_upstream_calls_per_turn`, and wall-clock timeout.
 3. **Meta-policy before LLM classifiers** — deterministic privacy and eligibility from workspace policy; classifiers may use LLM when enabled but cannot override workspace sensitivity.
-4. **Ship thin, iterate stages** — Phase 1–4 deliver a working harness with parity behavior plus per-VM retrieval; later phases add evaluator, tools, ensemble mode, and human escalation.
+4. **Ship thin, iterate stages** — Phase 1–4 deliver a working harness with parity behavior plus per-assistant retrieval; later phases add evaluator, tools, ensemble mode, and human escalation.
 5. **Chimera chat is the agent surface** — file operations run in-gateway under workspace permission, not via VS Code Continue or external IDE agents.
-6. **Explicit virtual model id** — clients send a named VM id (e.g. `Research-1.0`); no reserved aliases. Single-model picker UX; internal fallback/evaluator/escalation is invisible to the client.
+6. **Explicit assistant id** — clients send a named VM id (e.g. `Research-1.0`); no reserved aliases. Single-model picker UX; internal fallback/evaluator/escalation is invisible to the client.
 
-**Companion docs:** [`chimera.plan.md`](chimera.plan.md), [`design.md`](design.md), [`configuration.md`](configuration.md), [`plans/virtual-model-turn-harness.md`](plans/virtual-model-turn-harness.md), [`features/operator-virtual-models.md`](features/operator-virtual-models.md), [`features/gateway-chat-routing-pipeline.md`](features/gateway-chat-routing-pipeline.md), [`version-v0.5.md`](version-v0.5.md).
+**Companion docs:** [`chimera.plan.md`](chimera.plan.md), [`design.md`](design.md), [`configuration.md`](configuration.md), [`plans/assistant-turn-harness.md`](plans/assistant-turn-harness.md), [`features/operator-assistants.md`](features/operator-assistants.md), [`features/gateway-chat-routing-pipeline.md`](features/gateway-chat-routing-pipeline.md), [`version-v0.5.md`](version-v0.5.md).
 
 ---
 
 ## Turn harness (execution plan)
 
-**Goal:** Replace the fixed five-step virtual-model chat pipeline with a **composable harness**: stage registry, shared **turn envelope** JSON, per-VM module toggles, and structured observability — while preserving existing fallback, tool router, and RAG behavior in Phase 1.
+**Goal:** Replace the fixed five-step assistant chat pipeline with a **composable harness**: stage registry, shared **turn envelope** JSON, per-assistant module toggles, and structured observability — while preserving existing fallback, tool router, and RAG behavior in Phase 1.
 
 **Scope**
 
 * **Stage contract** — Input/output: proxied chat JSON + `TurnEnvelope` + `TurnContext` (tenant, VM id, conversation id, scope, catalog snapshot). Stages register in explicit order; fail-safe defaults per kind ([`gateway-chat-routing-pipeline.md`](features/gateway-chat-routing-pipeline.md) extensibility rules).
 * **Turn envelope** — Stable `schema_version: 1` artifact through all stages; redacted logging and `conversation_turns.harness_summary_json` persistence.
-* **Modules** — Meta-policy, intent, resource planner, retrieval, tool router, tool executor, evidence aggregate, primary, evaluator, escalation, response builder, telemetry. See module table in [`plans/virtual-model-turn-harness.md`](plans/virtual-model-turn-harness.md).
-* **Settings UI** — Harness section on virtual model cards: enable/disable modules, per-module config (models, thresholds, evaluator mode).
-* **Gallery / reference UI** — Every UI-bearing child plan ships multi-state fixtures on `/ui/settings/gallery` (see [gallery contract](plans/virtual-model-turn-harness.md#gallery--reference-ui-contract-normative)); reviewers must not need live CRUD to compare configuration states.
+* **Modules** — Meta-policy, intent, resource planner, retrieval, tool router, tool executor, evidence aggregate, primary, evaluator, escalation, response builder, telemetry. See module table in [`plans/assistant-turn-harness.md`](plans/assistant-turn-harness.md).
+* **Settings UI** — Harness section on assistant cards: enable/disable modules, per-module config (models, thresholds, evaluator mode).
+* **Gallery / reference UI** — Every UI-bearing child plan ships multi-state fixtures on `/ui/settings/gallery` (see [gallery contract](plans/assistant-turn-harness.md#gallery--reference-ui-contract-normative)); reviewers must not need live CRUD to compare configuration states.
 * **Evaluate API** — Dry-run pre-primary stages without upstream completion (extends today’s routing evaluate pattern).
 
-**Phases (summary)** — see child plans under [`plans/virtual-model-turn-harness.md`](plans/virtual-model-turn-harness.md):
+**Phases (summary)** — see child plans under [`plans/assistant-turn-harness.md`](plans/assistant-turn-harness.md):
 
 | Child plan | Theme |
 |------------|--------|
-| [runtime](plans/virtual-model-harness-runtime.md) | Harness runtime; turn envelope schema |
-| [settings](plans/virtual-model-harness-settings.md) | VM module toggles (SQLite + API + settings UI) |
-| [retrieval](plans/virtual-model-harness-retrieval.md) | Per-VM retrieval + evidence compression |
-| [workspace policy](plans/virtual-model-harness-workspace-policy.md) | Workspace policy + meta-policy stage |
-| [intent](plans/virtual-model-harness-intent.md) | Heuristic intent (+ optional LLM classifier) |
-| [evaluator + escalation](plans/virtual-model-harness-evaluator-escalation.md) | Evaluator `single_pass`; escalation v1 |
-| [workspace tools](plans/virtual-model-harness-workspace-tools.md) | Gateway workspace tools |
-| [observability](plans/virtual-model-harness-observability.md) | Conversation views + chat turn details |
-| [advanced modules](plans/virtual-model-harness-advanced-modules.md) | Evaluator `multi_draft`; human escalation |
+| [runtime](plans/assistant-harness-runtime.md) | Harness runtime; turn envelope schema |
+| [settings](plans/assistant-harness-settings.md) | VM module toggles (SQLite + API + settings UI) |
+| [retrieval](plans/assistant-harness-retrieval.md) | Per-VM retrieval + evidence compression |
+| [workspace policy](plans/assistant-harness-workspace-policy.md) | Workspace policy + meta-policy stage |
+| [intent](plans/assistant-harness-intent.md) | Heuristic intent (+ optional LLM classifier) |
+| [evaluator + escalation](plans/assistant-harness-evaluator-escalation.md) | Evaluator `single_pass`; escalation v1 |
+| [workspace tools](plans/assistant-harness-workspace-tools.md) | Gateway workspace tools |
+| [observability](plans/assistant-harness-observability.md) | Conversation views + chat turn details |
+| [advanced modules](plans/assistant-harness-advanced-modules.md) | Evaluator `multi_draft`; human escalation |
 
 **Acceptance**
 
-* Child plans [runtime](plans/virtual-model-harness-runtime.md) through [retrieval](plans/virtual-model-harness-retrieval.md) marked done when parity chat works with per-VM retrieval toggles and stage logs visible.
-* UI-bearing phases include gallery fixtures per [gallery contract](plans/virtual-model-turn-harness.md#gallery--reference-ui-contract-normative).
-* Each child plan delivery: `make precommit` passes; design-validator run for UI plans; no legacy dual-path (see [delivery gates](plans/virtual-model-turn-harness.md#delivery-gates-normative)).
-* Feature records updated for [`gateway-chat-routing-pipeline.md`](features/gateway-chat-routing-pipeline.md) and [`operator-virtual-models.md`](features/operator-virtual-models.md) when Phase 1 ships.
+* Child plans [runtime](plans/assistant-harness-runtime.md) through [retrieval](plans/assistant-harness-retrieval.md) marked done when parity chat works with per-assistant retrieval toggles and stage logs visible.
+* UI-bearing phases include gallery fixtures per [gallery contract](plans/assistant-turn-harness.md#gallery--reference-ui-contract-normative).
+* Each child plan delivery: `make precommit` passes; design-validator run for UI plans; no legacy dual-path (see [delivery gates](plans/assistant-turn-harness.md#delivery-gates-normative)).
+* Feature records updated for [`gateway-chat-routing-pipeline.md`](features/gateway-chat-routing-pipeline.md) and [`operator-assistants.md`](features/operator-assistants.md) when Phase 1 ships.
 
 **Status:** `done`
 
@@ -91,11 +91,11 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 
 **Scope**
 
-* **Virtual model id** — Primary path: `body.model` resolves through VM registry to an **explicit** operator-named id (e.g. `Research-1.0`). No reserved aliases.
+* **Assistant id** — Primary path: `body.model` resolves through VM registry to an **explicit** operator-named id (e.g. `Research-1.0`). No reserved aliases.
 * **Direct upstream** — `provider/model` ids still proxy without harness (escape hatch).
 * **Single request** — Client does not run tool loops or multi-hop agent logic; workspace scope via `X-Chimera-Project` + `X-Chimera-Flavor-Id` (gateway derives workspace policy from DB lookup). `X-Chimera-Workspace-Id` is conversation-history metadata only.
 * **Response metadata** — `X-Chimera-Resolved-Model`, `X-Chimera-RAG-Hits`, optional `X-Chimera-Harness-Summary` (redacted envelope).
-* **Streaming** — Flexible per VM: evaluator `stream_policy` (`immediate`, `gate_on_evaluator`, `buffer_until_complete`) may defer client streaming until internal stages complete. See [evaluator plan](plans/virtual-model-harness-evaluator-escalation.md).
+* **Streaming** — Flexible per VM: evaluator `stream_policy` (`immediate`, `gate_on_evaluator`, `buffer_until_complete`) may defer client streaming until internal stages complete. See [evaluator plan](plans/assistant-harness-evaluator-escalation.md).
 
 **Acceptance**
 
@@ -106,9 +106,9 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 
 ---
 
-## Per-virtual-model retrieval
+## Per-assistant retrieval
 
-**Goal:** Retrieval knobs live on the virtual model and apply to the request’s **tenant + project + flavor + conversation** scope — not only gateway-global defaults.
+**Goal:** Retrieval knobs live on the assistant and apply to the request’s **tenant + project + flavor + conversation** scope — not only gateway-global defaults.
 
 **Scope**
 
@@ -136,7 +136,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 * New workspace fields: `sensitivity` (`public` \| `internal` \| `private`), `allow_cloud`, `allow_cloud_summary_only`, `file_action_policy` (`none` \| `read` \| `read_write`).
 * Settings UI on workspace cards; migration in operator SQLite.
 * Meta-policy harness stage sets `TurnEnvelope.scope` and vetoes disallowed routes/tools.
-* Scope from `X-Chimera-Project` + `X-Chimera-Flavor-Id`; gateway looks up workspace row (lowest id wins if ambiguous). See [workspace policy plan](plans/virtual-model-harness-workspace-policy.md).
+* Scope from `X-Chimera-Project` + `X-Chimera-Flavor-Id`; gateway looks up workspace row (lowest id wins if ambiguous). See [workspace policy plan](plans/assistant-harness-workspace-policy.md).
 
 **Acceptance**
 
@@ -177,8 +177,8 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 
 * **v0.4 MVP:** `evaluator.mode: single_pass` — small model returns confidence and issues; feeds escalation.
 * **Escalation v1:** `re_retrieve`, `fallback_chain`; bounded rounds.
-* **Advanced modules shipped:** [advanced modules plan](plans/virtual-model-harness-advanced-modules.md) — `evaluator.mode: multi_draft` and human escalation.
-* Flexible `stream_policy` per VM (see [evaluator plan](plans/virtual-model-harness-evaluator-escalation.md)).
+* **Advanced modules shipped:** [advanced modules plan](plans/assistant-harness-advanced-modules.md) — `evaluator.mode: multi_draft` and human escalation.
+* Flexible `stream_policy` per VM (see [evaluator plan](plans/assistant-harness-evaluator-escalation.md)).
 
 **Acceptance**
 
@@ -196,7 +196,7 @@ Supporting work in the same train: **workspace policy** (sensitivity, cloud elig
 
 **Scope**
 
-* Slugs: `harness.stage.started`, `harness.stage.completed`, `harness.escalation.*` with `virtual_model_id`, `turn_index`, `stage`, `duration_ms`.
+* Slugs: `harness.stage.started`, `harness.stage.completed`, `harness.escalation.*` with `assistant_id`, `turn_index`, `stage`, `duration_ms`.
 * Extend conversation card derive ([`log-conversations.md`](plans/log-conversations.md)) to group harness lines per turn.
 * Chat UI: collapsible **Turn details** on assistant messages from `harness_summary_json`.
 * VM scoped log panel filters harness events.
@@ -222,7 +222,7 @@ The following appeared in prior v0.4 drafts; they are **not** core to the harnes
 | **Settings and application search** | v0.5 | [`plans/embedui-settings-card-cleanup.md`](plans/embedui-settings-card-cleanup.md) |
 | **Indexer Phase 7 (model-assisted strategy)** | v0.5 | [`plans/indexer.md`](plans/indexer.md) |
 | **Indexer manifest ingest (line metadata)** | Parallel / optional | [`plans/indexer-manifest-ingest.md`](plans/indexer-manifest-ingest.md) — benefits RAG citations; not harness blocker |
-| **Workspace embedding scope unions** | Parallel / optional | Base + flavor union retrieval — align with per-VM retrieval when implemented |
+| **Workspace embedding scope unions** | Parallel / optional | Base + flavor union retrieval — align with per-assistant retrieval when implemented |
 | **Configuration in desktop UI (YAML parity)** | v0.5 | Harness settings ship on VM cards in v0.4 |
 | **Env precedence contract** | Draft plan | [`plans/env-precedence-contract.md`](plans/env-precedence-contract.md) |
 
@@ -257,9 +257,9 @@ The following appeared in prior v0.4 drafts; they are **not** core to the harnes
 
 ## See also
 
-* [`plans/virtual-model-turn-harness.md`](plans/virtual-model-turn-harness.md) — umbrella index and resolved decisions
-* Child plans: `plans/virtual-model-harness-*.md`
-* [`version-v0.3.md`](version-v0.3.md) — previous version (virtual models, onboarding)
+* [`plans/assistant-turn-harness.md`](plans/assistant-turn-harness.md) — umbrella index and resolved decisions
+* Child plans: `plans/assistant-harness-*.md`
+* [`version-v0.3.md`](version-v0.3.md) — previous version (assistants, onboarding)
 * [`version-v0.5.md`](version-v0.5.md) — next version (MCP, desired-state gateway, deferred themes)
 * [`design.md`](design.md) — north-star architecture (update non-goals when harness ships)
 * [`chimera.plan.md`](chimera.plan.md) — product requirements (deterministic-routing note superseded for v0.4+ orchestration depth)
