@@ -8,7 +8,7 @@
 | **Targets** | Gateway v0.5 (MCP client + one stdio path; full developer suite optional) |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Extends [`assistant-harness-workspace-tools.md`](assistant-harness-workspace-tools.md) (v0.4 native tools); deferred item in [`version-v0.4.md`](../version-v0.4.md#deferred-to-v05) |
-| **As-built** | Draft platform contract: [`gateway-mcp-tool-backends.md`](../features/gateway-mcp-tool-backends.md) (implementation not shipped) |
+| **As-built** | [`gateway-mcp-tool-backends.md`](../features/gateway-mcp-tool-backends.md) (`partial`): Phases 0–2c — manager/catalog/composite, native expansion, blessed sidecar, operator SQLite `000012_mcp_servers`, `/api/ui/mcp/*`, harness MCP panel |
 
 ## At a glance
 
@@ -18,11 +18,11 @@ Assistants on the turn harness can call **external Model Context Protocol (MCP) 
 
 | Phase | Outcome | Status |
 |-------|---------|--------|
-| [Phase 0 — Contract and design](#phase-0--contract-and-design) | Platform contract + transport spike; harness rules frozen | `todo` |
-| [Phase 1 — Manager, catalog, composite executor](#phase-1--manager-catalog-composite-executor) | Gateway-owned stdio + HTTP upstream; YAML seed config; end-to-end `tools/call` on assistant path | `todo` |
-| [Phase 2a — Native RAG expansion tools](#phase-2a--native-rag-expansion-tools) | Expansion tools in harness loop (no MCP required) | `todo` |
-| [Phase 2b — One blessed MCP sidecar](#phase-2b--one-blessed-mcp-sidecar) | Documented YAML + harness call to one sidecar (e.g. git read-only or no-network echo) | `todo` |
-| [Phase 2c — Operator MCP settings](#phase-2c--operator-mcp-settings) | SQLite server rows + minimal UI (per-tool toggles, assistant bind) | `todo` |
+| [Phase 0 — Contract and design](#phase-0--contract-and-design) | Platform contract + transport spike; harness rules frozen | `done` |
+| [Phase 1 — Manager, catalog, composite executor](#phase-1--manager-catalog-composite-executor) | Gateway-owned stdio + HTTP upstream; YAML seed config; end-to-end `tools/call` on assistant path | `done` |
+| [Phase 2a — Native RAG expansion tools](#phase-2a--native-rag-expansion-tools) | Expansion tools in harness loop (no MCP required) | `done` |
+| [Phase 2b — One blessed MCP sidecar](#phase-2b--one-blessed-mcp-sidecar) | Documented YAML + harness call to one sidecar (e.g. git read-only or no-network echo) | `done` |
+| [Phase 2c — Operator MCP settings](#phase-2c--operator-mcp-settings) | SQLite server rows + minimal UI (per-tool toggles, assistant bind) | `done` |
 | [Phase 3 — Workflow MCP (task-orchestrator)](#phase-3--workflow-mcp-task-orchestrator) | Registration recipe; optional in-process fake for gate errors | `deferred` |
 | [Phase 4 — Scale and IDE ingress](#phase-4--scale-and-ide-ingress) | Large-catalog meta-tools; HTTP MCP facade for IDEs | `deferred` |
 
@@ -186,7 +186,7 @@ Continue / Cursor may keep **local MCP** when chat uses **direct** `provider/mod
 - Contract includes **tables** for slug examples, reserved names, and 64-char edge cases (not prose only)
 - Open questions below have **closed defaults** recorded in the feature record
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -196,7 +196,7 @@ Continue / Cursor may keep **local MCP** when chat uses **direct** `provider/mod
 
 **Deliverables**
 
-- Go packages (names illustrative): `internal/mcpmgr`, `internal/mcptools/catalog`, `internal/harness/tools/mcp`
+- Go packages (names illustrative): `internal/mcpmgr`, `internal/mcptools/catalog`, `internal/harness/tools/composite.go`, `internal/harness/mcp_wiring.go`
 - **Manager:** `Start`/`Stop`; states `stopped | starting | running | error`; honor `disabled`; **`autoStart` off by default**
 - **Stdio:** line-framed JSON-RPC; drain stderr (bounded buffer); kill on context cancel / assistant disable / gateway shutdown
 - **HTTP:** streamable JSON-RPC per request; document TLS and redirect policy (default: no arbitrary redirect to untrusted hosts)
@@ -224,7 +224,7 @@ Continue / Cursor may keep **local MCP** when chat uses **direct** `provider/mod
 - MCP server must complete initialization before catalog or invocation; returned `isError` and oversized results become bounded tool results
 - `make precommit` green
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -244,7 +244,7 @@ Continue / Cursor may keep **local MCP** when chat uses **direct** `provider/mod
 - Reserved native names documented in platform contract
 - **Does not depend on Phase 2b MCP**
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -264,7 +264,7 @@ Continue / Cursor may keep **local MCP** when chat uses **direct** `provider/mod
 - Operator (or test harness) can enable the blessed server via **YAML** and reach it from the tool loop
 - Shell and browser remain off by default in config templates
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -284,7 +284,7 @@ Continue / Cursor may keep **local MCP** when chat uses **direct** `provider/mod
 - Disable shell MCP for assistant → tool absent from catalog
 - Feature record updated with as-built config fields and code map
 
-**Status:** `todo`
+**Status:** `done`
 
 ---
 
@@ -350,7 +350,7 @@ Record decisions in the platform-contract feature record as they close.
 3. **Collision UX:** Internal `toolKey` + 64-char OpenAI slug; UI shows server + MCP name.
 4. **Shell trust:** cwd ⊆ workspace roots; network off unless operator enables; **timeout required**.
 5. **mcp-router:** Reimplement minimal slice in gateway; go-port as design reference only.
-6. **Catalog over cap:** Fail closed vs drop MCP with `tools.mcp.catalog_truncated` — **close in Phase 0**.
+6. **Catalog over cap:** **Fail closed** at default **N = 32**; emit `tools.mcp.catalog_truncated` — closed in Phase 0 feature record.
 
 ---
 

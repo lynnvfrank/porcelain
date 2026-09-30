@@ -56,6 +56,7 @@ Naming hard-cut notes live in the feature record [product-naming-contract](featu
 | [design.md](design.md) | Cognitive routing north star (not all shipped) |
 | [reference/bifrost-upstream.md](reference/bifrost-upstream.md) | BiFrost backend behind `chimera-broker` |
 | [reference/tokencount-notes.md](reference/tokencount-notes.md) | Token estimate trade-offs (design discussion) |
+| [reference/mcp-sidecar-catalog.md](reference/mcp-sidecar-catalog.md) | Blessed MCP sidecars (`fake_echo`) and Tier B templates for `chimera.yaml` |
 
 ---
 

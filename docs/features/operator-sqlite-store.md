@@ -45,6 +45,7 @@ Operator configuration and durable UI data live in a single **SQLite** database 
 | `000009_assistant_harness_modules` | Per-assistant harness module toggles |
 | `000010_workspace_policy` | Workspace policy for harness meta-policy |
 | `000011_rename_virtual_models_to_assistants` | Go-applied upgrade: `virtual_models` → `assistants` (see generated doc) |
+| `000012_mcp_servers` | MCP server definitions + per-assistant bindings and tool permissions |
 
 **Decisions**
 

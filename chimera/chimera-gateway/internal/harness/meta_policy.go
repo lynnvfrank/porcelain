@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness/tools"
 	"github.com/lynn/porcelain/internal/naming"
 )
 
@@ -37,7 +36,8 @@ func (MetaPolicyStage) Run(ctx context.Context, tc *TurnContext, env *TurnEnvelo
 	for _, path := range workspace.Paths {
 		tc.WorkspaceRoots = append(tc.WorkspaceRoots, path.Path)
 	}
-	tc.ToolExecutor = tools.NewWorkspaceExecutor(tc.WorkspaceRoots, workspace.FileActionPolicy)
+	native := buildNativeToolExecutor(tc, tc.WorkspaceRoots, workspace.FileActionPolicy)
+	wireToolExecutor(ctx, tc, native)
 	env.Scope.WorkspaceID = &workspace.ID
 	env.Scope.Sensitivity = workspace.Sensitivity
 	env.Scope.AllowCloud = boolPtr(workspace.AllowCloud)

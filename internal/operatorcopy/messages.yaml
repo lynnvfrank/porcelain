@@ -193,6 +193,18 @@ messages:
   - slug: conversation.tool.call_failed
     summary: Tool call failed for this conversation turn.
     gallery_preview: Tool call failed
+  - slug: tools.mcp.invoke
+    summary: MCP tools/call completed for an assistant-bound server and tool.
+    gallery_preview: MCP tool call completed.
+  - slug: tools.mcp.error
+    summary: MCP transport or protocol error during tools/list or tools/call.
+    gallery_preview: MCP tool backend error.
+  - slug: tools.policy.denied
+    summary: Tool call or catalog entry blocked by assistant MCP bind or per-tool allowlist.
+    gallery_preview: Tool denied by policy.
+  - slug: tools.mcp.catalog_truncated
+    summary: Merged native and MCP tool count exceeded the configured catalog cap; MCP tools were not injected.
+    gallery_preview: MCP catalog over cap · MCP tools not injected.
   - slug: conversation.broker.completed
     summary: chimera-broker request completed for this conversation turn.
     gallery_preview: chimera-broker request completed

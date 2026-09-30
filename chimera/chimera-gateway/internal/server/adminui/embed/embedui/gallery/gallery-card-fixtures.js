@@ -225,7 +225,10 @@
               module_id: "tool_executor",
               enabled: true,
               configurable: true,
-              config_json: { max_tool_rounds: 5 }
+              config_json: {
+                max_tool_rounds: 5,
+                mcp: { enabled: true, preview_tools: ["fake_echo__echo"] }
+              }
             }
           ]
         },

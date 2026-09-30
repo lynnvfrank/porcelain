@@ -11,6 +11,7 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/conversationhistory"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gatewaymetrics"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/harness/tools"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/mcpmgr"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/transform"
@@ -53,6 +54,7 @@ type TurnContext struct {
 	HistRec  *conversationhistory.Recorder
 
 	RAG                 *rag.Service
+	CorpusStale         rag.StaleSourceStore
 	OperatorStore       *operatorstore.Store
 	Metrics             gatewaymetrics.Recorder
 	LimitsGuard         *providerlimits.Guard
@@ -61,13 +63,15 @@ type TurnContext struct {
 	EmitRequestWitness  func(log *slog.Logger, res *config.Resolved, body map[string]json.RawMessage)
 
 	// Mutable outputs populated by stages.
-	RAGHits        []vectorstore.Hit
-	InitialModel   string
-	ToolRouter     transform.ToolRouterSummary
-	Envelope       *TurnEnvelope
-	WorkspaceScope *operatorstore.Workspace
-	WorkspaceRoots []string
-	ToolExecutor   tools.ToolExecutor
+	RAGHits          []vectorstore.Hit
+	InitialModel     string
+	ToolRouter       transform.ToolRouterSummary
+	Envelope         *TurnEnvelope
+	WorkspaceScope   *operatorstore.Workspace
+	WorkspaceRoots   []string
+	ToolExecutor     tools.ToolExecutor
+	ToolDeclarations []map[string]any
+	MCPManager       *mcpmgr.Manager
 	// BodyBeforeRetrieval preserves the request after transforms but before RAG
 	// injection so escalation can re-retrieve without duplicating evidence.
 	BodyBeforeRetrieval   Body

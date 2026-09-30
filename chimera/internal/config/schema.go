@@ -51,6 +51,36 @@ type chimeraDoc struct {
 	OperatorLogs struct {
 		IndexerPinnedLinesMax int `yaml:"indexer_pinned_lines_max"`
 	} `yaml:"operator_logs"`
+
+	MCP mcpDoc `yaml:"mcp"`
+}
+
+type mcpDoc struct {
+	CatalogMaxTools int               `yaml:"catalog_max_tools"`
+	CallTimeoutMS   int               `yaml:"call_timeout_ms"`
+	Servers         []mcpServerDoc    `yaml:"servers"`
+	Assistants      []mcpAssistantDoc `yaml:"assistants"`
+}
+
+type mcpServerDoc struct {
+	ID           string   `yaml:"id"`
+	Disabled     *bool    `yaml:"disabled"`
+	AutoStart    *bool    `yaml:"auto_start"`
+	Transport    string   `yaml:"transport"`
+	Command      string   `yaml:"command"`
+	Args         []string `yaml:"args"`
+	EnvAllowlist []string `yaml:"env_allowlist"`
+	URL          string   `yaml:"url"`
+}
+
+type mcpAssistantDoc struct {
+	AssistantID string             `yaml:"assistant_id"`
+	Servers     []mcpServerBindDoc `yaml:"servers"`
+}
+
+type mcpServerBindDoc struct {
+	ServerID string          `yaml:"server_id"`
+	Tools    map[string]bool `yaml:"tools"`
 }
 
 type supervisorDoc struct {

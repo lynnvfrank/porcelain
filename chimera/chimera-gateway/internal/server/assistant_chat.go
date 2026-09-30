@@ -130,6 +130,9 @@ func handleAssistantChat(
 	if vm == nil {
 		return false
 	}
+	if merged := rt.ChatResolved(ctx); merged != nil {
+		res = merged
+	}
 	assistantID := vm.ModelID
 	routeLog = routeLogWithAssistant(routeLog, assistantID)
 
@@ -161,6 +164,7 @@ func handleAssistantChat(
 		ChatOpts:         chatOpts,
 		HistRec:          histRec,
 		RAG:              rt.RAG(),
+		CorpusStale:      rt.CorpusStaleStore(),
 		OperatorStore:    rt.OperatorStore(),
 		Metrics:          rt.Metrics(),
 		LimitsGuard:      rt.LimitsGuard(),
@@ -169,6 +173,7 @@ func handleAssistantChat(
 			rt.NoteToolRouterAttempt(model, err)
 		},
 		EmitRequestWitness: emitConversationRequestWitness,
+		MCPManager:         rt.MCPManager(),
 	}
 
 	err := harness.DefaultRunner().Run(ctx, tc, harness.Body(raw))

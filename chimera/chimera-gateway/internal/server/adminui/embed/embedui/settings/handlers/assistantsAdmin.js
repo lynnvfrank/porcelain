@@ -88,13 +88,43 @@ globalThis.ChimeraSettings.Handlers.Assistants.wire = function (ctx) {
     return ctx.assistantDetails[String(id)] || null;
   }
 
+  function fetchMcpPanelData(vmId) {
+    if (!ctx.adminStateCache) ctx.adminStateCache = {};
+    if (!ctx.adminStateCache.mcp) ctx.adminStateCache.mcp = { servers: [], bindingsByVm: {}, toolsByServer: {} };
+    var mcpCache = ctx.adminStateCache.mcp;
+    return fetch("/api/ui/mcp/servers", { credentials: "same-origin" })
+      .then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (j) {
+        mcpCache.servers = Array.isArray(j && j.servers) ? j.servers : [];
+        return fetch("/api/ui/assistants/" + String(vmId) + "/mcp", { credentials: "same-origin" })
+          .then(function (r2) { return r2.json().catch(function () { return {}; }); })
+          .then(function (bj) {
+            mcpCache.bindingsByVm[String(vmId)] = Array.isArray(bj && bj.bindings) ? bj.bindings : [];
+            var servers = mcpCache.servers.slice();
+            return servers.reduce(function (chain, srv) {
+              return chain.then(function () {
+                var sid = String(srv.server_id || "");
+                if (!sid) return;
+                return fetch("/api/ui/mcp/servers/" + encodeURIComponent(sid) + "/tools", { credentials: "same-origin" })
+                  .then(function (rt) { return rt.json().catch(function () { return {}; }); })
+                  .then(function (tj) {
+                    mcpCache.toolsByServer[sid] = Array.isArray(tj && tj.tools) ? tj.tools : [];
+                  });
+              });
+            }, Promise.resolve());
+          });
+      })
+      .catch(function () {});
+  }
+
   function reloadVm(vmId) {
     var ui = vmUi(vmId);
     ui.hydrated = false;
     return Promise.all([
       fetchAssistantDetail(vmId, true),
       fetchAdminState(),
-      fetchAdminTokens()
+      fetchAdminTokens(),
+      fetchMcpPanelData(vmId)
     ]).then(function () {
       patchVm(vmId, { onlyIfOpen: false });
       if (typeof ctx.patchAdminCardsFromPoll === "function") ctx.patchAdminCardsFromPoll();
@@ -758,6 +788,38 @@ globalThis.ChimeraSettings.Handlers.Assistants.wire = function (ctx) {
         (adminPutJSON || adminPostJSON)(vmApiPath(vmId, "/harness"), { modules: currentConfigModules })
           .then(function () {
             adminSetMessage("", (isEvaluator ? "Evaluator" : "Escalation") + " settings saved.");
+            return reloadVm(vmId);
+          })
+          .catch(function (e) {
+            adminSetMessage("err", e && e.message ? e.message : String(e));
+          });
+        return;
+      }
+
+      if (act === "vm-mcp-bindings-save") {
+        var mcpServers = document.querySelectorAll("#assistant-" + String(vmId) + ' input[data-mcp-server].sum-asst-mcp-bind, #assistant-' + String(vmId) + " input.sum-asst-mcp-bind[data-mcp-server]");
+        var bindingsMap = {};
+        for (var msi = 0; msi < mcpServers.length; msi++) {
+          var bindEl = mcpServers[msi];
+          var sid = String(bindEl.getAttribute("data-mcp-server") || "").trim();
+          if (!sid) continue;
+          bindingsMap[sid] = { server_id: sid, enabled: !!bindEl.checked, tools: [] };
+        }
+        var toolInputs = document.querySelectorAll("#assistant-" + String(vmId) + " input[data-mcp-tool]");
+        for (var mti = 0; mti < toolInputs.length; mti++) {
+          var toolEl = toolInputs[mti];
+          var tsid = String(toolEl.getAttribute("data-mcp-server") || "").trim();
+          var tname = String(toolEl.getAttribute("data-mcp-tool") || "").trim();
+          if (!tsid || !tname || !bindingsMap[tsid]) continue;
+          bindingsMap[tsid].tools.push({ tool_name: tname, enabled: !!toolEl.checked });
+        }
+        var bindingsPayload = [];
+        for (var bk in bindingsMap) {
+          if (Object.prototype.hasOwnProperty.call(bindingsMap, bk)) bindingsPayload.push(bindingsMap[bk]);
+        }
+        (adminPutJSON || adminPostJSON)("/api/ui/assistants/" + String(vmId) + "/mcp", { bindings: bindingsPayload })
+          .then(function () {
+            adminSetMessage("", "MCP bindings saved.");
             return reloadVm(vmId);
           })
           .catch(function (e) {

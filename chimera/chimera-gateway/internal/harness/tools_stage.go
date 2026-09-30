@@ -23,11 +23,15 @@ func (ToolExecutorStage) Run(_ context.Context, tc *TurnContext, env *TurnEnvelo
 	if tc == nil || tc.Stack.VM == nil || !tc.Stack.VM.HarnessEnabled(operatorstore.HarnessModuleToolExecutor) {
 		return nil
 	}
-	decls, err := json.Marshal(tools.OpenAITools())
+	decls := tc.ToolDeclarations
+	if len(decls) == 0 {
+		decls = tools.OpenAITools()
+	}
+	rawDecls, err := json.Marshal(decls)
 	if err != nil {
 		return err
 	}
-	body["tools"] = decls
+	body["tools"] = rawDecls
 	// Client-supplied selection may refer to a removed client tool.
 	delete(body, "tool_choice")
 	if env != nil && env.Response.Metadata != nil {

@@ -95,6 +95,8 @@ type Resolved struct {
 	WitnessSampleMaxChars             int
 	WitnessSampleForceAtDebug         bool
 	OperatorLogsIndexerPinnedLinesMax int
+
+	MCP MCP
 }
 
 // ShouldEmitPayloadSample reports whether conversation.payload.sample may be emitted.
@@ -460,6 +462,7 @@ func LoadChimeraYAML(filePath string, log *slog.Logger) (*Resolved, error) {
 		WitnessSampleMaxChars:                 witnessMax,
 		WitnessSampleForceAtDebug:             witnessForceDebug,
 		OperatorLogsIndexerPinnedLinesMax:     idxPinnedMax,
+		MCP:                                   parseMCPDoc(doc, log),
 	}
 	if _, err := res.ResolveSupervisorServices(); err != nil {
 		return nil, err

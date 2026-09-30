@@ -18,6 +18,21 @@ const (
 	PolicyReadWrite = "read_write"
 )
 
+var reservedNativeNames = map[string]bool{
+	"read_file":                 true,
+	"write_file":                true,
+	"list_dir":                  true,
+	"search":                    true,
+	"workspace_context_around":  true,
+	"workspace_adjacent_chunks": true,
+	"workspace_read_lines":      true,
+}
+
+// IsReservedNativeName reports whether name is dispatched only by the native workspace executor.
+func IsReservedNativeName(name string) bool {
+	return reservedNativeNames[strings.TrimSpace(name)]
+}
+
 var (
 	ErrPermission = errors.New("workspace file action is not permitted")
 	ErrPath       = errors.New("path is outside configured workspace roots")

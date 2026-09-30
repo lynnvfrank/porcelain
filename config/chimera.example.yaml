@@ -78,3 +78,47 @@ search:
     mode: warn
   tooling:
     enabled: true
+
+# MCP tool backends (YAML seed). Catalog: docs/reference/mcp-sidecar-catalog.md
+# Operator UI bindings ship in Phase 2c. Harness tool_executor must be enabled on the assistant.
+# Per-tool allows are deny-by-default — list each MCP tool name explicitly under assistants.
+mcp:
+  catalog_max_tools: 32
+  call_timeout_ms: 60000
+  servers:
+    # Blessed no-network sidecar (Phase 2b) — safe local echo for wiring checks.
+    - id: fake_echo
+      disabled: false
+      auto_start: false
+      transport: stdio
+      command: go
+      args:
+        - run
+        - ./chimera/chimera-gateway/internal/mcpclient/fake/cmd
+      env_allowlist: [PATH, HOME, GOROOT, GOPATH, GOMOD, GOWORK, CGO_ENABLED]
+    # Tier B templates — default OFF until you bless an upstream and enable tools per assistant.
+    # - id: git_local
+    #   disabled: true
+    #   transport: stdio
+    #   command: REPLACE_WITH_GIT_MCP_CLI
+    #   args: []
+    #   env_allowlist: [PATH, HOME]
+    # - id: shell_sandbox
+    #   disabled: true
+    #   transport: stdio
+    #   command: REPLACE_WITH_SHELL_MCP_CLI
+    #   args: []
+    #   env_allowlist: [PATH, HOME]
+    # - id: browser_cdp
+    #   disabled: true
+    #   transport: stdio
+    #   command: REPLACE_WITH_BROWSER_MCP_CLI
+    #   args: []
+    #   env_allowlist: [PATH, HOME]
+  assistants:
+    - assistant_id: "REPLACE_WITH_ASSISTANT_MODEL_ID"
+      servers:
+        - server_id: fake_echo
+          tools:
+            echo: true
+        # git_local / shell_sandbox / browser_cdp: no default tool allows (remain off).

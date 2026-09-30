@@ -9,6 +9,7 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui/api/conversations"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui/api/indexer"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui/api/logs"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui/api/mcp"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui/api/metrics"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui/api/providers"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/server/adminui/api/rag"
@@ -37,6 +38,7 @@ func Register(mux *http.ServeMux, rt *gruntime.Runtime, log *slog.Logger, ui *se
 	indexer.Register(mux, h)
 	rag.Register(mux, h)
 	assistants.Register(mux, h)
+	mcp.Register(mux, h)
 	conversations.Register(mux, h)
 	logs.Register(mux, h)
 }

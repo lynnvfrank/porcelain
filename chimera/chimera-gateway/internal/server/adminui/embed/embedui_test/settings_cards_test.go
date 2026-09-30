@@ -679,6 +679,76 @@ func TestLogsCards_indexerCardTitleSortLabel(t *testing.T) {
 	}
 }
 
+func TestLogsCards_assistantHarnessMcpPanel(t *testing.T) {
+	vm := goja.New()
+	loadCardTestCtx(t, vm)
+
+	_, err := vm.RunString(`
+		ctx.adminStateCache = ctx.adminStateCache || {};
+		ctx.adminStateCache.mcp = { servers: [], bindingsByVm: {}, toolsByServer: {} };
+		ctx.assistantUi = { "9": { panelOpen: true, hydrated: true } };
+		ctx.assistantDetails = {
+			"9": {
+				fallback_chain: ["groq/free"],
+				routing_policy: "rules: []\n",
+				router_models: [],
+				harness_modules: [
+					{ module_id: "tool_executor", enabled: true, configurable: true, config_json: { mcp: { enabled: true } } }
+				]
+			}
+		};
+		var emptyHtml = ctx.buildAssistantCardHtml({
+			id: 9,
+			model_id: "dev/model",
+			name: "Dev",
+			version: "1",
+			enabled: true,
+			visibility: "public",
+			fallback_depth: 1,
+			routing_policy_enabled: false,
+			tool_router_enabled: false
+		});
+		if (emptyHtml.indexOf('data-ui-part="assistant.harness.mcp-config"') < 0) {
+			throw new Error("missing mcp-config part");
+		}
+		if (emptyHtml.indexOf("PUT /api/ui/mcp/servers") < 0) {
+			throw new Error("expected empty-store operator hint");
+		}
+
+		ctx.adminStateCache.mcp = {
+			servers: [{ server_id: "fake_echo", transport: "stdio", state: "error", error: "spawn failed" }],
+			bindingsByVm: { "9": [{ server_id: "fake_echo", enabled: false, tools: [{ tool_name: "echo", enabled: true }] }] },
+			toolsByServer: { fake_echo: ["echo", "shell_run"] }
+		};
+		var boundHtml = ctx.buildAssistantCardHtml({
+			id: 9,
+			model_id: "dev/model",
+			name: "Dev",
+			version: "1",
+			enabled: true,
+			visibility: "public",
+			fallback_depth: 1,
+			routing_policy_enabled: false,
+			tool_router_enabled: false
+		});
+		if (boundHtml.indexOf("vm-mcp-bindings-save") < 0) {
+			throw new Error("missing save bindings action");
+		}
+		if (boundHtml.indexOf("data-mcp-tool=") < 0 || boundHtml.indexOf('data-mcp-tool="echo"') < 0) {
+			throw new Error("expected per-tool toggles");
+		}
+		if (!/data-mcp-tool="echo"[^>]*\sdisabled/.test(boundHtml)) {
+			throw new Error("tool toggles must disable when server bind is off");
+		}
+		if (boundHtml.indexOf("spawn failed") < 0) {
+			throw new Error("expected error health copy when server state is error");
+		}
+	`)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestLogsCards_cardUiPartAttributes(t *testing.T) {
 	vm := goja.New()
 	loadCardTestCtx(t, vm)

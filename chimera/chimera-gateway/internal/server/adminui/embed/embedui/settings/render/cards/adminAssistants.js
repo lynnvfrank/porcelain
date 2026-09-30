@@ -810,7 +810,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminAssistants = function (ctx) {
       case "escalation":
         return "Re-retrieve or walk fallback when evaluation recommends it.";
       case "tool_executor":
-        return "Gateway-injected workspace file tools constrained to the resolved workspace policy.";
+        return "Gateway-injected workspace tools and optional MCP sidecars (per-assistant bind and per-tool allowlist).";
       default:
         return "";
     }
@@ -870,6 +870,95 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminAssistants = function (ctx) {
     );
   }
 
+  function mcpBindingEnabled(bindings, serverId) {
+    var list = Array.isArray(bindings) ? bindings : [];
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].server_id || "") === serverId) return !!list[i].enabled;
+    }
+    return false;
+  }
+
+  function mcpToolEnabled(bindings, serverId, toolName) {
+    var list = Array.isArray(bindings) ? bindings : [];
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].server_id || "") !== serverId) continue;
+      var tools = Array.isArray(list[i].tools) ? list[i].tools : [];
+      for (var j = 0; j < tools.length; j++) {
+        if (String(tools[j].tool_name || "") === toolName) return !!tools[j].enabled;
+      }
+    }
+    return false;
+  }
+
+  function toolExecutorMcpKnobsHtml(pfx, vmId) {
+    var cache = (ctx.adminStateCache && ctx.adminStateCache.mcp) || {};
+    var servers = Array.isArray(cache.servers) ? cache.servers : [];
+    var bindings = (cache.bindingsByVm && cache.bindingsByVm[String(vmId)]) || [];
+    if (!servers.length) {
+      return (
+        '<div class="sum-asst-harness-mcp" data-ui-part="assistant.harness.mcp-config">' +
+        '<p class="sg-op-card-note sg-op-card-note--tight">No MCP servers in operator store. Add rows via <code class="sum-mono-id">PUT /api/ui/mcp/servers/{id}</code> or keep using <code class="sum-mono-id">chimera.yaml</code> until the first server row exists.</p></div>'
+      );
+    }
+    var rows = "";
+    for (var si = 0; si < servers.length; si++) {
+      var srv = servers[si] || {};
+      var sid = String(srv.server_id || "");
+      var state = String(srv.state || "stopped");
+      var err = String(srv.error || "").trim();
+      var pillVariant = state === "running" ? "ok" : state === "error" ? "down" : "unknown";
+      var pillLabel = state === "error" && err ? state + ": " + err : state;
+      var bindOn = mcpBindingEnabled(bindings, sid);
+      var tools = Array.isArray(cache.toolsByServer && cache.toolsByServer[sid]) ? cache.toolsByServer[sid] : [];
+      var toolRows = "";
+      for (var ti = 0; ti < tools.length; ti++) {
+        var tname = String(tools[ti] || "");
+        if (!tname) continue;
+        var tid = pfx + "mcp-tool-" + sid.replace(/[^a-z0-9_-]/gi, "-") + "-" + tname.replace(/[^a-z0-9_-]/gi, "-");
+        toolRows +=
+          '<label class="sg-op-label sg-op-label--inline"><input type="checkbox" id="' +
+          escapeHtml(tid) +
+          '" data-mcp-server="' +
+          escapeHtml(sid) +
+          '" data-mcp-tool="' +
+          escapeHtml(tname) +
+          '"' +
+          (mcpToolEnabled(bindings, sid, tname) ? " checked" : "") +
+          (bindOn ? "" : " disabled") +
+          " /> " +
+          escapeHtml(tname) +
+          "</label>";
+      }
+      rows +=
+        "<tr><td><strong>" +
+        escapeHtml(sid) +
+        '</strong><div class="sg-op-card-note sg-op-card-note--tight">' +
+        escapeHtml(String(srv.transport || "stdio")) +
+        (srv.disabled ? " · disabled" : "") +
+        "</div></td><td>" +
+        (sgOpHealthPillHtml
+          ? sgOpHealthPillHtml(pillLabel, pillVariant, err ? { title: err } : undefined)
+          : escapeHtml(pillLabel)) +
+        '</td><td><label class="sg-op-label sg-op-label--inline"><input type="checkbox" class="sum-asst-mcp-bind" id="' +
+        escapeHtml(pfx + "mcp-bind-" + sid) +
+        '" data-mcp-server="' +
+        escapeHtml(sid) +
+        '"' +
+        (bindOn ? " checked" : "") +
+        " /> Bind</label></td></tr>" +
+        (toolRows ? '<tr><td colspan="3"><div class="sum-asst-mcp-tools">' + toolRows + "</div></td></tr>" : "");
+    }
+    return (
+      '<div class="sum-asst-harness-mcp" data-ui-part="assistant.harness.mcp-config">' +
+      '<p class="sg-op-card-note">MCP sidecars for this assistant (operator SQLite overrides YAML when server rows exist). Catalog rebuilds on the next harness turn after save.</p>' +
+      '<div class="sum-metrics-table-wrap"><table class="sum-metrics-table"><thead><tr><th>Server</th><th>Health</th><th>Bind</th></tr></thead><tbody>' +
+      rows +
+      '</tbody></table></div><button type="button" class="sg-op-btn sg-op-btn--ghost" data-admin-action="vm-mcp-bindings-save" data-vm-id="' +
+      escapeHtml(String(vmId)) +
+      '">Keep MCP bindings</button></div>'
+    );
+  }
+
   function escalationKnobsHtml(module, pfx, vmId) {
     var cfg = retrievalConfigFromModule(module);
     var actions = Array.isArray(cfg.on_fail) ? cfg.on_fail.join(", ") : "";
@@ -922,6 +1011,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminAssistants = function (ctx) {
         var intentKnobs = mid === "intent" && en ? intentKnobsHtml(m, pfx, vm.id) : "";
         var evaluatorKnobs = mid === "evaluator" && en ? evaluatorKnobsHtml(m, pfx, vm.id) : "";
         var escalationKnobs = mid === "escalation" && en ? escalationKnobsHtml(m, pfx, vm.id) : "";
+        var mcpKnobs = mid === "tool_executor" && en ? toolExecutorMcpKnobsHtml(pfx, vm.id) : "";
         rows +=
           "<tr data-harness-module-row=\"" +
           escapeHtml(mid) +
@@ -938,7 +1028,7 @@ globalThis.ChimeraSettings.Render.Cards.mountAdminAssistants = function (ctx) {
           '<span class="sum-asst-hdr-toggle-state muted">' +
           escapeHtml(stateLabel) +
           "</span></span></td></tr>" +
-          ((retrievalKnobs || intentKnobs || evaluatorKnobs || escalationKnobs) ? '<tr><td colspan="2">' + retrievalKnobs + intentKnobs + evaluatorKnobs + escalationKnobs + "</td></tr>" : "");
+          ((retrievalKnobs || intentKnobs || evaluatorKnobs || escalationKnobs || mcpKnobs) ? '<tr><td colspan="2">' + retrievalKnobs + intentKnobs + evaluatorKnobs + escalationKnobs + mcpKnobs + "</td></tr>" : "");
       }
       body =
         '<div class="sum-metrics-table-wrap"><table class="sum-metrics-table sum-asst-harness-table"><thead><tr><th>Module</th><th class="num">Enabled</th></tr></thead><tbody>' +

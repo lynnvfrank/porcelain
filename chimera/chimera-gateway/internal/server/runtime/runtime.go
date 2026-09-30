@@ -12,6 +12,7 @@ import (
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/assistant"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/corpusstale"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/gatewaymetrics"
+	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/mcpmgr"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/operatorstore"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/providermodels"
 	"github.com/lynn/porcelain/chimera/chimera-gateway/internal/rag"
@@ -67,6 +68,8 @@ type Runtime struct {
 	indexerStatus   IndexerSupervisorStatus
 
 	corpusStaleStore *corpusstale.Store
+
+	mcpMgr *mcpmgr.Manager
 }
 
 // IndexerSupervisorStatus is the gateway-owned view of supervised indexer process health.
@@ -159,6 +162,7 @@ func NewRuntimeWithBrokerOverride(chimeraYAMLPath string, log *slog.Logger, brok
 			rt.rag = s
 		}
 	}
+	rt.reloadMCPLocked(context.Background())
 	if st, err := os.Stat(chimeraYAMLPath); err == nil {
 		rt.gatewayMtime = st.ModTime()
 	}
@@ -336,6 +340,13 @@ func (rt *Runtime) OperatorStore() *operatorstore.Store {
 	rt.mu.RLock()
 	defer rt.mu.RUnlock()
 	return rt.operator
+}
+
+// SetResolvedForTest assigns gateway resolved config (tests only).
+func (rt *Runtime) SetResolvedForTest(res *config.Resolved) {
+	rt.mu.Lock()
+	rt.resolved = res
+	rt.mu.Unlock()
 }
 
 // SetOperatorStoreForTest assigns the operator SQLite store (tests only).
@@ -565,6 +576,23 @@ func (rt *Runtime) CloseMetrics() {
 	if rt.metrics != nil {
 		_ = rt.metrics.Close()
 		rt.metrics = nil
+	}
+}
+
+// MCPManager returns the gateway MCP server manager when configured.
+func (rt *Runtime) MCPManager() *mcpmgr.Manager {
+	rt.mu.RLock()
+	defer rt.mu.RUnlock()
+	return rt.mcpMgr
+}
+
+// CloseMCP stops MCP child processes (tests and graceful shutdown).
+func (rt *Runtime) CloseMCP() {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if rt.mcpMgr != nil {
+		rt.mcpMgr.Stop()
+		rt.mcpMgr = nil
 	}
 }
 

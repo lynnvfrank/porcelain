@@ -15,6 +15,10 @@ Auto-generated from [`internal/operatorcopy/messages.yaml`](../internal/operator
 | conversation.tool.call_started |  |  | Gateway started executing a tool call for this conversation turn. | 0 |
 | conversation.tool.call_completed |  |  | Tool call finished successfully for this conversation turn. | 0 |
 | conversation.tool.call_failed |  |  | Tool call failed for this conversation turn. | 0 |
+| tools.mcp.invoke |  |  | MCP tools/call completed for an assistant-bound server and tool. | 0 |
+| tools.mcp.error |  |  | MCP transport or protocol error during tools/list or tools/call. | 0 |
+| tools.policy.denied |  |  | Tool call or catalog entry blocked by assistant MCP bind or per-tool al… | 0 |
+| tools.mcp.catalog_truncated |  |  | Merged native and MCP tool count exceeded the configured catalog cap; M… | 0 |
 | conversation.broker.completed |  |  | chimera-broker request completed for this conversation turn. | 0 |
 | conversation.broker.failed |  |  | chimera-broker request failed for this conversation turn. | 0 |
 | conversation.fallback.attempted |  |  | Continuing to the next model in the fallback chain after an upstream fa… | 0 |
