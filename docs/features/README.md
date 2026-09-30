@@ -19,6 +19,7 @@ Durable contracts for new binaries, wrappers, and cross-cutting integration — 
 | [Operator UI filesystem dev mode](operator-ui-filesystem-dev-mode.md) | `CHIMERA_ADMINUI_ROOT` serves embed UI from disk on loopback | Gateway embed assets | `current` |
 | [Gateway chat routing pipeline](gateway-chat-routing-pipeline.md) | Turn harness stages, tool router, per-assistant retrieval, policy pick, fallback loop | Gateway chat path | `current` |
 | [Assistant harness internals](assistant-harness-internals.md) | Stage runner contract, envelope, generated stage order, harness evaluate dry-run | `internal/harness` | `current` |
+| [Gateway MCP tool backends](gateway-mcp-tool-backends.md) | Draft contract: composite `ToolExecutor`, slug mapping, MCP manager/catalog (not shipped) | Gateway harness | `draft` |
 
 ## Operator features
 

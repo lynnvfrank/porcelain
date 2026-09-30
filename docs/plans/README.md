@@ -50,6 +50,8 @@ Linked from [`version-v0.5.md`](../version-v0.5.md).
 
 | Plan | Summary |
 |------|---------|
+| [gateway-mcp-tool-backends.md](gateway-mcp-tool-backends.md) | Harness MCP client (Phase 1 stdio); expansion tools; optional sidecar; workflow MCP deferred |
+| [operator-model-assist-tools.md](operator-model-assist-tools.md) | Model-assist API-only tools; hard deny of developer MCP profile |
 | [indexer-embedding-model-and-workspace-purge.md](indexer-embedding-model-and-workspace-purge.md) | Operator embedding model selector; workspace delete drops vector collection |
 | [operator-workspace-search.md](operator-workspace-search.md) | Direct workspace search API, `/ui/search`, ribbon nav |
 | [embedui-settings-card-cleanup.md](embedui-settings-card-cleanup.md) | Settings feed and card component refactor |

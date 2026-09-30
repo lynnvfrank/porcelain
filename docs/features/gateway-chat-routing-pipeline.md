@@ -166,6 +166,7 @@ Manual: configure assistant with short-context + long-context models in fallback
 - **LLM-generated routing policy** — exploration only ([`docs/version-v0.1.md`](../version-v0.1.md)).
 - **Additional transform stages** (prompt compression, tool format normalizers) — add via future Transform router slot.
 - **Shared routing-rule catalog** across assistants — policy YAML is per-assistant today.
+- **MCP tool backends** — not implemented; planned via [`plans/gateway-mcp-tool-backends.md`](../plans/gateway-mcp-tool-backends.md). When shipped, gateway-injected native + MCP tools run in `tool_executor` and **do not** pass through `tool_router`. Until a catalog size cap ships, large MCP merges are a known context-budget risk.
 
 ## References
 
@@ -174,3 +175,4 @@ Manual: configure assistant with short-context + long-context models in fallback
 - Tool router plan: [`docs/version-v0.1.1.md`](../version-v0.1.1.md)
 - Context admission: [`context-window-admission.md`](context-window-admission.md)
 - Harness delivery: [`assistant-turn-harness.md`](../plans/assistant-turn-harness.md)
+- MCP backends (draft contract): [`gateway-mcp-tool-backends.md`](gateway-mcp-tool-backends.md)

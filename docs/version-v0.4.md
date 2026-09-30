@@ -216,7 +216,7 @@ The following appeared in prior v0.4 drafts; they are **not** core to the harnes
 
 | Theme | Disposition | Notes |
 |-------|-------------|-------|
-| **Gateway MCP / MCP tool router** | v0.5 | v0.4 defines `ToolExecutor`; MCP registers as adapter |
+| **Gateway MCP / MCP tool router** | v0.5 | [`plans/gateway-mcp-tool-backends.md`](plans/gateway-mcp-tool-backends.md) — v0.4 defines `ToolExecutor`; MCP registers as adapter |
 | **Peer backends** | v0.5 or later | Cross-host upstream routing |
 | **Operator desired-state / model-assisted config** | v0.5 | [`version-v0.5.md`](version-v0.5.md) |
 | **Settings and application search** | v0.5 | [`plans/embedui-settings-card-cleanup.md`](plans/embedui-settings-card-cleanup.md) |

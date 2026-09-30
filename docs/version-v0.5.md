@@ -25,6 +25,7 @@ The same train ships **actionable operator alerts** built from recurring upstrea
 | [plans/indexer-embedding-model-and-workspace-purge.md](plans/indexer-embedding-model-and-workspace-purge.md) | Operator-selectable embedding model on indexer card; workspace delete drops vector collection                                           | `todo`  |
 | [plans/operator-workspace-search.md](plans/operator-workspace-search.md)                           | Direct workspace search in app shell (not chat-only RAG)                                                                                | `todo`  |
 | [plans/embedui-settings-card-cleanup.md](plans/embedui-settings-card-cleanup.md)                 | Settings feed and card component consistency refactor                                                                                   | `todo`  |
+| [plans/gateway-mcp-tool-backends.md](plans/gateway-mcp-tool-backends.md)                         | Harness MCP client + one stdio path (Phase 1); expansion tools + optional sidecar — **not** workflow MCP or full IDE facade in v0.5   | `todo`  |
 
 ***
 
@@ -125,6 +126,7 @@ Each guide should include, at minimum:
 ### Gateway responsibilities
 
 - **Assistant routing** — Assist calls use a dedicated VM or scoped upstream model with low temperature; tool use limited to documented operator APIs (no arbitrary shell).
+- **Tooling boundary** — Model-assist does **not** use the developer MCP suite in [`plans/gateway-mcp-tool-backends.md`](plans/gateway-mcp-tool-backends.md). Operator API tools are defined in [`plans/operator-model-assist-tools.md`](plans/operator-model-assist-tools.md).
 - **Auth** — Same UI session as the operator; model cannot escalate privilege.
 - **Audit** — Log `operator.model_assist.proposed` and `operator.model_assist.applied` with page id and API slugs.
 
@@ -214,6 +216,7 @@ Each guide should include, at minimum:
 | Indexer embedding + purge    | [`plans/indexer-embedding-model-and-workspace-purge.md`](plans/indexer-embedding-model-and-workspace-purge.md) acceptance met |
 | Workspace search             | [`plans/operator-workspace-search.md`](plans/operator-workspace-search.md) acceptance met                        |
 | Settings cleanup             | [`plans/embedui-settings-card-cleanup.md`](plans/embedui-settings-card-cleanup.md) phases shipped               |
+| Gateway MCP (harness)        | [`plans/gateway-mcp-tool-backends.md`](plans/gateway-mcp-tool-backends.md) Phase 1 acceptance only (stdio fake MCP + assistant tool round-trip) |
 
 ***
 
