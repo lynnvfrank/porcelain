@@ -624,10 +624,14 @@ contracts-generate:
 	$(call step_msg,Regenerating operator copy (messages.yaml bootstrap + operator_copy.js))
 	@go run ./internal/operatorcopy/cmd/bootstrap
 	@go generate ./internal/operatorcopy/...
+	$(call step_msg,Generating operator SQLite migration docs)
+	@go run ./internal/docgen/migrations/cmd
 
 contracts-check:
 	@echo [STEP] Checking data contracts are up to date
 	@go test ./internal/naming/... -run TestGeneratedContractsJSMatchesFile -count=1
+	@echo [STEP] Checking operator SQLite migration docs are up to date
+	@go test ./internal/docgen/migrations/... -run TestGeneratedMigrationsMDMatchesFile -count=1
 	@echo [STEP] Checking operator_copy.js and log_messages.go are up to date
 	@go test ./internal/operatorcopy/... -run TestGeneratedOperatorCopyJSMatchesFile -count=1
 	@go test ./internal/naming/... -run 'TestGeneratedLogMessagesGoMatchesFile|TestLogMessageConstsHaveRegistryEntry' -count=1

@@ -18,6 +18,13 @@ const bootstrapDDL = `CREATE TABLE IF NOT EXISTS operator_migrations (
 
 var migrationFileRE = regexp.MustCompile(`^(\d{6})_.+\.sql$`)
 
+//docgen:migrations
+// Operator SQL files live under migrations/chimera-gateway/operator/.
+// Filenames must match migrationFileRE: 000NNN_snake_name.sql (six-digit version prefix).
+// Pending files run in lexicographic order; applied versions are stored in operator_migrations.
+// Version 11 (000011_rename_virtual_models_to_assistants.sql): the .sql file is comment-only;
+// ApplyMigrations runs applyRenameVirtualModelsToAssistants when legacy virtual_models exists (see migrate_rename.go).
+
 // ApplyMigrations runs *.sql in migrationsDir whose version is not recorded in operator_migrations.
 func ApplyMigrations(db *sql.DB, migrationsDir string, log *slog.Logger) error {
 	if _, err := os.Stat(migrationsDir); err != nil {
