@@ -134,6 +134,8 @@ var gatewayIndexTmpl = template.Must(template.New("gatewayIndex").Parse(`<!DOCTY
 </body>
 </html>`))
 
+//go:generate go run ../../../../internal/docgen/routes/cmd
+
 // NewMux builds the v0.1 HTTP surface (src/server.ts parity). overlay configures GET /status;
 // pass nil in tests; production passes listen address and optional supervisor info.
 // ui enables operator /ui and /api/ui routes; pass nil to disable (tests).

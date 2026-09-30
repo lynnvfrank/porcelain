@@ -18,6 +18,27 @@ func NewRunner(stages ...Stage) *Runner {
 	return &Runner{stages: stages}
 }
 
+// StageMeta is the stable stage id and harness module id for logs and docs.
+type StageMeta struct {
+	Name   string
+	Module string
+}
+
+// Stages returns ordered stage metadata (skips nil entries).
+func (r *Runner) Stages() []StageMeta {
+	if r == nil {
+		return nil
+	}
+	out := make([]StageMeta, 0, len(r.stages))
+	for _, stage := range r.stages {
+		if stage == nil {
+			continue
+		}
+		out = append(out, StageMeta{Name: stage.Name(), Module: stage.Module()})
+	}
+	return out
+}
+
 // Run executes all stages. Returns nil when the turn completes successfully or
 // after ErrTurnComplete from the terminal fallback stage.
 func (r *Runner) Run(ctx context.Context, tc *TurnContext, body Body) error {

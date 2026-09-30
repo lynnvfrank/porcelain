@@ -52,6 +52,7 @@ Structured log lines use stable **`msg` slugs** in Go (`slog` fields). The **ope
 |---------|--------|
 | Source | `internal/operatorcopy/messages.yaml` |
 | Generated JS | `operator_copy.js` — `Slug`, `operatorMessage`, `inferShapeForFlat`, `metricsCounterForFlat` |
+| Agent slug index | [`docs/generated/log-slug-index.md`](../generated/log-slug-index.md) (generated from YAML) |
 | Render entry | `settings/render/operatorMessage.js`, `operatorMessageServices.js`, `operatorMessageIndexer.js` |
 | Go constants | `internal/naming/log_messages.go` (generated) |
 | Commands | `go generate ./internal/operatorcopy/...`, `make contracts-generate`, `make contracts-check` |
@@ -61,7 +62,7 @@ Structured log lines use stable **`msg` slugs** in Go (`slog` fields). The **ope
 | Concern | Location |
 |---------|------|
 | Schema + load | `internal/operatorcopy/schema.go`, `load.go`, `embed.go` |
-| Codegen | `internal/operatorcopy/genoperatorcopy/`, `genlogmessages/` |
+| Codegen | `internal/operatorcopy/genoperatorcopy/`, `genlogmessages/`, `genslugindex/` |
 | Validate CLI | `internal/operatorcopy/cmd/validate/` |
 | Bootstrap | `internal/operatorcopy/bootstrap_registry.go`, `cmd/bootstrap/` |
 | Inventory | `internal/operatorcopy/cmd/inventory/`, `inventory-report.txt` |

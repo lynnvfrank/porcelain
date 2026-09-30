@@ -11,6 +11,8 @@ Short map for humans and agents: **what is authoritative now**, what is historic
 | Why was something built this way? | [`plans/archive/`](plans/archive/README.md) (delivery history) |
 | Product vision / normative requirements | [`chimera.plan.md`](chimera.plan.md) (vision; verify against features before implementing) |
 | Stable integration notes | [`reference/`](reference/) |
+| Ports, binaries, health URLs (curated) | [`reference/service-map.md`](reference/service-map.md) — verify defaults in code |
+| Codegen / generated artifacts | [`generated/README.md`](generated/README.md) and paths under `docs/generated/` |
 
 ## Release line
 
@@ -37,6 +39,8 @@ Version docs are **release-train roadmaps**, not the day-to-day work queue. Pref
 | **Version roadmap** | `docs/version-v0.*.md` | Release themes and acceptance narrative |
 | **Runbook** | `docs/*.md` (install, config, …) | Operator how-to |
 | **Reference** | `docs/reference/` | Stable external/integration knowledge |
+| **Service map** | `docs/reference/service-map.md` | Hand-maintained binary/port/health index (not config schema) |
+| **Generated** | `docs/generated/` | Curated codegen output index; see [`generated/README.md`](generated/README.md) |
 
 ## Agent rules (summary)
 

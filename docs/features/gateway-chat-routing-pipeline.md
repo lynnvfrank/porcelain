@@ -29,6 +29,8 @@ Every `POST /v1/chat/completions` request that resolves to an **assistant** runs
 
 ### Harness stage order (assistant path)
 
+> **Generated index:** ordered stage names and log `module` ids are also listed in [`docs/generated/harness-stages.md`](../generated/harness-stages.md) (from `harness.DefaultRunner()` / `PrePrimaryRunner()`). See [Assistant harness internals](assistant-harness-internals.md).
+
 Stages run in this order inside `handleAssistantChat` via `harness.DefaultRunner()` (after auth, merge, and assistant resolution in `handleV1Chat`):
 
 ```mermaid

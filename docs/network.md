@@ -9,6 +9,8 @@
 
 Operator vocabulary and refactor plan: [plans/chimera-gateway-refactor.md](plans/archive/chimera-gateway-refactor.md).
 
+Service index (binaries, ports, health): [reference/service-map.md](reference/service-map.md).
+
 ## Typical local ports
 
 | Process | Default port | Role |

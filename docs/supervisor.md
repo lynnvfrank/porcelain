@@ -72,6 +72,7 @@ After login: app shell **`/ui`**, settings and event log **`/ui/settings`**. See
 
 ## Related docs
 
+- [reference/service-map.md](reference/service-map.md) — default ports, health URLs, config paths per binary
 - [configuration.md](configuration.md) — gateway YAML, reload
 - [indexer.md](indexer.md) — indexer operator guide
 - [network.md](network.md) — ports and traffic flow

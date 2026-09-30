@@ -1,5 +1,7 @@
 # Chimera configuration reference
 
+For an auto-generated catalog of **chimera-gateway** and **chimera-supervisor** HTTP routes (method, path, auth), see [generated/gateway-http-routes.md](generated/gateway-http-routes.md).
+
 Chimera (the gateway runtime in Porcelain) reads **YAML files** and **environment variables**.
 
 ## Operator vocabulary (Chimera products)

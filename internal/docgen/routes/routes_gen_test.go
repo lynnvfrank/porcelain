@@ -1,4 +1,4 @@
-package naming_test
+package routes_test
 
 import (
 	"bytes"
@@ -7,25 +7,31 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/lynn/porcelain/internal/naming/gencontracts"
+	"github.com/lynn/porcelain/internal/docgen/routes"
 )
 
-func TestGeneratedContractsJSMatchesFile(t *testing.T) {
+func TestGeneratedGatewayHTTPRoutesMatchesFile(t *testing.T) {
 	t.Helper()
-	path := filepath.Join(repoRoot(t), filepath.FromSlash(gencontracts.DefaultContractsJSPath))
+	root := repoRoot(t)
+	path := filepath.Join(root, filepath.FromSlash(routes.DefaultMarkdownPath))
+
+	collected, err := routes.Collect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var buf bytes.Buffer
-	if err := gencontracts.WriteContractsJS(&buf); err != nil {
+	if err := routes.WriteMarkdown(&buf, collected); err != nil {
 		t.Fatal(err)
 	}
 	want := buf.String()
 
 	onDisk, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
+		t.Fatalf("read %s: %v (run: make contracts-generate)", path, err)
 	}
 	if string(onDisk) != want {
-		t.Fatalf("%s is stale; run: make contracts-generate", path)
+		t.Fatalf("%s is stale; run: make contracts-generate", routes.DefaultMarkdownPath)
 	}
 }
 

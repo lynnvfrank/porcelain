@@ -111,7 +111,7 @@ endef
 	locus-desktop-test locus-desktop-test-unit locus-desktop-test-e2e \
 	tokencount-file catalog-free catalog-available config-provider-free-tier catalog-limits \
 	release-install release-build release-package \
-	fmt fmt-check vet vet-desktop test precommit operator-contracts-generate operator-contracts-check
+	fmt fmt-check vet vet-desktop test precommit docs-generate docs-check operator-contracts-generate operator-contracts-check harness-docs-generate harness-docs-check
 
 .DEFAULT_GOAL := help
 
@@ -616,28 +616,52 @@ release-package: chimera-build locus-desktop-build
 	@echo [STEP] Packaging personal desktop bundle
 	@$(GITBASH) scripts/release-package.sh "$(LOCUS_DESKTOP_BIN)"
 
-# --- Operator UI contracts (Phase 3: internal/naming → embedui/logs/contracts.js) ---
+# --- Generated agent docs (docs/generated/*.md) ---
 
-contracts-generate:
+harness-docs-generate:
+	$(call step_msg,Generating harness stage order docs/generated/harness-stages.md)
+	@go generate ./chimera/chimera-gateway/internal/harness/...
+
+docs-generate: harness-docs-generate
+	$(call step_msg,Generating operator SQLite migration docs)
+	@go run ./internal/docgen/migrations/cmd
+	$(call step_msg,Generating gateway HTTP route catalog)
+	@go run ./internal/docgen/routes/cmd
+	$(call step_msg,Generating log slug index)
+	@go run ./internal/operatorcopy/cmd/genslugindex
+
+harness-docs-check:
+	@echo [STEP] Checking harness-stages.md is up to date
+	@go test ./chimera/chimera-gateway/internal/harness/... -run TestGeneratedHarnessStagesMarkdownMatchesFile -count=1
+
+docs-check: harness-docs-check
+	@echo [STEP] Checking docs/generated/*.md are up to date
+	@go test ./internal/docgen/migrations/... -run TestGeneratedMigrationsMDMatchesFile -count=1
+	@go test ./internal/docgen/routes/... -run TestGeneratedGatewayHTTPRoutesMatchesFile -count=1
+	@go test ./internal/operatorcopy/... -run TestGeneratedLogSlugIndexMarkdownMatchesFile -count=1
+
+# --- Operator UI contracts (Phase 3: internal/naming → embedui/settings/contracts.js) ---
+
+contracts-generate: docs-generate
 	@echo [STEP] Generating data contracts from internal/naming
 	@go generate ./internal/naming/...
 	$(call step_msg,Regenerating operator copy (messages.yaml bootstrap + operator_copy.js))
 	@go run ./internal/operatorcopy/cmd/bootstrap
 	@go generate ./internal/operatorcopy/...
-	$(call step_msg,Generating operator SQLite migration docs)
-	@go run ./internal/docgen/migrations/cmd
 
-contracts-check:
+operator-contracts-generate: contracts-generate
+
+contracts-check: docs-check
 	@echo [STEP] Checking data contracts are up to date
 	@go test ./internal/naming/... -run TestGeneratedContractsJSMatchesFile -count=1
-	@echo [STEP] Checking operator SQLite migration docs are up to date
-	@go test ./internal/docgen/migrations/... -run TestGeneratedMigrationsMDMatchesFile -count=1
 	@echo [STEP] Checking operator_copy.js and log_messages.go are up to date
 	@go test ./internal/operatorcopy/... -run TestGeneratedOperatorCopyJSMatchesFile -count=1
 	@go test ./internal/naming/... -run 'TestGeneratedLogMessagesGoMatchesFile|TestLogMessageConstsHaveRegistryEntry' -count=1
 	@$(GITBASH) scripts/operatorcopy-msg-audit.sh
 	@echo [STEP] Checking operator UI fonts match icons.txt
 	@python3 scripts/adminui-fonts-sync.py check
+
+operator-contracts-check: contracts-check
 
 # --- Operator UI fonts (hand-maintained icons.txt; not required for normal builds) ---
 
