@@ -4,8 +4,8 @@
 |-------|-------|
 | **Doc kind** | `platform-contract` |
 | **Areas** | `chimera-gateway` harness, operator store (Phase 2c), observability |
-| **Status** | `partial` — Phase 1–2b shipped; Phase 2c operator SQLite + settings API + harness MCP panel |
-| **Introduced** | v0.5 (in progress) |
+| **Status** | `partial` — Phases 0–2c shipped; workflow MCP (Phase 3) and scale/facade (Phase 4) deferred |
+| **Introduced** | Gateway v0.5 train |
 | **Originated from** | [`plans/gateway-mcp-tool-backends.md`](../plans/gateway-mcp-tool-backends.md) |
 | **Related features** | [Gateway chat routing pipeline](gateway-chat-routing-pipeline.md), [Operator assistants](operator-assistants.md), [Operator log message registry](operator-log-message-registry.md) |
 | **Depends on** | v0.4 `ToolExecutor` / `tool_executor` stage |
@@ -13,7 +13,7 @@
 
 ## At a glance
 
-The assistant harness will merge **native workspace tools** with tools from configured **MCP servers**, dispatching through a composite `ToolExecutor` inside the existing `tool_executor` stage. **Phase 0** freezes the contract and ships a stdio JSON-RPC client spike in `chimera/chimera-gateway/internal/mcpclient/`. Operator model-assist **must not** use this profile ([`operator-model-assist-tools` plan](../plans/operator-model-assist-tools.md)).
+On the assistant path, the harness merges **native workspace tools** (files, search, optional RAG expansion) with **allowlisted MCP tools** from configured servers, via a composite `ToolExecutor` in the `tool_executor` stage. Config comes from `chimera.yaml` until operator SQLite has MCP server rows; then SQLite owns servers and assistant bindings. Operator model-assist **must not** use this profile ([`operator-model-assist-tools` plan](../plans/operator-model-assist-tools.md)). Delivery history: [`gateway-mcp-tool-backends-delivery.md`](../plans/gateway-mcp-tool-backends-delivery.md).
 
 ## System behavior and contracts
 

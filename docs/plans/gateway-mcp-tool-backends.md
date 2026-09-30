@@ -4,11 +4,11 @@
 |-------|-------|
 | **Doc kind** | `feature-plan` |
 | **Owners / areas** | Gateway harness, supervisor, operator assistants, observability |
-| **Status** | `draft` |
+| **Status** | `shipped` (Phases 0–2c); Phases 3–4 `deferred` |
 | **Targets** | Gateway v0.5 (MCP client + one stdio path; full developer suite optional) |
 | **Last updated** | See git history |
 | **Supersedes / superseded by** | Extends [`assistant-harness-workspace-tools.md`](assistant-harness-workspace-tools.md) (v0.4 native tools); deferred item in [`version-v0.4.md`](../version-v0.4.md#deferred-to-v05) |
-| **As-built** | [`gateway-mcp-tool-backends.md`](../features/gateway-mcp-tool-backends.md) (`partial`): Phases 0–2c — manager/catalog/composite, native expansion, blessed sidecar, operator SQLite `000012_mcp_servers`, `/api/ui/mcp/*`, harness MCP panel |
+| **As-built** | [`gateway-mcp-tool-backends.md`](../features/gateway-mcp-tool-backends.md) (`partial`); delivery record [`gateway-mcp-tool-backends-delivery.md`](gateway-mcp-tool-backends-delivery.md) |
 
 ## At a glance
 
